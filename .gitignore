@@ -1,0 +1,6 @@
+build
+.devcontainer
+.cache
+.DS_Store
+.vscode
+CMakeUserPresets.json
