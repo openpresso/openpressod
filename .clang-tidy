@@ -1,0 +1,28 @@
+---
+Checks: [
+  -*,
+  bugprone-*,
+  cert-*,
+  cppcoreguidelines-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -readability-identifier-naming,
+  -readability-redundant-access-specifiers, # I use them to visually split private methods and members blocks
+  -cppcoreguidelines-explicit-virtual-functions, # Duplicates modernize-use-override
+  -cppcoreguidelines-avoid-magic-numbers, # Duplicates readability-magic-numbers
+  -cppcoreguidelines-narrowing-conversions, # Duplicates bugprone-narrowing-conversions
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+]
+
+FormatStyle: 'file'
+CheckOptions:
+  - key:             cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value:           True
+  - key:             modernize-use-override.IgnoreDestructors
+    value:           True
+  - key:             misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value:           True
+...
