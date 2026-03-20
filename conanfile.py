@@ -8,6 +8,9 @@ class openpressod(ConanFile):
     def requirements(self):
         self.requires("grpc/1.72.0")
         self.requires("spdlog/[>=1.17.0 <2.0]")
+        self.requires("toml11/[>=4.4.0]")
+        self.requires("magic_enum/[>=0.9.7]")
+        
         self.requires("libopenpresso/1.0.0-rc1")
 
     def build_requirements(self):
