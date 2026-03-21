@@ -3,8 +3,6 @@
 
 #include <chrono>
 #include <filesystem>
-#include <memory>
-#include <optional>
 #include <toml.hpp>
 
 #include <libopenpresso/config.hpp>
@@ -21,8 +19,10 @@ class OpenpressodConfig {
   static constexpr auto DEFAULT_DAEMON_FOLDER_NAME = ".openpressod";
 
 public:
-  OpenpressodConfig(const std::filesystem::path& configPath = defaultDaemonBaseDirectory() /
-                                                              "config.toml");
+  static std::filesystem::path daemonBaseDirectory();
+  static OpenpressodConfig fromFile(const std::filesystem::path& configPath = daemonBaseDirectory() /
+                                                                              "config.toml");
+  static OpenpressodConfig fromString(const std::string& conf);
 
   // [global]
   std::filesystem::path brewProfilePath() const;
@@ -100,7 +100,7 @@ public:
   libopenpresso::PidSettings steamActiveTemperatureControllerPidSettings() const;
 
 private:
-  static std::filesystem::path defaultDaemonBaseDirectory();
+  OpenpressodConfig(toml::value config);
 
 private:
   toml::value m_config;

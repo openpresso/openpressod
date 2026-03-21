@@ -3,3 +3,4 @@ target_sources(openpressod PRIVATE
 )
 
 add_subdirectory(config)
+target_link_libraries(openpressod PRIVATE config_objs)

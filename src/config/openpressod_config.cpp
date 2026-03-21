@@ -12,9 +12,19 @@
 using namespace openpressod;
 using namespace openpressod::config_defaults;
 
-OpenpressodConfig::OpenpressodConfig(const std::filesystem::path& configPath)
-: m_config{toml::parse(configPath)}
+OpenpressodConfig::OpenpressodConfig(toml::value config)
+: m_config{std::move(config)}
 {
+}
+
+OpenpressodConfig OpenpressodConfig::fromFile(const std::filesystem::path& configPath)
+{
+  return OpenpressodConfig(toml::parse(configPath));
+}
+
+OpenpressodConfig openpressod::OpenpressodConfig::fromString(const std::string& conf)
+{
+  return OpenpressodConfig(toml::parse_str(conf));
 }
 
 std::filesystem::path OpenpressodConfig::brewProfilePath() const
@@ -22,7 +32,7 @@ std::filesystem::path OpenpressodConfig::brewProfilePath() const
   return toml::find_or(m_config,
                        "global",
                        "brew_profile_path",
-                       (defaultDaemonBaseDirectory() / DEFAULT_BREW_PROFILE_NAME).c_str());
+                       (daemonBaseDirectory() / DEFAULT_BREW_PROFILE_NAME).c_str());
 }
 
 std::filesystem::path OpenpressodConfig::socketPath() const
@@ -77,7 +87,7 @@ std::filesystem::path OpenpressodConfig::logFilesDirectory() const
   return toml::find_or(m_config,
                        "log",
                        "files_directory",
-                       (defaultDaemonBaseDirectory() / DEFAULT_LOGFILES_DIRECTORY_NAME).c_str());
+                       (daemonBaseDirectory() / DEFAULT_LOGFILES_DIRECTORY_NAME).c_str());
 }
 
 std::string OpenpressodConfig::consoleOutputPattern() const
@@ -314,7 +324,7 @@ libopenpresso::PidSettings OpenpressodConfig::steamActiveTemperatureControllerPi
   };
 }
 
-std::filesystem::path OpenpressodConfig::defaultDaemonBaseDirectory()
+std::filesystem::path OpenpressodConfig::daemonBaseDirectory()
 {
   auto pw = getpwuid(getuid());
   if (!pw) {
