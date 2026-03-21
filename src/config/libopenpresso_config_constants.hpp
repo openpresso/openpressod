@@ -1,6 +1,13 @@
 #ifndef LIBOPENPRESSO_CONFIG_CONSTANTS_HPP
 #define LIBOPENPRESSO_CONFIG_CONSTANTS_HPP
 
+#include <chrono>
+#include <cstddef>
+
+#include <libopenpresso/types.hpp>
+
+using namespace std::chrono_literals;
+
 namespace openpressod::libopenpresso_config_constants
 {
 
