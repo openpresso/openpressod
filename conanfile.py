@@ -6,13 +6,15 @@ class openpressod(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
 
     def requirements(self):
-        self.requires("grpc/1.72.0")
         self.requires("spdlog/[>=1.17.0 <2.0]")
+        self.requires("toml11/[>=4.4.0]")
+        self.requires("magic_enum/[>=0.9.7]")
+        
         self.requires("libopenpresso/1.0.0-rc1")
+        self.requires("openpresso_proto/0.0.0-testing")
 
     def build_requirements(self):
-        self.tool_requires("protobuf/5.27.0")
-        self.tool_requires("grpc/1.72.0")
+        self.test_requires("gtest/1.17.0")
 
     def generate(self):
         tc = CMakeToolchain(self)
