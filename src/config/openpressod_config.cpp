@@ -260,6 +260,16 @@ libopenpresso::pin_number_t OpenpressodConfig::heaterOutputPin() const
   return toml::find<libopenpresso::pin_number_t>(m_config, "heater", "control_pin");
 }
 
+libopenpresso::millidegrees_t openpressod::OpenpressodConfig::brewTemperature() const
+{
+  return toml::find_or(m_config, "brew", "temperature", DEFAULT_BREW_TEMPERATURE);
+}
+
+libopenpresso::millidegrees_t openpressod::OpenpressodConfig::brewPressure() const
+{
+  return toml::find_or(m_config, "brew", "pressure", DEFAULT_BREW_PRESSURE);
+}
+
 libopenpresso::PidSettings OpenpressodConfig::brewTemperatureControllerPidSettings() const
 {
   return libopenpresso::PidSettings{

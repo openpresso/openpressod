@@ -63,6 +63,10 @@ TEST(OpenpressodConfig, DefaultValues)
   // [pressure_sensor] defaults
   EXPECT_EQ(0x48, config.pressureSensorI2cAddr());
 
+  // [brew] default
+  EXPECT_EQ(95'000, config.brewTemperature());
+  EXPECT_EQ(9'000, config.brewPressure());
+
   // [weight_sensor] defaults
   EXPECT_EQ(600ms, config.weightSensorFilterTiming());
   EXPECT_EQ(0x2a, config.weightSensorI2cAddr());
@@ -277,7 +281,11 @@ TEST(OpenpressodConfig, FullConfig)
   EXPECT_EQ(160'000, config.steamTemperature());
   EXPECT_EQ(600, config.steamRefillFlow());
 
-  // [heater.brew_pid_settings]
+  // [brew]
+  EXPECT_EQ(92'000, config.brewTemperature());
+  EXPECT_EQ(8'500, config.brewPressure());
+
+  // [brew.pid_settings]
   auto brewPid = config.brewTemperatureControllerPidSettings();
   EXPECT_FLOAT_EQ(0.1f, brewPid.p);
   EXPECT_FLOAT_EQ(0.3f, brewPid.d);

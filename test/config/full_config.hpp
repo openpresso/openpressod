@@ -68,6 +68,11 @@ control_pin = 15
 
 [valve]
 control_pin = 6
+
+[brew]
+temperature = 92_000
+pressure = 8_500
+
 [brew.pid_settings]
 p = 0.1
 d = 0.3

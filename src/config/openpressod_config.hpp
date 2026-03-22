@@ -89,6 +89,10 @@ public:
 
   // [heater]
   libopenpresso::pin_number_t heaterOutputPin() const;
+
+  // [brew]
+  libopenpresso::millidegrees_t brewTemperature() const;
+  libopenpresso::millidegrees_t brewPressure() const;
   // [brew.pid_settings]
   libopenpresso::PidSettings brewTemperatureControllerPidSettings() const;
 
