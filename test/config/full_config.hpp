@@ -6,7 +6,6 @@ static constexpr auto FULL_CONFIG = R"(
 [global]
 mains_frequency = 60
 mains_zc_pin = 5
-valve_control_pin = 6
 brew_profile_path = "/custom/profile.json"
 socket_path = "/tmp/custom.sock"
 i2c_bus = "/dev/i2c-1"
@@ -67,7 +66,9 @@ stall_pressure = 20000
 [heater]
 control_pin = 15
 
-[heater.brew_pid_settings]
+[valve]
+control_pin = 6
+[brew.pid_settings]
 p = 0.1
 d = 0.3
 i = 0.005

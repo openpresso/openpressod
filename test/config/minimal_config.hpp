@@ -6,7 +6,6 @@ static constexpr auto MINIMAL_CONFIG = R"(
 [global]
 mains_frequency = 50
 mains_zc_pin = 17
-valve_control_pin = 22
 
 [buttons]
 power_pin = 26
@@ -29,15 +28,18 @@ signal_pin = 12
 signal_pin = 25
 
 [pump]
-flow_controller_multiplier = 0.00005
 control_pin = 27
+flow_controller_multiplier = 0.00005
 volume_per_pulse = 205000
 stall_pressure = 18500
+
+[valve]
+control_pin = 22
 
 [heater]
 control_pin = 23
 
-[heater.brew_pid_settings]
+[brew.pid_settings]
 p = 0.07
 d = 0.25
 i = 0.0025

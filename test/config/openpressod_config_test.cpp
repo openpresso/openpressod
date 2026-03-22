@@ -84,7 +84,6 @@ TEST(OpenpressodConfig, MissingFieldsThrows)
   // [global]
   EXPECT_THROW(config.mainsFrequency(), std::exception);
   EXPECT_THROW(config.mainsZeroCrossPin(), std::exception);
-  EXPECT_THROW(config.valveOutputPin(), std::exception);
 
   // [buttons]
   EXPECT_THROW(config.powerButtonSignalPin(), std::exception);
@@ -112,8 +111,13 @@ TEST(OpenpressodConfig, MissingFieldsThrows)
   EXPECT_THROW(config.pumpVolumePerPulse(), std::exception);
   EXPECT_THROW(config.pumpStallPressure(), std::exception);
 
+  // [valve]
+  EXPECT_THROW(config.valveOutputPin(), std::exception);
+
   // [heater]
   EXPECT_THROW(config.heaterOutputPin(), std::exception);
+
+  // [brew.pid_setting]
   EXPECT_THROW(config.brewTemperatureControllerPidSettings(), std::exception);
 
   // [steam] pid settings
@@ -128,7 +132,6 @@ TEST(OpenpressodConfig, MinimalConfigRequiredFields)
   // [global]
   EXPECT_EQ(50, config.mainsFrequency());
   EXPECT_EQ(17, config.mainsZeroCrossPin());
-  EXPECT_EQ(22, config.valveOutputPin());
 
   // [buttons]
   EXPECT_EQ(26, config.powerButtonSignalPin());
@@ -159,7 +162,10 @@ TEST(OpenpressodConfig, MinimalConfigRequiredFields)
   // [heater]
   EXPECT_EQ(23, config.heaterOutputPin());
 
-  // [heater.brew_pid_settings]
+  // [valve]
+  EXPECT_EQ(22, config.valveOutputPin());
+
+  // [brew.pid_settings]
   auto brewPid = config.brewTemperatureControllerPidSettings();
   EXPECT_FLOAT_EQ(0.07f, brewPid.p);
   EXPECT_FLOAT_EQ(0.25f, brewPid.d);
@@ -203,7 +209,6 @@ TEST(OpenpressodConfig, FullConfig)
   // [global]
   EXPECT_EQ(60u, config.mainsFrequency());
   EXPECT_EQ(5, config.mainsZeroCrossPin());
-  EXPECT_EQ(6, config.valveOutputPin());
   EXPECT_EQ("/custom/profile.json", config.brewProfilePath());
   EXPECT_EQ("/tmp/custom.sock", config.socketPath());
   EXPECT_EQ("/dev/i2c-1", config.i2cBus());
@@ -263,6 +268,9 @@ TEST(OpenpressodConfig, FullConfig)
 
   // [heater]
   EXPECT_EQ(15, config.heaterOutputPin());
+
+  // [valve]
+  EXPECT_EQ(6, config.valveOutputPin());
 
   // [steam]
   EXPECT_EQ(3000u, config.steamPressureThreshold());

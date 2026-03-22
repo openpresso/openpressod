@@ -62,7 +62,7 @@ libopenpresso::pin_number_t OpenpressodConfig::mainsZeroCrossPin() const
 
 libopenpresso::pin_number_t OpenpressodConfig::valveOutputPin() const
 {
-  return toml::find<libopenpresso::pin_number_t>(m_config, "global", "valve_control_pin");
+  return toml::find<libopenpresso::pin_number_t>(m_config, "valve", "control_pin");
 }
 
 bool OpenpressodConfig::logfileOutputEnabled() const
@@ -263,15 +263,15 @@ libopenpresso::pin_number_t OpenpressodConfig::heaterOutputPin() const
 libopenpresso::PidSettings OpenpressodConfig::brewTemperatureControllerPidSettings() const
 {
   return libopenpresso::PidSettings{
-    .p = toml::find<libopenpresso::pid_coeffs_t>(m_config, "heater", "brew_pid_settings", "p"),
-    .d = toml::find<libopenpresso::pid_coeffs_t>(m_config, "heater", "brew_pid_settings", "d"),
-    .dTermRelax = toml::find<libopenpresso::pid_coeffs_t>(m_config, "heater", "brew_pid_settings", "d_relax"),
+    .p = toml::find<libopenpresso::pid_coeffs_t>(m_config, "brew", "pid_settings", "p"),
+    .d = toml::find<libopenpresso::pid_coeffs_t>(m_config, "brew", "pid_settings", "d"),
+    .dTermRelax = toml::find<libopenpresso::pid_coeffs_t>(m_config, "brew", "pid_settings", "d_relax"),
     .dFilterTime = temperatureSensorFilterTiming(),
-    .i = toml::find<libopenpresso::pid_coeffs_t>(m_config, "heater", "brew_pid_settings", "i"),
-    .iTermRelax = toml::find<libopenpresso::pid_coeffs_t>(m_config, "heater", "brew_pid_settings", "i_relax"),
-    .f = toml::find<libopenpresso::pid_coeffs_t>(m_config, "heater", "brew_pid_settings", "f"),
-    .w = toml::find<libopenpresso::pid_coeffs_t>(m_config, "heater", "brew_pid_settings", "w"),
-    .wDecay = toml::find<libopenpresso::pid_coeffs_t>(m_config, "heater", "brew_pid_settings", "w_decay"),
+    .i = toml::find<libopenpresso::pid_coeffs_t>(m_config, "brew", "pid_settings", "i"),
+    .iTermRelax = toml::find<libopenpresso::pid_coeffs_t>(m_config, "brew", "pid_settings", "i_relax"),
+    .f = toml::find<libopenpresso::pid_coeffs_t>(m_config, "brew", "pid_settings", "f"),
+    .w = toml::find<libopenpresso::pid_coeffs_t>(m_config, "brew", "pid_settings", "w"),
+    .wDecay = toml::find<libopenpresso::pid_coeffs_t>(m_config, "brew", "pid_settings", "w_decay"),
   };
 }
 

@@ -31,7 +31,6 @@ public:
   libopenpresso::unix_dev_addr_t i2cBus() const;
   libopenpresso::unix_dev_addr_t gpioChip() const;
   libopenpresso::pin_number_t mainsZeroCrossPin() const;
-  libopenpresso::pin_number_t valveOutputPin() const;
 
   // [logs]
   bool logfileOutputEnabled() const;
@@ -85,9 +84,12 @@ public:
   libopenpresso::micrograms_t pumpVolumePerPulse() const;
   libopenpresso::millibars_t pumpStallPressure() const;
 
+  // [valve]
+  libopenpresso::pin_number_t valveOutputPin() const;
+
   // [heater]
   libopenpresso::pin_number_t heaterOutputPin() const;
-  // [heater.brew_pid_settings]
+  // [brew.pid_settings]
   libopenpresso::PidSettings brewTemperatureControllerPidSettings() const;
 
   // [steam]
