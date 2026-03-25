@@ -3,4 +3,10 @@ target_sources(openpressod PRIVATE
 )
 
 add_subdirectory(config)
-target_link_libraries(openpressod PRIVATE config_objs)
+add_subdirectory(state_manager)
+target_link_libraries(openpressod PRIVATE 
+    config_objs 
+    state_manager_objs
+)
+
+
