@@ -92,7 +92,7 @@ public:
 
   // [brew]
   libopenpresso::millidegrees_t brewTemperature() const;
-  libopenpresso::millidegrees_t brewPressure() const;
+  libopenpresso::millibars_t brewPressure() const;
   // [brew.pid_settings]
   libopenpresso::PidSettings brewTemperatureControllerPidSettings() const;
 

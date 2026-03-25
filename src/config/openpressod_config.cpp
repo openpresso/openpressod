@@ -265,7 +265,7 @@ libopenpresso::millidegrees_t openpressod::OpenpressodConfig::brewTemperature() 
   return toml::find_or(m_config, "brew", "temperature", DEFAULT_BREW_TEMPERATURE);
 }
 
-libopenpresso::millidegrees_t openpressod::OpenpressodConfig::brewPressure() const
+libopenpresso::millibars_t openpressod::OpenpressodConfig::brewPressure() const
 {
   return toml::find_or(m_config, "brew", "pressure", DEFAULT_BREW_PRESSURE);
 }
