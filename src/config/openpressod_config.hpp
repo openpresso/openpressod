@@ -1,12 +1,14 @@
 #ifndef OPENPRESSO_CONFIG_HPP
 #define OPENPRESSO_CONFIG_HPP
 
-#include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
+#include <string>
 #include <toml.hpp>
 
-#include <libopenpresso/config.hpp>
-#include <libopenpresso/i2c_info.hpp>
+#include <libopenpresso/pid_settings.hpp>
+#include <libopenpresso/pin_info.hpp>
 #include <libopenpresso/types.hpp>
 #include <spdlog/common.h>
 

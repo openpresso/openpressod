@@ -1,9 +1,8 @@
 #ifndef CONFIG_DEFAULTS_HPP
 #define CONFIG_DEFAULTS_HPP
 
-#include <cstddef>
+#include <chrono> // IWYU pragma: keep
 
-#include <libopenpresso/i2c_info.hpp>
 #include <libopenpresso/pin_info.hpp>
 #include <libopenpresso/types.hpp>
 #include <spdlog/common.h>
@@ -38,10 +37,10 @@ static constexpr bool DEFAULT_BUTTONS_LOGIC_INVERTED = true;
 static constexpr bool DEFAULT_LEDS_LOGIC_INVERTED = false;
 static constexpr auto DEFAULT_BUTTONS_PULL_MODE = libopenpresso::PinPull::PullUp;
 
-static constexpr auto DEFAULT_BUTTON_DEBOUNCE_PERIOD = 10ms;
-static constexpr auto DEFAULT_TEMPERATURE_D_FILTER_SMOOTHING_PERIOD = 750ms;
-static constexpr auto DEFAULT_WEIGHT_D_FILTER_SMOOTHING_PERIOD = 600ms;
-static constexpr auto DEFAULT_WATCHDOG_TIMEOUT = 1s;
+static constexpr auto DEFAULT_BUTTON_DEBOUNCE_PERIOD = 10ms; // NOLINT(misc-include-cleaner)
+static constexpr auto DEFAULT_TEMPERATURE_D_FILTER_SMOOTHING_PERIOD = 750ms; // NOLINT(misc-include-cleaner)
+static constexpr auto DEFAULT_WEIGHT_D_FILTER_SMOOTHING_PERIOD = 600ms; // NOLINT(misc-include-cleaner)
+static constexpr auto DEFAULT_WATCHDOG_TIMEOUT = 1s; // NOLINT(misc-include-cleaner)
 
 static constexpr libopenpresso::i2c_dev_addr_t DEFAULT_ADS1115_ADDR = 0x48;
 static constexpr libopenpresso::i2c_dev_addr_t DEFAULT_NAU7802_ADDR = 0x2a;

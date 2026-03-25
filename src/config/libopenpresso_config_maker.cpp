@@ -1,7 +1,15 @@
 #include "libopenpresso_config_maker.hpp"
 
+#include "libopenpresso/component_config.hpp"
+#include "libopenpresso/config.hpp"
+#include "libopenpresso/types.hpp"
 #include "libopenpresso_config_constants.hpp"
 #include "libopenpresso_config_labels.hpp"
+#include "openpressod_config.hpp"
+
+#include <memory>
+#include <optional>
+#include <utility>
 
 using namespace openpressod;
 using namespace openpressod::libopenpresso_config_labels;
@@ -220,7 +228,7 @@ LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeValveDriv
   };
 }
 
-LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makePumpPowerControllerConfig() const
+LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makePumpPowerControllerConfig()
 {
   return {
     PUMP_POWER_CONTROLLER_LABEL,
@@ -231,7 +239,7 @@ LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makePumpPower
   };
 }
 
-LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeHeaterPowerControllerConfig() const
+LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeHeaterPowerControllerConfig()
 {
   return {
     HEATER_POWER_CONTROLLER_LABEL,
@@ -242,7 +250,7 @@ LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeHeaterPow
   };
 }
 
-LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makePressureControllerConfig() const
+LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makePressureControllerConfig()
 {
   return {
     PRESSURE_CONTROLLER_LABEL,
@@ -316,7 +324,7 @@ LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeSteamActi
   };
 }
 
-LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeBrewProfilerConfig() const
+LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeBrewProfilerConfig()
 {
   return {
     BREW_PROFILER_LABEL,

@@ -2,12 +2,20 @@
 
 #include "config_defaults.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
 #include <pwd.h>
+#include <string>
 #include <toml.hpp>
 #include <unistd.h>
+#include <utility>
 
-#include <libopenpresso/config.hpp>
+#include <libopenpresso/pid_settings.hpp>
+#include <libopenpresso/pin_info.hpp>
+#include <libopenpresso/types.hpp>
 #include <magic_enum/magic_enum.hpp>
+#include <spdlog/common.h>
 
 using namespace openpressod;
 using namespace openpressod::config_defaults;
@@ -19,12 +27,12 @@ OpenpressodConfig::OpenpressodConfig(toml::value config)
 
 OpenpressodConfig OpenpressodConfig::fromFile(const std::filesystem::path& configPath)
 {
-  return OpenpressodConfig(toml::parse(configPath));
+  return {toml::parse(configPath)};
 }
 
 OpenpressodConfig openpressod::OpenpressodConfig::fromString(const std::string& conf)
 {
-  return OpenpressodConfig(toml::parse_str(conf));
+  return {toml::parse_str(conf)};
 }
 
 std::filesystem::path OpenpressodConfig::brewProfilePath() const
@@ -336,9 +344,9 @@ libopenpresso::PidSettings OpenpressodConfig::steamActiveTemperatureControllerPi
 
 std::filesystem::path OpenpressodConfig::daemonBaseDirectory()
 {
-  auto pw = getpwuid(getuid());
-  if (!pw) {
+  auto* pswd = getpwuid(getuid());
+  if (pswd == nullptr) {
     throw std::runtime_error{"cannot get current user directory"};
   }
-  return std::filesystem::path(pw->pw_dir) / DEFAULT_DAEMON_FOLDER_NAME;
+  return std::filesystem::path(pswd->pw_dir) / DEFAULT_DAEMON_FOLDER_NAME;
 }

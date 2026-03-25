@@ -5,8 +5,11 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
 
+#include <libopenpresso/component_config.hpp>
 #include <libopenpresso/config.hpp>
+#include <libopenpresso/types.hpp>
 
 namespace spdlog
 {
@@ -37,17 +40,17 @@ private:
   config_entry_t makeHeaterDriverConfig() const;
   config_entry_t makeValveDriverConfig() const;
 
-  config_entry_t makePumpPowerControllerConfig() const;
-  config_entry_t makeHeaterPowerControllerConfig() const;
+  static config_entry_t makePumpPowerControllerConfig();
+  static config_entry_t makeHeaterPowerControllerConfig();
 
-  config_entry_t makePressureControllerConfig() const;
+  static config_entry_t makePressureControllerConfig();
   config_entry_t makeFlowRateControllerConfig() const;
   config_entry_t makeInternalFlowRateControllerConfig() const;
   config_entry_t makeBrewTemperatureControllerConfig() const;
   config_entry_t makeSteamPreheatTemperatureControllerConfig() const;
   config_entry_t makeSteamActiveTemperatureControllerConfig() const;
 
-  config_entry_t makeBrewProfilerConfig() const;
+  static config_entry_t makeBrewProfilerConfig();
   config_entry_t makeSteamControllerConfig() const;
 
   std::optional<libopenpresso::WatchdogConfig> makeWatchdogConfig() const;

@@ -3,13 +3,14 @@
 #include "config/libopenpresso_config_labels.hpp"
 #include "config/openpressod_config.hpp"
 
-#include <algorithm>
 #include <ranges>
+#include <utility>
 
-#include <libopenpresso/interfaces/brew_profiler.hpp>
-#include <libopenpresso/interfaces/controller_base.hpp>
-#include <libopenpresso/interfaces/libopenpresso_core.hpp>
-#include <libopenpresso/interfaces/logical_input.hpp>
+#include <libopenpresso/brew_steps_data.hpp>
+#include <libopenpresso/interfaces/brew_profiler.hpp> // IWYU pragma: keep
+#include <libopenpresso/interfaces/controller_base.hpp> // IWYU pragma: keep
+#include <libopenpresso/interfaces/libopenpresso_core.hpp> // IWYU pragma: keep
+#include <libopenpresso/interfaces/logical_input.hpp> // IWYU pragma: keep
 #include <openpresso_proto/openpresso.pb.h>
 
 using namespace openpressod;
@@ -153,12 +154,12 @@ libopenpresso::step_target_t StateManager::getStepTarget(const openpresso::BrewS
   if (step.has_pressure()) {
     return ConstantPressure{step.pressure()};
   }
-  else if (step.has_flowrate()) {
+
+  if (step.has_flowrate()) {
     return ConstantFlow{step.flowrate()};
   }
-  else {
-    throw std::runtime_error{"Brew step has no target"};
-  }
+
+  throw std::runtime_error{"Brew step has no target"};
 }
 
 libopenpresso::next_step_condition_t StateManager::getStepCondition(const openpresso::BrewStep& step)
@@ -168,10 +169,12 @@ libopenpresso::next_step_condition_t StateManager::getStepCondition(const openpr
   if (step.has_steptime()) {
     return OnStepTime{std::chrono::nanoseconds{step.steptime().nanos()}};
   }
-  else if (step.has_totaltime()) {
+
+  if (step.has_totaltime()) {
     return OnTotalTime{std::chrono::nanoseconds{step.totaltime().nanos()}};
   }
-  else if (step.has_totalweight()) {
+
+  if (step.has_totalweight()) {
     return OnWeight{step.totalweight()};
   }
 
