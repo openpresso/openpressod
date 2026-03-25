@@ -1,0 +1,3 @@
+add_executable(state_manager_test state_manager_test.cpp)
+target_link_libraries(state_manager_test PRIVATE config_objs state_manager_objs GTest::gtest_main libopenpresso_mock)
+gtest_add_tests(TARGET state_manager_test)
