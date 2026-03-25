@@ -25,4 +25,8 @@ CheckOptions:
     value:           True
   - key:             misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
     value:           True
+  - key:             cppcoreguidelines-avoid-non-const-global-variables.AllowInternalLinkage
+    value:           False
+  - key:             bugprone-unchecked-optional-access.IgnoreValueCalls
+    value:           True
 ...
