@@ -7,10 +7,10 @@
 #include <utility>
 
 #include <libopenpresso/brew_steps_data.hpp>
-#include <libopenpresso/interfaces/brew_profiler.hpp> // IWYU pragma: keep
-#include <libopenpresso/interfaces/controller_base.hpp> // IWYU pragma: keep
+#include <libopenpresso/interfaces/brew_profiler.hpp>      // IWYU pragma: keep
+#include <libopenpresso/interfaces/controller_base.hpp>    // IWYU pragma: keep
 #include <libopenpresso/interfaces/libopenpresso_core.hpp> // IWYU pragma: keep
-#include <libopenpresso/interfaces/logical_input.hpp> // IWYU pragma: keep
+#include <libopenpresso/interfaces/logical_input.hpp>      // IWYU pragma: keep
 #include <openpresso_proto/openpresso.pb.h>
 
 using namespace openpressod;

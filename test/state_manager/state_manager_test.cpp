@@ -22,7 +22,6 @@ temperature = 93000
 pressure = 9000
 )";
 
-
 class StateManagerTest : public Test {
 protected:
   std::shared_ptr<NiceMock<MockLibopenpressoCore>> core;
