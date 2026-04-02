@@ -15,6 +15,7 @@ Checks: [
   -cppcoreguidelines-narrowing-conversions, # Duplicates bugprone-narrowing-conversions
   -modernize-use-trailing-return-type,
   -modernize-use-nodiscard,
+  -misc-const-correctness
 ]
 
 FormatStyle: 'file'
