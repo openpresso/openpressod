@@ -33,6 +33,7 @@ endif()
 
 set(TIDY_TARGETS
     config_objs 
+    buttons_objs
     state_manager_objs
 )
 
