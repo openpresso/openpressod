@@ -2,7 +2,9 @@
 
 #include "config/libopenpresso_config_labels.hpp"
 #include "config/openpressod_config.hpp"
+#include "leds/leds_handler_interface.hpp"
 
+#include <memory>
 #include <ranges>
 #include <utility>
 
@@ -15,13 +17,16 @@
 
 using namespace openpressod;
 
-StateManager::StateManager(const core_ptr_t& core, const OpenpressodConfig& config)
+StateManager::StateManager(const core_ptr_t& core,
+                           const OpenpressodConfig& config,
+                           std::unique_ptr<LedsHandlerInterface>&& leds)
 : m_steam{core->getLogicalInput(libopenpresso_config_labels::STEAM_BUTTON_LABEL)->getState()}
 , m_brewTemperature{config.brewTemperature()}
 , m_brewProfiler{core->getBrewProfiler(libopenpresso_config_labels::BREW_PROFILER_LABEL)}
 , m_steamController{core->getSteamController(libopenpresso_config_labels::STEAM_CONTROLLER_LABEL)}
 , m_temperatureController{core->getTemperatureController(libopenpresso_config_labels::BREW_TEMPERATURE_CONTROLLER_LABEL)}
 , m_weightSensor{core->getWeightSensor(libopenpresso_config_labels::WEIGHT_SENSOR_LABEL)}
+, m_leds(std::move(leds))
 {
   using namespace libopenpresso::brew_step_advance_conditions;
   using namespace libopenpresso::brew_step_targets;
@@ -46,13 +51,16 @@ void StateManager::setPowerState(bool state)
     m_brewProfiler->deactivate();
     m_steamController->deactivate();
     m_temperatureController->deactivate();
+    m_leds->indicatePowerOff();
   }
   else if (m_steam) {
     m_steamController->activate();
+    m_leds->indicateSteamState();
   }
   else {
     m_temperatureController->setTargetTemperature(m_brewTemperature);
     m_temperatureController->activate();
+    m_leds->indicateBrewState(m_brewTemperature);
   }
 
   m_power = state;
@@ -109,10 +117,12 @@ void StateManager::setSteamModeState(bool state)
       m_steamController->deactivate();
       m_temperatureController->setTargetTemperature(m_brewTemperature);
       m_temperatureController->activate();
+      m_leds->indicateBrewState(m_brewTemperature);
     }
     else {
       m_temperatureController->deactivate();
       m_steamController->activate();
+      m_leds->indicateSteamState();
     }
   }
 
@@ -134,8 +144,9 @@ void StateManager::setBrewProfile(const openpresso::BrewProfile* profile)
   }
 
   m_brewTemperature = profile->temperature();
-  if (!m_steam) {
+  if (!m_steam && m_power) {
     m_temperatureController->setTargetTemperature(m_brewTemperature);
+    m_leds->indicateBrewState(m_brewTemperature);
   }
 
   constexpr auto stepTransformer = [](const openpresso::BrewStep& step) {
@@ -184,6 +195,7 @@ libopenpresso::next_step_condition_t StateManager::getStepCondition(const openpr
 void StateManager::setAutoStopCondition(const openpresso::BrewProfile* profile)
 {
   using namespace libopenpresso::brew_step_advance_conditions;
+
   if (profile->has_totaltime()) {
     auto time = std::chrono::nanoseconds{profile->totaltime().nanos()};
     m_brewProfiler->setAutoStopCondition(OnTotalTime{time});

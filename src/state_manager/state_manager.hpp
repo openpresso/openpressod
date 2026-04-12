@@ -1,6 +1,8 @@
 #ifndef STATE_MANAGER_HPP
 #define STATE_MANAGER_HPP
 
+#include "leds/leds_handler_interface.hpp"
+
 #include <memory>
 
 #include <libopenpresso/brew_steps_data.hpp>
@@ -34,7 +36,9 @@ class StateManager {
   using weight_sensor_ptr_t = std::shared_ptr<libopenpresso::interfaces::WeightSensor>;
 
 public:
-  StateManager(const core_ptr_t& core, const OpenpressodConfig& config);
+  StateManager(const core_ptr_t& core,
+               const OpenpressodConfig& config,
+               std::unique_ptr<LedsHandlerInterface>&& leds);
 
   bool getPowerState() const noexcept;
   void setPowerState(bool state);
@@ -62,6 +66,7 @@ private:
   steam_controller_ptr_t m_steamController;
   temperature_controller_ptr_t m_temperatureController;
   weight_sensor_ptr_t m_weightSensor;
+  std::unique_ptr<LedsHandlerInterface> m_leds;
 };
 
 } // namespace openpressod
