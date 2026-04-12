@@ -15,3 +15,14 @@ target_sources(libopenpresso_mock PUBLIC FILE_SET HEADERS
 )
 
 target_link_libraries(libopenpresso_mock INTERFACE GTest::gmock libopenpresso::libopenpresso)
+
+add_library(openpressod_mock INTERFACE)
+target_sources(openpressod_mock PUBLIC FILE_SET HEADERS
+    FILES 
+        buttons_event_sink_mock.hpp
+        leds_handler_mock.hpp
+)
+
+target_link_libraries(openpressod_mock INTERFACE GTest::gmock openpressod_objects)
+
+set_property(GLOBAL APPEND PROPERTY FORMAT_TARGETS libopenpresso_mock openpressod_mock)
