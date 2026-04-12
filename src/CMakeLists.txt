@@ -16,6 +16,8 @@ add_subdirectory(buttons)
 add_subdirectory(state_manager)
 add_subdirectory(async_events_dispatcher)
 add_subdirectory(signals_handler)
+add_subdirectory(leds)
+
 target_link_libraries(openpressod PRIVATE
     openpressod_objects
 )
