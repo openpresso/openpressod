@@ -95,6 +95,7 @@ public:
   // [brew]
   libopenpresso::millidegrees_t brewTemperature() const;
   libopenpresso::millibars_t brewPressure() const;
+  libopenpresso::millidegrees_t brewTemperatureWindow() const;
   // [brew.pid_settings]
   libopenpresso::PidSettings brewTemperatureControllerPidSettings() const;
 
@@ -102,6 +103,7 @@ public:
   libopenpresso::millibars_t steamPressureThreshold() const;
   libopenpresso::millidegrees_t steamTemperature() const;
   libopenpresso::milligrams_p_second_t steamRefillFlow() const;
+  libopenpresso::millidegrees_t steamTemperatureWindow() const;
   // [steam.preheat_pid_settings]
   libopenpresso::PidSettings steamPreheatTemperatureControllerPidSettings() const;
   // [steam.active_pid_settings]

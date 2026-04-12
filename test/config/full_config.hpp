@@ -72,6 +72,7 @@ control_pin = 6
 [brew]
 temperature = 92_000
 pressure = 8_500
+brew_temperature_window = 200
 
 [brew.pid_settings]
 p = 0.1
@@ -87,6 +88,7 @@ w_decay = 0.03
 pressure_threshold = 3000
 temperature = 160000
 refill_flow = 600
+steam_temperature_window = 1300
 
 [steam.preheat_pid_settings]
 p = 0.09

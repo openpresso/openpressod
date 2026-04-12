@@ -59,6 +59,8 @@ TEST(OpenpressodConfig, DefaultValues)
 
   // [leds] defaults
   EXPECT_FALSE(config.ledsLogicInverted());
+  EXPECT_EQ(500, config.brewTemperatureWindow());
+  EXPECT_EQ(1'000, config.steamTemperatureWindow());
 
   // [pressure_sensor] defaults
   EXPECT_EQ(0x48, config.pressureSensorI2cAddr());
@@ -76,7 +78,7 @@ TEST(OpenpressodConfig, DefaultValues)
   EXPECT_EQ("/dev/spidev0.0", config.temperatureSensorSpiAddr());
 
   // [steam] defaults
-  EXPECT_EQ(2500u, config.steamPressureThreshold());
+  EXPECT_EQ(2500U, config.steamPressureThreshold());
   EXPECT_EQ(155'000, config.steamTemperature());
   EXPECT_EQ(500, config.steamRefillFlow());
 }
@@ -151,17 +153,17 @@ TEST(OpenpressodConfig, MinimalConfigRequiredFields)
   EXPECT_EQ(4, config.pressureSensorSignalPin());
 
   // [weight_sensor]
-  EXPECT_EQ(27762u, config.weightSensorScale());
+  EXPECT_EQ(27762U, config.weightSensorScale());
   EXPECT_EQ(12, config.weightSensorSignalPin());
 
   // [temperature_sensor]
   EXPECT_EQ(25, config.temperatureSensorSignalPin());
 
   // [pump]
-  EXPECT_FLOAT_EQ(0.00005f, config.flowControllerMultiplier());
+  EXPECT_FLOAT_EQ(0.00005F, config.flowControllerMultiplier());
   EXPECT_EQ(27, config.pumpOutputPin());
-  EXPECT_EQ(205000u, config.pumpVolumePerPulse());
-  EXPECT_EQ(18500u, config.pumpStallPressure());
+  EXPECT_EQ(205000U, config.pumpVolumePerPulse());
+  EXPECT_EQ(18500U, config.pumpStallPressure());
 
   // [heater]
   EXPECT_EQ(23, config.heaterOutputPin());
@@ -280,10 +282,12 @@ TEST(OpenpressodConfig, FullConfig)
   EXPECT_EQ(3000u, config.steamPressureThreshold());
   EXPECT_EQ(160'000, config.steamTemperature());
   EXPECT_EQ(600, config.steamRefillFlow());
+  EXPECT_EQ(1'300, config.steamTemperatureWindow());
 
   // [brew]
   EXPECT_EQ(92'000, config.brewTemperature());
   EXPECT_EQ(8'500, config.brewPressure());
+  EXPECT_EQ(200, config.brewTemperatureWindow());
 
   // [brew.pid_settings]
   auto brewPid = config.brewTemperatureControllerPidSettings();

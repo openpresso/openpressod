@@ -47,7 +47,9 @@ static constexpr libopenpresso::i2c_dev_addr_t DEFAULT_NAU7802_ADDR = 0x2a;
 
 static constexpr libopenpresso::millibars_t DEFAULT_BREW_PRESSURE = 9'000;
 static constexpr libopenpresso::millidegrees_t DEFAULT_BREW_TEMPERATURE = 95'000;
+static constexpr libopenpresso::millidegrees_t DEFAULT_BREW_TEMPERATURE_WINDOW = 500;
 static constexpr libopenpresso::millidegrees_t DEFAULT_STEAM_TEMPERATURE = 155'000;
+static constexpr libopenpresso::millidegrees_t DEFAULT_STEAM_TEMPERATURE_WINDOW = 1'000;
 static constexpr libopenpresso::millibars_t DEFAULT_STEAM_PRESSURE_THRESHOLD = 2'500;
 static constexpr libopenpresso::milligrams_p_second_t DEFAULT_STEAM_REFILL_FLOW = 500;
 

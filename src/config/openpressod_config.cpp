@@ -278,6 +278,11 @@ libopenpresso::millibars_t openpressod::OpenpressodConfig::brewPressure() const
   return toml::find_or(m_config, "brew", "pressure", DEFAULT_BREW_PRESSURE);
 }
 
+libopenpresso::millidegrees_t OpenpressodConfig::brewTemperatureWindow() const
+{
+  return toml::find_or(m_config, "brew", "brew_temperature_window", DEFAULT_BREW_TEMPERATURE_WINDOW);
+}
+
 libopenpresso::PidSettings OpenpressodConfig::brewTemperatureControllerPidSettings() const
 {
   return libopenpresso::PidSettings{
@@ -306,6 +311,11 @@ libopenpresso::millidegrees_t OpenpressodConfig::steamTemperature() const
 libopenpresso::milligrams_p_second_t OpenpressodConfig::steamRefillFlow() const
 {
   return toml::find_or(m_config, "steam", "refill_flow", DEFAULT_STEAM_REFILL_FLOW);
+}
+
+libopenpresso::millidegrees_t OpenpressodConfig::steamTemperatureWindow() const
+{
+  return toml::find_or(m_config, "steam", "steam_temperature_window", DEFAULT_STEAM_TEMPERATURE_WINDOW);
 }
 
 libopenpresso::PidSettings OpenpressodConfig::steamPreheatTemperatureControllerPidSettings() const
