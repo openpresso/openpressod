@@ -1,7 +1,9 @@
 add_executable(openpressod_config_test openpressod_config_test.cpp)
-target_link_libraries(openpressod_config_test PRIVATE config_objs GTest::gtest_main)
+target_link_libraries(openpressod_config_test PRIVATE openpressod_objects GTest::gtest_main)
 gtest_add_tests(TARGET openpressod_config_test)
 
 add_executable(libopenpresso_config_maker_test libopenpresso_config_maker_test.cpp)
-target_link_libraries(libopenpresso_config_maker_test PRIVATE config_objs GTest::gtest_main)
+target_link_libraries(libopenpresso_config_maker_test PRIVATE openpressod_objects GTest::gtest_main)
 gtest_add_tests(TARGET libopenpresso_config_maker_test)
+
+set_property(GLOBAL APPEND PROPERTY FORMAT_TARGETS openpressod_config_test libopenpresso_config_maker_test)

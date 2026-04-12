@@ -1,3 +1,5 @@
 add_executable(state_manager_test state_manager_test.cpp)
-target_link_libraries(state_manager_test PRIVATE config_objs state_manager_objs GTest::gtest_main libopenpresso_mock)
+target_link_libraries(state_manager_test PRIVATE openpressod_objects GTest::gtest_main libopenpresso_mock openpressod_mock)
 gtest_add_tests(TARGET state_manager_test)
+
+set_property(GLOBAL APPEND PROPERTY FORMAT_TARGETS state_manager_test)
