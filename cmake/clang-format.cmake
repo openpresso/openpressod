@@ -109,6 +109,8 @@ function(add_clang_format_targets CUSTOM_TARGET_NAME)
         message(FATAL_ERROR "TARGETS argument is required for add_clang_format_targets")
     endif()
 
+    list(REMOVE_DUPLICATES FORMAT_TARGETS)
+
     foreach(target ${FORMAT_TARGETS})
         set(target_args "")
         if(FORMAT_DRY_RUN)

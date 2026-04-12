@@ -95,6 +95,8 @@ function(add_clang_tidy_targets CUSTOM_TARGET_NAME)
         message(FATAL_ERROR "TARGETS argument is required for add_clang_tidy_targets")
     endif()
 
+    list(REMOVE_DUPLICATES arg_TARGETS)
+
     foreach(target ${arg_TARGETS})
         add_clang_tidy_target(${CUSTOM_TARGET_NAME} APPEND TARGET ${target} ARGS ${arg_ARGS})
     endforeach()
