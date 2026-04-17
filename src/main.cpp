@@ -3,6 +3,7 @@
 #include "config/libopenpresso_config_maker.hpp"
 #include "config/openpressod_config.hpp"
 #include "leds/leds_handler.hpp"
+#include "service/service_manager.hpp"
 #include "signals_handler/signals_handler.hpp"
 #include "state_manager/state_manager.hpp"
 
@@ -28,7 +29,8 @@ void runDaemon(const std::atomic<bool>& exitFlag)
   auto stateManager = std::make_unique<StateManager>(core, config, std::move(leds));
   auto dispatcher = std::make_shared<AsyncEventDispatcher>(std::move(stateManager));
 
-  ButtonsCallbackRegistrator buttonsCallbacks(dispatcher, core, config);
+  ButtonsCallbackRegistrator buttonsCallbacks{dispatcher, core, config};
+  ServiceManager service{dispatcher, core, config};
 
   exitFlag.wait(false, std::memory_order_relaxed);
 }
