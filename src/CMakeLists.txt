@@ -9,6 +9,7 @@ target_link_libraries(openpressod_objects PUBLIC
     libopenpresso::libopenpresso
     toml11::toml11
     magic_enum::magic_enum
+    farmhash::farmhash
 )
 
 add_subdirectory(config)

@@ -4,8 +4,10 @@
 #include "config/openpressod_config.hpp"
 #include "leds/leds_handler_interface.hpp"
 
+#include <farmhash.h>
 #include <memory>
 #include <ranges>
+#include <stdexcept>
 #include <utility>
 
 #include <libopenpresso/brew_steps_data.hpp>
@@ -14,6 +16,7 @@
 #include <libopenpresso/interfaces/libopenpresso_core.hpp> // IWYU pragma: keep
 #include <libopenpresso/interfaces/logical_input.hpp>      // IWYU pragma: keep
 #include <openpresso_proto/openpresso.pb.h>
+#include <spdlog/spdlog.h>
 
 using namespace openpressod;
 
@@ -99,14 +102,18 @@ void StateManager::stopBrew()
 
 bool StateManager::getSteamModeState() const noexcept
 {
+  spdlog::info("Steam mode state requsted, state: {}", m_steam ? "ON" : "OFF");
   return m_steam;
 }
 
 void StateManager::setSteamModeState(bool state)
 {
   if (m_steam == state) {
+    spdlog::warn("Steam mode is already {}", m_steam ? "ON" : "OFF");
     return;
   }
+
+  spdlog::info("Steam mode state change from {} to: {}", m_steam ? "ON" : "OFF", state ? "ON" : "OFF");
 
   if (m_brewProfiler->isActive()) {
     throw std::runtime_error{"Cannot switch to steam mode while brewing"};
@@ -137,11 +144,17 @@ void StateManager::resetScales()
   m_weightSensor->tare();
 }
 
-void StateManager::setBrewProfile(const openpresso::BrewProfile* profile)
+void StateManager::setBrewProfile(const BrewProfile* profile)
 {
   if (m_brewProfiler->isActive()) {
     throw std::runtime_error{"Cannot change profile while brewing"};
   }
+
+  if (profile->name().empty()) {
+    throw std::runtime_error{"Profile name cannot be empty"};
+  }
+
+  auto hash = makeProfileHash(profile);
 
   m_brewTemperature = profile->temperature();
   if (!m_steam && m_power) {
@@ -149,16 +162,19 @@ void StateManager::setBrewProfile(const openpresso::BrewProfile* profile)
     m_leds->indicateBrewState(m_brewTemperature);
   }
 
-  constexpr auto stepTransformer = [](const openpresso::BrewStep& step) {
+  constexpr auto stepTransformer = [](const BrewStep& step) {
     return std::make_pair(getStepTarget(step), getStepCondition(step));
   };
   auto steps = profile->steps() | std::views::transform(stepTransformer);
   m_brewProfiler->setSteps({steps.begin(), steps.end()});
 
   setAutoStopCondition(profile);
+
+  m_brewProfileName = profile->name();
+  m_brewProfileHash = std::move(hash);
 }
 
-libopenpresso::step_target_t StateManager::getStepTarget(const openpresso::BrewStep& step)
+libopenpresso::step_target_t StateManager::getStepTarget(const BrewStep& step)
 {
   using namespace libopenpresso::brew_step_targets;
 
@@ -173,16 +189,18 @@ libopenpresso::step_target_t StateManager::getStepTarget(const openpresso::BrewS
   throw std::runtime_error{"Brew step has no target"};
 }
 
-libopenpresso::next_step_condition_t StateManager::getStepCondition(const openpresso::BrewStep& step)
+libopenpresso::next_step_condition_t StateManager::getStepCondition(const BrewStep& step)
 {
   using namespace libopenpresso::brew_step_advance_conditions;
 
   if (step.has_steptime()) {
-    return OnStepTime{std::chrono::nanoseconds{step.steptime().nanos()}};
+    return OnStepTime{std::chrono::seconds{step.steptime().seconds()} +
+                      std::chrono::nanoseconds{step.steptime().nanos()}};
   }
 
   if (step.has_totaltime()) {
-    return OnTotalTime{std::chrono::nanoseconds{step.totaltime().nanos()}};
+    return OnTotalTime{std::chrono::seconds{step.totaltime().seconds()} +
+                       std::chrono::nanoseconds{step.totaltime().nanos()}};
   }
 
   if (step.has_totalweight()) {
@@ -192,12 +210,13 @@ libopenpresso::next_step_condition_t StateManager::getStepCondition(const openpr
   return Never{};
 }
 
-void StateManager::setAutoStopCondition(const openpresso::BrewProfile* profile)
+void StateManager::setAutoStopCondition(const BrewProfile* profile)
 {
   using namespace libopenpresso::brew_step_advance_conditions;
 
   if (profile->has_totaltime()) {
-    auto time = std::chrono::nanoseconds{profile->totaltime().nanos()};
+    auto time = std::chrono::seconds{profile->totaltime().seconds()} +
+                std::chrono::nanoseconds{profile->totaltime().nanos()};
     m_brewProfiler->setAutoStopCondition(OnTotalTime{time});
   }
   else if (profile->has_totalweight()) {
@@ -206,4 +225,27 @@ void StateManager::setAutoStopCondition(const openpresso::BrewProfile* profile)
   else {
     m_brewProfiler->setAutoStopCondition(Never{});
   }
+}
+
+const std::string& StateManager::brewProfileName() const noexcept
+{
+  return m_brewProfileName;
+}
+
+const std::string& StateManager::brewProfileHash() const noexcept
+{
+  return m_brewProfileHash;
+}
+
+std::string StateManager::makeProfileHash(const BrewProfile* profile)
+{
+  std::string serialized;
+  google::protobuf::io::StringOutputStream out(&serialized);
+  google::protobuf::io::CodedOutputStream coded(&out);
+  coded.SetSerializationDeterministic(true);
+  if (!profile->SerializeToCodedStream(&coded)) {
+    throw std::runtime_error{"failed to calculate profile hash"};
+  }
+  auto fingerprint = util::Fingerprint128(serialized);
+  return std::format("{:016x}{:016x}", fingerprint.first, fingerprint.second);
 }

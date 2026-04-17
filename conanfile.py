@@ -12,6 +12,7 @@ class openpressod(ConanFile):
         
         self.requires("libopenpresso/0.0.0-2-gbed204c")
         self.requires("openpresso_proto/0.0.0-testing")
+        self.requires("farmhash/cci.20190513")
 
     def build_requirements(self):
         self.test_requires("gtest/1.17.0")

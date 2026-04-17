@@ -17,16 +17,12 @@ class TemperatureController;
 class WeightSensor;
 } // namespace libopenpresso::interfaces
 
-namespace openpresso
-{
-class BrewProfile;
-class BrewStep;
-} // namespace openpresso
-
 namespace openpressod
 {
 
 class OpenpressodConfig;
+class BrewProfile;
+class BrewStep;
 
 class StateManager {
   using core_ptr_t = std::shared_ptr<libopenpresso::interfaces::LibopenpressoCore>;
@@ -51,12 +47,15 @@ public:
   void setSteamModeState(bool state);
 
   void resetScales();
-  void setBrewProfile(const openpresso::BrewProfile* profile);
+  void setBrewProfile(const BrewProfile* profile);
+  const std::string& brewProfileName() const noexcept;
+  const std::string& brewProfileHash() const noexcept;
 
 private:
-  static libopenpresso::step_target_t getStepTarget(const openpresso::BrewStep& step);
-  static libopenpresso::next_step_condition_t getStepCondition(const openpresso::BrewStep& step);
-  void setAutoStopCondition(const openpresso::BrewProfile* profile);
+  static libopenpresso::step_target_t getStepTarget(const BrewStep& step);
+  static libopenpresso::next_step_condition_t getStepCondition(const BrewStep& step);
+  void setAutoStopCondition(const BrewProfile* profile);
+  static std::string makeProfileHash(const BrewProfile* profile);
 
 private:
   bool m_power = false;
@@ -67,6 +66,8 @@ private:
   temperature_controller_ptr_t m_temperatureController;
   weight_sensor_ptr_t m_weightSensor;
   std::unique_ptr<LedsHandlerInterface> m_leds;
+  std::string m_brewProfileName;
+  std::string m_brewProfileHash;
 };
 
 } // namespace openpressod

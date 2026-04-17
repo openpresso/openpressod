@@ -217,7 +217,7 @@ TEST_F(StateManagerTest, SetBrewProfilePowerOffNoSteam)
 
   auto manager = createManager();
 
-  openpresso::BrewProfile profile;
+  BrewProfile profile;
   profile.set_temperature(95000);
 
   auto* step = profile.add_steps();
@@ -252,7 +252,7 @@ TEST_F(StateManagerTest, SetBrewProfilePowerOffSteam)
   auto manager = createManager();
   manager->setSteamModeState(true);
 
-  openpresso::BrewProfile profile;
+  BrewProfile profile;
   profile.set_temperature(95000);
 
   auto* step = profile.add_steps();
@@ -289,7 +289,7 @@ TEST_F(StateManagerTest, SetBrewProfileBrewPreheat)
   // Turn power on to enter brew preheat state
   manager->setPowerState(true);
 
-  openpresso::BrewProfile profile;
+  BrewProfile profile;
   profile.set_temperature(96000);
 
   auto* step = profile.add_steps();
@@ -318,7 +318,7 @@ TEST_F(StateManagerTest, SetBrewProfileSteamMode)
   // Enter steam mode
   manager->setSteamModeState(true);
 
-  openpresso::BrewProfile profile;
+  BrewProfile profile;
   profile.set_temperature(97000);
 
   auto* step = profile.add_steps();
@@ -341,7 +341,7 @@ TEST_F(StateManagerTest, SetBrewProfileActiveBrewing)
 {
   auto manager = createManager();
 
-  openpresso::BrewProfile profile;
+  BrewProfile profile;
 
   // Test set profile while brewing throws
   EXPECT_CALL(*brewProfiler, isActive()).WillRepeatedly(Return(true));
