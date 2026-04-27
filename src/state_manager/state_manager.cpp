@@ -3,6 +3,7 @@
 #include "config/libopenpresso_config_labels.hpp"
 #include "config/openpressod_config.hpp"
 #include "leds/leds_handler_interface.hpp"
+#include "service/events_stream_reactor.hpp"
 
 #include <farmhash.h>
 #include <memory>
@@ -67,6 +68,12 @@ void StateManager::setPowerState(bool state)
   }
 
   m_power = state;
+
+  PowerState stateChange;
+  stateChange.set_value(state);
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(stateChange);
+  }
 }
 
 bool StateManager::getBrewState() const noexcept
@@ -98,6 +105,20 @@ void StateManager::stopBrew()
   }
 
   m_brewProfiler->deactivate();
+
+  BrewProgress noProgress;
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(noProgress);
+  }
+}
+
+void openpressod::StateManager::onBrewStepChange(size_t index)
+{
+  BrewProgress progress;
+  progress.set_brewstepindex(index);
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(progress);
+  }
 }
 
 bool StateManager::getSteamModeState() const noexcept
@@ -134,6 +155,12 @@ void StateManager::setSteamModeState(bool state)
   }
 
   m_steam = state;
+
+  SteamModeState stateChange;
+  stateChange.set_isactive(state);
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(stateChange);
+  }
 }
 
 void StateManager::resetScales()
@@ -172,6 +199,13 @@ void StateManager::setBrewProfile(const BrewProfile* profile)
 
   m_brewProfileName = profile->name();
   m_brewProfileHash = std::move(hash);
+
+  BrewProfileInfo info;
+  info.set_name(m_brewProfileName);
+  info.set_hash(m_brewProfileHash);
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(info);
+  }
 }
 
 libopenpresso::step_target_t StateManager::getStepTarget(const BrewStep& step)
@@ -248,4 +282,19 @@ std::string StateManager::makeProfileHash(const BrewProfile* profile)
   }
   auto fingerprint = util::Fingerprint128(serialized);
   return std::format("{:016x}{:016x}", fingerprint.first, fingerprint.second);
+}
+
+void StateManager::addEventsStreamReactor(std::unique_ptr<EventsStreamReactor> reactor)
+{
+  m_eventsSinks.push_back(std::move(reactor));
+}
+
+void StateManager::releaseEventsStreamReactor(const EventsStreamReactor* reactor)
+{
+  m_eventsSinks.remove_if([reactor](auto&& val) { return val.get() == reactor; });
+}
+
+void openpressod::StateManager::unregisterBrewProfileCallback(libopenpresso::callback_descriptor_t descr)
+{
+  m_brewProfiler->unregisterStepChangeCallback(descr);
 }

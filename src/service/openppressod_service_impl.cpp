@@ -1,6 +1,7 @@
 #include "openppressod_service_impl.hpp"
 
 #include "async_events_dispatcher/async_events_dispatcher.hpp"
+#include "events_stream_reactor.hpp"
 #include "metrics_stream_reactor.hpp"
 
 #include <chrono>
@@ -181,7 +182,10 @@ grpc::ServerWriteReactor<Event>* OpenpressodServiceImpl::events(
   [[maybe_unused]] grpc::CallbackServerContext* context,
   [[maybe_unused]] const google::protobuf::Empty* request)
 {
-  return nullptr;
+  auto reactor = std::make_unique<EventsStreamReactor>(m_dispatcher.get());
+  auto* raw = reactor.get();
+  m_dispatcher->addEventsStreamReactor(std::move(reactor));
+  return raw;
 }
 
 grpc::ServerWriteReactor<Metrics>* OpenpressodServiceImpl::metrics(

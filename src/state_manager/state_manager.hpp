@@ -2,10 +2,14 @@
 #define STATE_MANAGER_HPP
 
 #include "leds/leds_handler_interface.hpp"
+#include "service/events_stream_reactor.hpp"
 
+#include <cstddef>
+#include <list>
 #include <memory>
 
 #include <libopenpresso/brew_steps_data.hpp>
+#include <libopenpresso/interfaces/brew_profiler.hpp>
 #include <libopenpresso/types.hpp>
 
 namespace libopenpresso::interfaces
@@ -42,6 +46,7 @@ public:
   bool getBrewState() const noexcept;
   void startBrew();
   void stopBrew();
+  void onBrewStepChange(size_t index);
 
   bool getSteamModeState() const noexcept;
   void setSteamModeState(bool state);
@@ -50,6 +55,17 @@ public:
   void setBrewProfile(const BrewProfile* profile);
   const std::string& brewProfileName() const noexcept;
   const std::string& brewProfileHash() const noexcept;
+
+  void addEventsStreamReactor(std::unique_ptr<EventsStreamReactor> reactor);
+  void releaseEventsStreamReactor(const EventsStreamReactor* reactor);
+
+  template <typename T>
+  libopenpresso::callback_descriptor_t registerBrewProfilerCallback(T&& callback)
+  {
+    return m_brewProfiler->registerStepChangeCallback(std::forward<T>(callback));
+  }
+
+  void unregisterBrewProfileCallback(libopenpresso::callback_descriptor_t descr);
 
 private:
   static libopenpresso::step_target_t getStepTarget(const BrewStep& step);
@@ -68,6 +84,7 @@ private:
   std::unique_ptr<LedsHandlerInterface> m_leds;
   std::string m_brewProfileName;
   std::string m_brewProfileHash;
+  std::list<std::unique_ptr<EventsStreamReactor>> m_eventsSinks;
 };
 
 } // namespace openpressod

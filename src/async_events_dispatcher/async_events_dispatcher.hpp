@@ -7,14 +7,26 @@
 
 #include <memory>
 
+#include <libopenpresso/interfaces/brew_profiler.hpp>
+#include <libopenpresso/types.hpp>
+
 namespace openpressod
 {
 
 class BrewProfile;
+class EventsStreamReactor;
 
 class AsyncEventDispatcher : public ButtonsEventSink {
+  using step_index_t = libopenpresso::interfaces::BrewProfiler::step_index_t;
+  using stopped_flag_t = libopenpresso::interfaces::BrewProfiler::stopped_flag_t;
+
 public:
-  explicit AsyncEventDispatcher(std::unique_ptr<StateManager>&& stateManager);
+  AsyncEventDispatcher(std::unique_ptr<StateManager>&& stateManager);
+  AsyncEventDispatcher(const AsyncEventDispatcher&) = delete;
+  AsyncEventDispatcher(AsyncEventDispatcher&&) = delete;
+  auto operator=(const AsyncEventDispatcher&) = delete;
+  auto operator=(AsyncEventDispatcher&&) = delete;
+  ~AsyncEventDispatcher();
 
   void togglePowerState() override;
   void setPowerState(bool state) override;
@@ -56,9 +68,15 @@ public:
   template <typename Cb>
   void setSteamModeState(bool state, Cb&& callback);
 
+  void addEventsStreamReactor(std::unique_ptr<EventsStreamReactor> reactor);
+  void releaseEventsStreamReactor(const EventsStreamReactor* reactor);
+
+  void brewCallback(std::variant<step_index_t, stopped_flag_t> step);
+
 private:
   std::unique_ptr<StateManager> m_stateManager;
   ProceduresSerialExecutor m_executor;
+  libopenpresso::callback_descriptor_t m_brewCallback;
 };
 
 template <typename Cb>
