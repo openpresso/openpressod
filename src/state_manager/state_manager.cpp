@@ -5,11 +5,11 @@
 #include "leds/leds_handler_interface.hpp"
 #include "service/events_stream_reactor.hpp"
 
-#include <farmhash.h>
 #include <memory>
 #include <ranges>
 #include <stdexcept>
 #include <utility>
+#include <xxhash.h>
 
 #include <libopenpresso/brew_steps_data.hpp>
 #include <libopenpresso/interfaces/brew_profiler.hpp>      // IWYU pragma: keep
@@ -198,7 +198,7 @@ void StateManager::setBrewProfile(const BrewProfile* profile)
   setAutoStopCondition(profile);
 
   m_brewProfileName = profile->name();
-  m_brewProfileHash = std::move(hash);
+  m_brewProfileHash = hash;
 
   BrewProfileInfo info;
   info.set_name(m_brewProfileName);
@@ -266,12 +266,12 @@ const std::string& StateManager::brewProfileName() const noexcept
   return m_brewProfileName;
 }
 
-const std::string& StateManager::brewProfileHash() const noexcept
+uint64_t StateManager::brewProfileHash() const noexcept
 {
   return m_brewProfileHash;
 }
 
-std::string StateManager::makeProfileHash(const BrewProfile* profile)
+uint64_t StateManager::makeProfileHash(const BrewProfile* profile)
 {
   std::string serialized;
   google::protobuf::io::StringOutputStream out(&serialized);
@@ -280,8 +280,7 @@ std::string StateManager::makeProfileHash(const BrewProfile* profile)
   if (!profile->SerializeToCodedStream(&coded)) {
     throw std::runtime_error{"failed to calculate profile hash"};
   }
-  auto fingerprint = util::Fingerprint128(serialized);
-  return std::format("{:016x}{:016x}", fingerprint.first, fingerprint.second);
+  return XXH64(serialized.data(), serialized.size(), {});
 }
 
 void StateManager::addEventsStreamReactor(std::unique_ptr<EventsStreamReactor> reactor)

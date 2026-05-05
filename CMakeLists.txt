@@ -17,7 +17,7 @@ find_package(toml11 REQUIRED)
 find_package(magic_enum REQUIRED)
 find_package(openpresso_proto REQUIRED)
 find_package(libopenpresso REQUIRED)
-find_package(farmhash REQUIRED)
+find_package(xxHash REQUIRED)
 
 add_library(openpressod_objects OBJECT)
 

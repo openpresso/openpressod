@@ -54,7 +54,7 @@ public:
   void resetScales();
   void setBrewProfile(const BrewProfile* profile);
   const std::string& brewProfileName() const noexcept;
-  const std::string& brewProfileHash() const noexcept;
+  uint64_t brewProfileHash() const noexcept;
 
   void addEventsStreamReactor(std::unique_ptr<EventsStreamReactor> reactor);
   void releaseEventsStreamReactor(const EventsStreamReactor* reactor);
@@ -71,7 +71,7 @@ private:
   static libopenpresso::step_target_t getStepTarget(const BrewStep& step);
   static libopenpresso::next_step_condition_t getStepCondition(const BrewStep& step);
   void setAutoStopCondition(const BrewProfile* profile);
-  static std::string makeProfileHash(const BrewProfile* profile);
+  static uint64_t makeProfileHash(const BrewProfile* profile);
 
 private:
   bool m_power = false;
@@ -83,7 +83,7 @@ private:
   weight_sensor_ptr_t m_weightSensor;
   std::unique_ptr<LedsHandlerInterface> m_leds;
   std::string m_brewProfileName;
-  std::string m_brewProfileHash;
+  uint64_t m_brewProfileHash;
   std::list<std::unique_ptr<EventsStreamReactor>> m_eventsSinks;
 };
 

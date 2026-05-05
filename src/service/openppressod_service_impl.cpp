@@ -5,6 +5,7 @@
 #include "metrics_stream_reactor.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <future>
 #include <memory>
 #include <utility>
@@ -51,11 +52,11 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::getBrewProfileInfo(
   BrewProfileInfo* response)
 {
   auto* reactor = context->DefaultReactor();
-  auto callback = [reactor, response](std::future<std::pair<std::string, std::string>> result) {
+  auto callback = [reactor, response](std::future<std::pair<std::string, uint64_t>> result) {
     try {
       auto info = result.get();
       response->mutable_name()->assign(info.first);
-      response->mutable_hash()->assign(info.first);
+      response->set_hash(info.second);
       reactor->Finish(grpc::Status::OK);
     }
     catch (const std::exception& e) {
@@ -71,9 +72,9 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::setBrewProfile(grpc::CallbackS
                                                                  SetProfileResult* response)
 {
   auto* reactor = context->DefaultReactor();
-  auto callback = [reactor, request, response](std::future<std::string> result) {
+  auto callback = [reactor, request, response](std::future<uint64_t> result) {
     try {
-      response->mutable_profilehash()->assign(result.get());
+      response->set_profilehash(result.get());
       reactor->Finish(grpc::Status::OK);
     }
     catch (const std::exception& e) {
