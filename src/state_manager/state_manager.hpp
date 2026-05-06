@@ -72,6 +72,9 @@ private:
   static libopenpresso::next_step_condition_t getStepCondition(const BrewStep& step);
   void setAutoStopCondition(const BrewProfile* profile);
   static uint64_t makeProfileHash(const BrewProfile* profile);
+  void saveProfile(const BrewProfile* profile);
+  void applyProfile(const BrewProfile* profile);
+  void restoreProfile();
 
 private:
   bool m_power = false;
@@ -82,8 +85,9 @@ private:
   temperature_controller_ptr_t m_temperatureController;
   weight_sensor_ptr_t m_weightSensor;
   std::unique_ptr<LedsHandlerInterface> m_leds;
+  std::filesystem::path m_brewProfilePath;
   std::string m_brewProfileName;
-  uint64_t m_brewProfileHash;
+  uint64_t m_brewProfileHash = 0;
   std::list<std::unique_ptr<EventsStreamReactor>> m_eventsSinks;
 };
 

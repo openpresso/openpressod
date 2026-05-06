@@ -5,18 +5,21 @@
 #include "leds/leds_handler_interface.hpp"
 #include "service/events_stream_reactor.hpp"
 
+#include <exception>
 #include <memory>
 #include <ranges>
 #include <stdexcept>
 #include <utility>
 #include <xxhash.h>
 
+#include <google/protobuf/util/json_util.h>
 #include <libopenpresso/brew_steps_data.hpp>
 #include <libopenpresso/interfaces/brew_profiler.hpp>      // IWYU pragma: keep
 #include <libopenpresso/interfaces/controller_base.hpp>    // IWYU pragma: keep
 #include <libopenpresso/interfaces/libopenpresso_core.hpp> // IWYU pragma: keep
 #include <libopenpresso/interfaces/logical_input.hpp>      // IWYU pragma: keep
 #include <openpresso_proto/openpresso.pb.h>
+#include <spdlog/fmt/bin_to_hex.h>
 #include <spdlog/spdlog.h>
 
 using namespace openpressod;
@@ -30,14 +33,24 @@ StateManager::StateManager(const core_ptr_t& core,
 , m_steamController{core->getSteamController(libopenpresso_config_labels::STEAM_CONTROLLER_LABEL)}
 , m_temperatureController{core->getTemperatureController(libopenpresso_config_labels::BREW_TEMPERATURE_CONTROLLER_LABEL)}
 , m_weightSensor{core->getWeightSensor(libopenpresso_config_labels::WEIGHT_SENSOR_LABEL)}
-, m_leds(std::move(leds))
+, m_leds{std::move(leds)}
+, m_brewProfilePath{config.brewProfilePath()}
 {
   using namespace libopenpresso::brew_step_advance_conditions;
   using namespace libopenpresso::brew_step_targets;
 
-  auto target = ConstantPressure{config.brewPressure()};
-  auto condition = Never{};
-  m_brewProfiler->setSteps({{target, condition}});
+  try {
+    restoreProfile();
+  }
+  catch (const std::exception& e) {
+    spdlog::warn("Failed to restore brew profile from json: {}", e.what());
+    spdlog::info("Fallback to constant {} millibars pressure mode", config.brewPressure());
+
+    auto target = ConstantPressure{config.brewPressure()};
+    auto condition = Never{};
+    m_brewProfiler->setSteps({{target, condition}});
+    m_brewProfiler->setAutoStopCondition(Never{});
+  }
 }
 
 bool StateManager::getPowerState() const noexcept
@@ -173,32 +186,8 @@ void StateManager::resetScales()
 
 void StateManager::setBrewProfile(const BrewProfile* profile)
 {
-  if (m_brewProfiler->isActive()) {
-    throw std::runtime_error{"Cannot change profile while brewing"};
-  }
-
-  if (profile->name().empty()) {
-    throw std::runtime_error{"Profile name cannot be empty"};
-  }
-
-  auto hash = makeProfileHash(profile);
-
-  m_brewTemperature = profile->temperature();
-  if (!m_steam && m_power) {
-    m_temperatureController->setTargetTemperature(m_brewTemperature);
-    m_leds->indicateBrewState(m_brewTemperature);
-  }
-
-  constexpr auto stepTransformer = [](const BrewStep& step) {
-    return std::make_pair(getStepTarget(step), getStepCondition(step));
-  };
-  auto steps = profile->steps() | std::views::transform(stepTransformer);
-  m_brewProfiler->setSteps({steps.begin(), steps.end()});
-
-  setAutoStopCondition(profile);
-
-  m_brewProfileName = profile->name();
-  m_brewProfileHash = hash;
+  applyProfile(profile);
+  saveProfile(profile);
 
   BrewProfileInfo info;
   info.set_name(m_brewProfileName);
@@ -274,12 +263,16 @@ uint64_t StateManager::brewProfileHash() const noexcept
 uint64_t StateManager::makeProfileHash(const BrewProfile* profile)
 {
   std::string serialized;
-  google::protobuf::io::StringOutputStream out(&serialized);
-  google::protobuf::io::CodedOutputStream coded(&out);
-  coded.SetSerializationDeterministic(true);
-  if (!profile->SerializeToCodedStream(&coded)) {
-    throw std::runtime_error{"failed to calculate profile hash"};
+  {
+    google::protobuf::io::StringOutputStream out(&serialized);
+    google::protobuf::io::CodedOutputStream coded(&out);
+    coded.SetSerializationDeterministic(true);
+    if (!profile->SerializeToCodedStream(&coded)) {
+      throw std::runtime_error{"failed to calculate profile hash"};
+    }
   }
+
+  spdlog::trace("Brew profile serialized for hash:{}", spdlog::to_hex(serialized));
   return XXH64(serialized.data(), serialized.size(), {});
 }
 
@@ -296,4 +289,89 @@ void StateManager::releaseEventsStreamReactor(const EventsStreamReactor* reactor
 void openpressod::StateManager::unregisterBrewProfileCallback(libopenpresso::callback_descriptor_t descr)
 {
   m_brewProfiler->unregisterStepChangeCallback(descr);
+}
+
+void openpressod::StateManager::applyProfile(const BrewProfile* profile)
+{
+  if (m_brewProfiler->isActive()) {
+    throw std::runtime_error{"Cannot change profile while brewing"};
+  }
+
+  if (profile->name().empty()) {
+    throw std::runtime_error{"Profile name cannot be empty"};
+  }
+
+  m_brewTemperature = profile->temperature();
+  if (!m_steam && m_power) {
+    m_temperatureController->setTargetTemperature(m_brewTemperature);
+    m_leds->indicateBrewState(m_brewTemperature);
+  }
+
+  constexpr auto stepTransformer = [](const BrewStep& step) {
+    return std::make_pair(getStepTarget(step), getStepCondition(step));
+  };
+  auto steps = profile->steps() | std::views::transform(stepTransformer);
+  m_brewProfiler->setSteps({steps.begin(), steps.end()});
+
+  setAutoStopCondition(profile);
+
+  m_brewProfileName = profile->name();
+  m_brewProfileHash = makeProfileHash(profile);
+  spdlog::info("Brew profile \"{}\" applied, hash: 0x{:016x}", m_brewProfileName, m_brewProfileHash);
+}
+
+void openpressod::StateManager::restoreProfile()
+{
+  std::ifstream inputFile{m_brewProfilePath};
+  if (!inputFile.is_open()) {
+    throw std::runtime_error(std::format("Failed to open a file to read a brew profile: {}",
+                                         m_brewProfilePath.string()));
+  }
+
+  std::string content{std::istreambuf_iterator<std::string::value_type>(inputFile),
+                      std::istreambuf_iterator<std::string::value_type>()};
+
+  if (inputFile.fail()) {
+    throw std::runtime_error(std::format("Failed to read brew profile from file: {}",
+                                         m_brewProfilePath.string()));
+  }
+
+  spdlog::trace("Brew profile restored:\n{}", content);
+
+  BrewProfile profile;
+
+  auto status = google::protobuf::util::JsonStringToMessage(content, &profile);
+  if (!status.ok()) {
+    throw std::runtime_error{std::format("Failed to deserialize brew profile: {}", status.message())};
+  }
+
+  applyProfile(&profile);
+}
+
+void StateManager::saveProfile(const BrewProfile* profile)
+{
+  std::string jsonOutput;
+  google::protobuf::util::JsonPrintOptions options = {
+    .add_whitespace = true,
+    .always_print_fields_with_no_presence = true,
+    .preserve_proto_field_names = true,
+  };
+
+  auto status = google::protobuf::util::MessageToJsonString(*profile, &jsonOutput, options);
+  if (!status.ok()) {
+    throw std::runtime_error{std::format("Failed to serialize brew profile: {}", status.message())};
+  }
+
+  std::ofstream outputFile{m_brewProfilePath};
+  if (!outputFile.is_open()) {
+    throw std::runtime_error(std::format("Failed to open a file to write a brew profile: {}",
+                                         m_brewProfilePath.string()));
+  }
+
+  outputFile << jsonOutput;
+
+  if (outputFile.fail()) {
+    throw std::runtime_error(std::format("Failed to write brew profile to file: {}",
+                                         m_brewProfilePath.string()));
+  }
 }
