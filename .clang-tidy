@@ -30,4 +30,6 @@ CheckOptions:
     value:           False
   - key:             bugprone-unchecked-optional-access.IgnoreValueCalls
     value:           True
+  - key:             readability-identifier-length.IgnoredParameterNames
+    value:           ok
 ...
