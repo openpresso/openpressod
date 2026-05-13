@@ -42,10 +42,6 @@ public:
               getBrewProfiler,
               (const libopenpresso::component_label_t& label),
               (override));
-  MOCK_METHOD(libopenpresso::ControllerBasePtr,
-              getSteamController,
-              (const libopenpresso::component_label_t& label),
-              (override));
 };
 
 #endif // LIBOPENPRESSO_CORE_MOCK_HPP

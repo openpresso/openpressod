@@ -31,9 +31,11 @@ TEST(OpenpressodConfig, DefaultValues)
 
   // [global] defaults
   EXPECT_EQ(EXPECTED_DAEMON_DIR / "brew_profile.json", config.brewProfilePath());
+  EXPECT_EQ(EXPECTED_DAEMON_DIR / "user_settings.json", config.userSettingsPath());
   EXPECT_EQ("/var/run/openpresso.sock", config.socketPath());
   EXPECT_EQ("/dev/i2c-0", config.i2cBus());
   EXPECT_EQ("/dev/gpiochip0", config.gpioChip());
+  EXPECT_FALSE(config.pidStateMonitoringEnabled());
 
   // [log] defaults
   EXPECT_TRUE(config.logfileOutputEnabled());
@@ -216,9 +218,11 @@ TEST(OpenpressodConfig, FullConfig)
   EXPECT_EQ(60u, config.mainsFrequency());
   EXPECT_EQ(5, config.mainsZeroCrossPin());
   EXPECT_EQ("/custom/profile.json", config.brewProfilePath());
+  EXPECT_EQ("/custom/user_settings.json", config.userSettingsPath());
   EXPECT_EQ("/tmp/custom.sock", config.socketPath());
   EXPECT_EQ("/dev/i2c-1", config.i2cBus());
   EXPECT_EQ("/dev/gpiochip4", config.gpioChip());
+  EXPECT_TRUE(config.pidStateMonitoringEnabled());
 
   // [log]
   EXPECT_FALSE(config.logfileOutputEnabled());

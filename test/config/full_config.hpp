@@ -10,6 +10,8 @@ brew_profile_path = "/custom/profile.json"
 socket_path = "/tmp/custom.sock"
 i2c_bus = "/dev/i2c-1"
 gpio_chip = "/dev/gpiochip4"
+user_settings_path = "/custom/user_settings.json"
+pid_state_monitoring_enabled = true
 
 [log]
 file_output_enabled = false

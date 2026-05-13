@@ -1,11 +1,9 @@
 #include "brew_profiler_mock.hpp"
 #include "config/libopenpresso_config_labels.hpp"
 #include "config/openpressod_config.hpp"
-#include "controller_base_mock.hpp"
 #include "leds_handler_mock.hpp"
 #include "libopenpresso_core_mock.hpp"
 #include "logical_input_mock.hpp"
-#include "logical_output_mock.hpp"
 #include "state_manager/state_manager.hpp"
 #include "temperature_controller_mock.hpp"
 #include "weight_sensor_mock.hpp"
@@ -29,7 +27,7 @@ protected:
   std::shared_ptr<NiceMock<MockLogicalInput>> steamButton;
   std::shared_ptr<NiceMock<MockLogicalInput>> powerButton;
   std::shared_ptr<NiceMock<MockBrewProfiler>> brewProfiler;
-  std::shared_ptr<NiceMock<MockControllerBase>> steamController;
+  std::shared_ptr<NiceMock<MockTemperatureController>> steamController;
   std::shared_ptr<NiceMock<MockTemperatureController>> temperatureController;
   std::shared_ptr<NiceMock<MockWeightSensor>> weightSensor;
 
@@ -42,7 +40,7 @@ protected:
   , steamButton(std::make_shared<NiceMock<MockLogicalInput>>())
   , powerButton(std::make_shared<NiceMock<MockLogicalInput>>())
   , brewProfiler(std::make_shared<NiceMock<MockBrewProfiler>>())
-  , steamController(std::make_shared<NiceMock<MockControllerBase>>())
+  , steamController(std::make_shared<NiceMock<MockTemperatureController>>())
   , temperatureController(std::make_shared<NiceMock<MockTemperatureController>>())
   , weightSensor(std::make_shared<NiceMock<MockWeightSensor>>())
   , config(openpressod::OpenpressodConfig::fromString(test_config_toml))
@@ -55,12 +53,15 @@ protected:
     ON_CALL(*core, getLogicalInput(libopenpresso_config_labels::POWER_BUTTON_LABEL)).WillByDefault(Return(powerButton));
     ON_CALL(*core, getBrewProfiler(libopenpresso_config_labels::BREW_PROFILER_LABEL))
       .WillByDefault(Return(brewProfiler));
-    ON_CALL(*core, getSteamController(libopenpresso_config_labels::STEAM_CONTROLLER_LABEL))
+    ON_CALL(*core, getTemperatureController(libopenpresso_config_labels::STEAM_CONTROLLER_LABEL))
       .WillByDefault(Return(steamController));
     ON_CALL(*core, getTemperatureController(libopenpresso_config_labels::BREW_TEMPERATURE_CONTROLLER_LABEL))
       .WillByDefault(Return(temperatureController));
     ON_CALL(*core, getWeightSensor(libopenpresso_config_labels::WEIGHT_SENSOR_LABEL))
       .WillByDefault(Return(weightSensor));
+
+    ON_CALL(*temperatureController, getTargetTemperature()).WillByDefault(Return(config.brewTemperature()));
+    ON_CALL(*steamController, getTargetTemperature()).WillByDefault(Return(config.steamTemperature()));
 
     ON_CALL(*steamButton, getState()).WillByDefault(Return(false));
     ON_CALL(*powerButton, getState()).WillByDefault(Return(false));
@@ -71,7 +72,7 @@ protected:
   {
     auto leds = std::make_unique<NiceMock<openpressod::LedsHandlerMock>>();
     ledsHandler = leds.get();
-    return std::make_unique<openpressod::StateManager>(core, config, std::move(leds));
+    return std::make_unique<openpressod::StateManager>(core, std::move(leds));
   }
 };
 
@@ -79,18 +80,9 @@ TEST_F(StateManagerTest, Construct)
 {
   EXPECT_CALL(*core, getLogicalInput(libopenpresso_config_labels::STEAM_BUTTON_LABEL));
   EXPECT_CALL(*core, getBrewProfiler(libopenpresso_config_labels::BREW_PROFILER_LABEL));
-  EXPECT_CALL(*core, getSteamController(libopenpresso_config_labels::STEAM_CONTROLLER_LABEL));
+  EXPECT_CALL(*core, getTemperatureController(libopenpresso_config_labels::STEAM_CONTROLLER_LABEL));
   EXPECT_CALL(*core, getTemperatureController(libopenpresso_config_labels::BREW_TEMPERATURE_CONTROLLER_LABEL));
   EXPECT_CALL(*core, getWeightSensor(libopenpresso_config_labels::WEIGHT_SENSOR_LABEL));
-
-  using namespace libopenpresso::brew_step_targets;
-  using namespace libopenpresso::brew_step_advance_conditions;
-  EXPECT_CALL(*brewProfiler, setSteps(_)).WillOnce([this](const auto& steps) {
-    EXPECT_EQ(steps.size(), 1);
-    EXPECT_TRUE(std::holds_alternative<ConstantPressure>(steps[0].first));
-    EXPECT_EQ(std::get<ConstantPressure>(steps[0].first).pressure, config.brewPressure());
-    EXPECT_TRUE(std::holds_alternative<Never>(steps[0].second));
-  });
 
   auto manager = createManager();
 
@@ -114,7 +106,6 @@ TEST_F(StateManagerTest, SetPowerState)
   auto manager = createManager();
 
   // Test turn power ON in brew mode
-  EXPECT_CALL(*temperatureController, setTargetTemperature(config.brewTemperature()));
   EXPECT_CALL(*temperatureController, activate());
   EXPECT_CALL(*ledsHandler, indicateBrewState(config.brewTemperature()));
   manager->setPowerState(true);
@@ -136,7 +127,7 @@ TEST_F(StateManagerTest, SetPowerState)
   EXPECT_TRUE(manager->getSteamModeState());
 
   EXPECT_CALL(*steamController, activate());
-  EXPECT_CALL(*ledsHandler, indicateSteamState());
+  EXPECT_CALL(*ledsHandler, indicateSteamState(_));
   manager->setPowerState(true);
   EXPECT_TRUE(manager->getPowerState());
 }
@@ -148,7 +139,6 @@ TEST_F(StateManagerTest, StartStopBrew)
   // Throws if power is off
   EXPECT_THROW(manager->startBrew(), std::runtime_error);
 
-  EXPECT_CALL(*temperatureController, setTargetTemperature(_));
   EXPECT_CALL(*temperatureController, activate());
   manager->setPowerState(true);
 
@@ -168,7 +158,7 @@ TEST_F(StateManagerTest, SetSteamModeState)
 
   // When power is OFF, changing steam mode shouldn't activate controllers
   EXPECT_CALL(*steamController, activate()).Times(0);
-  EXPECT_CALL(*ledsHandler, indicateSteamState()).Times(0);
+  EXPECT_CALL(*ledsHandler, indicateSteamState(_)).Times(0);
   manager->setSteamModeState(true);
   EXPECT_TRUE(manager->getSteamModeState());
 
@@ -183,12 +173,11 @@ TEST_F(StateManagerTest, SetSteamModeState)
 
   // Now turn power ON, it should activate steam controller
   EXPECT_CALL(*steamController, activate());
-  EXPECT_CALL(*ledsHandler, indicateSteamState());
+  EXPECT_CALL(*ledsHandler, indicateSteamState(_));
   manager->setPowerState(true);
 
   // Switch to brew mode
   EXPECT_CALL(*steamController, deactivate());
-  EXPECT_CALL(*temperatureController, setTargetTemperature(config.brewTemperature()));
   EXPECT_CALL(*temperatureController, activate());
   EXPECT_CALL(*ledsHandler, indicateBrewState(config.brewTemperature()));
   manager->setSteamModeState(false);
@@ -226,8 +215,8 @@ TEST_F(StateManagerTest, SetBrewProfilePowerOffNoSteam)
 
   profile.set_totalweight(36000);
 
-  // In power off state, neither temperature controller nor LEDs are updated.
-  EXPECT_CALL(*temperatureController, setTargetTemperature(_)).Times(0);
+  // In power off state, temperature controller is updated but LEDs are not.
+  EXPECT_CALL(*temperatureController, setTargetTemperature(95000));
   EXPECT_CALL(*ledsHandler, indicateBrewState(_)).Times(0);
 
   EXPECT_CALL(*brewProfiler, setSteps(_)).WillOnce([](const auto& steps) {
@@ -241,7 +230,7 @@ TEST_F(StateManagerTest, SetBrewProfilePowerOffNoSteam)
     EXPECT_EQ(cond.weight, 36000);
   });
 
-  manager->setBrewProfile(&profile);
+  manager->applyProfile(&profile);
 }
 
 TEST_F(StateManagerTest, SetBrewProfilePowerOffSteam)
@@ -261,8 +250,8 @@ TEST_F(StateManagerTest, SetBrewProfilePowerOffSteam)
 
   profile.set_totalweight(36000);
 
-  // In power off state, neither temperature controller nor LEDs are updated.
-  EXPECT_CALL(*temperatureController, setTargetTemperature(_)).Times(0);
+  // In power off state, temperature controller is updated but LEDs are not.
+  EXPECT_CALL(*temperatureController, setTargetTemperature(95000));
   EXPECT_CALL(*ledsHandler, indicateBrewState(_)).Times(0);
 
   EXPECT_CALL(*brewProfiler, setSteps(_)).WillOnce([](const auto& steps) {
@@ -276,7 +265,7 @@ TEST_F(StateManagerTest, SetBrewProfilePowerOffSteam)
     EXPECT_EQ(cond.weight, 36000);
   });
 
-  manager->setBrewProfile(&profile);
+  manager->applyProfile(&profile);
 }
 
 TEST_F(StateManagerTest, SetBrewProfileBrewPreheat)
@@ -305,7 +294,7 @@ TEST_F(StateManagerTest, SetBrewProfileBrewPreheat)
   EXPECT_CALL(*brewProfiler, setSteps(_));
   EXPECT_CALL(*brewProfiler, setAutoStopCondition(Matcher<OnWeight>(_)));
 
-  manager->setBrewProfile(&profile);
+  manager->applyProfile(&profile);
 }
 
 TEST_F(StateManagerTest, SetBrewProfileSteamMode)
@@ -327,14 +316,15 @@ TEST_F(StateManagerTest, SetBrewProfileSteamMode)
 
   profile.set_totalweight(36000);
 
-  // In steam mode, neither temperature controller nor LEDs should be updated with brew temp
-  EXPECT_CALL(*temperatureController, setTargetTemperature(_)).Times(0);
+  // In steam mode, temperature controller is updated with brew temp but LEDs are not updated with
+  // brew temp
+  EXPECT_CALL(*temperatureController, setTargetTemperature(97000));
   EXPECT_CALL(*ledsHandler, indicateBrewState(_)).Times(0);
 
   EXPECT_CALL(*brewProfiler, setSteps(_));
   EXPECT_CALL(*brewProfiler, setAutoStopCondition(Matcher<OnWeight>(_)));
 
-  manager->setBrewProfile(&profile);
+  manager->applyProfile(&profile);
 }
 
 TEST_F(StateManagerTest, SetBrewProfileActiveBrewing)
@@ -345,5 +335,13 @@ TEST_F(StateManagerTest, SetBrewProfileActiveBrewing)
 
   // Test set profile while brewing throws
   EXPECT_CALL(*brewProfiler, isActive()).WillRepeatedly(Return(true));
-  EXPECT_THROW(manager->setBrewProfile(&profile), std::runtime_error);
+  EXPECT_THROW(manager->applyProfile(&profile), std::runtime_error);
+}
+
+TEST_F(StateManagerTest, SetSteamTemperature)
+{
+  auto manager = createManager();
+
+  EXPECT_CALL(*steamController, setTargetTemperature(160000));
+  manager->setSteamTemperature(160000);
 }

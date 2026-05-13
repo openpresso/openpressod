@@ -201,7 +201,7 @@ TEST_F(LibopenpressoConfigMakerTest, PopulatesComponentConfigsCorrectly_FullConf
   EXPECT_EQ(HEATER_POWER_CONTROLLER_LABEL, brewTempCtrl->powerController);
   EXPECT_EQ(TEMPERATURE_SENSOR_LABEL, brewTempCtrl->sensor);
   EXPECT_EQ(INTERNAL_FLOW_SENSOR_LABEL, brewTempCtrl->flowCounter.value_or(""));
-  EXPECT_FALSE(brewTempCtrl->enablePidStateDump);
+  EXPECT_TRUE(brewTempCtrl->enablePidStateDump);
 
   // Just check one field of pid settings to ensure it passed the struct
   EXPECT_FLOAT_EQ(daemonConfig.brewTemperatureControllerPidSettings().p, brewTempCtrl->pidSettings.p);
@@ -233,10 +233,8 @@ TEST_F(LibopenpressoConfigMakerTest, PopulatesComponentConfigsCorrectly_FullConf
   auto steamCtrl =
     getComponent<libopenpresso::SteamControllerConfig>(deviceConfig, STEAM_CONTROLLER_LABEL);
   ASSERT_NE(nullptr, steamCtrl);
-  EXPECT_EQ(daemonConfig.steamTemperature(), steamCtrl->steamTemperature);
   EXPECT_EQ(daemonConfig.steamPressureThreshold(), steamCtrl->pressureThreshold);
-  EXPECT_EQ(daemonConfig.steamTemperature() - STEAM_TEMPERATURE_THRESHOLD_OFFSET,
-            steamCtrl->temperatureThreshold);
+  EXPECT_EQ(STEAM_TEMPERATURE_THRESHOLD_OFFSET, steamCtrl->temperatureRelativeThreshold);
   EXPECT_EQ(daemonConfig.steamRefillFlow(), steamCtrl->refillFlow);
   EXPECT_EQ(STEAM_CONTROLLER_STATE_UPDATE_PERIOD, steamCtrl->refillUpdatePeriod);
   EXPECT_EQ(STEAM_PREHEAT_TEMPERATURE_CONTROLLER_LABEL, steamCtrl->preheatController);
