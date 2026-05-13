@@ -10,9 +10,8 @@ class openpressod(ConanFile):
         self.requires("toml11/[>=4.4.0]")
         self.requires("magic_enum/[>=0.9.7]")
         
-        self.requires("libopenpresso/0.0.0-2-gbed204c")
-        self.requires("openpresso_proto/0.0.0-testing")
-        self.requires("xxhash/0.8.3")
+        self.requires("libopenpresso/1.0.0-rc2")
+        self.requires("openpresso_proto/1.0.0-rc1")
 
     def build_requirements(self):
         self.test_requires("gtest/1.17.0")
