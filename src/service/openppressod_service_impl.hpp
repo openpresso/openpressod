@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include <google/protobuf/empty.pb.h>
+#include <grpcpp/server_context.h>
 #include <grpcpp/support/server_callback.h>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <openpresso_proto/openpresso.grpc.pb.h>
@@ -22,13 +24,21 @@ public:
                                         const google::protobuf::Empty* request,
                                         google::protobuf::Empty* response) override;
 
-  grpc::ServerUnaryReactor* getBrewProfileInfo(grpc::CallbackServerContext* context,
-                                               const google::protobuf::Empty* request,
-                                               BrewProfileInfo* response) override;
+  grpc::ServerUnaryReactor* getUserSettings(grpc::CallbackServerContext* context,
+                                            const google::protobuf::Empty* request,
+                                            UserSettings* response) override;
+
+  grpc::ServerUnaryReactor* setUserSettings(grpc::CallbackServerContext* context,
+                                            const UserSettings* request,
+                                            google::protobuf::Empty* response) override;
+
+  grpc::ServerUnaryReactor* getBrewProfile(grpc::CallbackServerContext* context,
+                                           const google::protobuf::Empty* request,
+                                           BrewProfile* response) override;
 
   grpc::ServerUnaryReactor* setBrewProfile(grpc::CallbackServerContext* context,
                                            const BrewProfile* request,
-                                           SetProfileResult* response) override;
+                                           google::protobuf::Empty* response) override;
 
   grpc::ServerUnaryReactor* setPowerState(grpc::CallbackServerContext* context,
                                           const PowerState* request,

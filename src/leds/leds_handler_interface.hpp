@@ -12,7 +12,7 @@ public:
 
   virtual void indicatePowerOff() = 0;
   virtual void indicateBrewState(libopenpresso::millidegrees_t targetTemp) = 0;
-  virtual void indicateSteamState() = 0;
+  virtual void indicateSteamState(libopenpresso::millidegrees_t targetTemp) = 0;
 };
 
 } // namespace openpressod

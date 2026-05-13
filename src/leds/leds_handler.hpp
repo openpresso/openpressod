@@ -25,11 +25,10 @@ public:
 
   void indicatePowerOff() override;
   void indicateBrewState(libopenpresso::millidegrees_t targetTemp) override;
-  void indicateSteamState() override;
+  void indicateSteamState(libopenpresso::millidegrees_t targetTemp) override;
 
 private:
   libopenpresso::millidegrees_t m_brewTempretureWindow;
-  libopenpresso::millidegrees_t m_steamTempreture;
   libopenpresso::millidegrees_t m_steamTempretureWindow;
   libopenpresso::LogicalOutputPtr m_power;
   libopenpresso::LogicalOutputPtr m_brew;

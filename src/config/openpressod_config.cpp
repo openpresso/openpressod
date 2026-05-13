@@ -35,12 +35,25 @@ OpenpressodConfig openpressod::OpenpressodConfig::fromString(const std::string& 
   return {toml::parse_str(conf)};
 }
 
+std::filesystem::path openpressod::OpenpressodConfig::userSettingsPath() const
+{
+  return toml::find_or(m_config,
+                       "global",
+                       "user_settings_path",
+                       (daemonBaseDirectory() / DEFAULT_USER_SETTINGS_FILE_NAME).c_str());
+}
+
+bool OpenpressodConfig::pidStateMonitoringEnabled() const
+{
+  return toml::find_or(m_config, "global", "pid_state_monitoring_enabled", DEFAULT_PID_STATE_MONITORING_ENABLE);
+}
+
 std::filesystem::path OpenpressodConfig::brewProfilePath() const
 {
   return toml::find_or(m_config,
                        "global",
                        "brew_profile_path",
-                       (daemonBaseDirectory() / DEFAULT_BREW_PROFILE_NAME).c_str());
+                       (daemonBaseDirectory() / DEFAULT_BREW_PROFILE_FILE_NAME).c_str());
 }
 
 std::filesystem::path OpenpressodConfig::socketPath() const

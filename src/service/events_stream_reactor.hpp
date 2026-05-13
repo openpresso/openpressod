@@ -3,10 +3,12 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
+#include <list>
 #include <mutex>
 #include <thread>
 
-#include <openpresso_proto/openpresso.grpc.pb.h>
+#include <grpcpp/support/server_callback.h>
 #include <openpresso_proto/openpresso.pb.h>
 
 namespace openpressod
@@ -31,7 +33,7 @@ public:
   void notifyChanged(const PowerState& powerState);
   void notifyChanged(const BrewProgress& brewProgress);
   void notifyChanged(const SteamModeState& steamModeState);
-  void notifyChanged(const BrewProfileInfo& brewProfileInfo);
+  void notifyChanged(const BrewProfile& brewProfile);
 
 private:
   void pushEvent(Event&& event);

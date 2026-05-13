@@ -292,7 +292,7 @@ LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeBrewTempe
       .powerController = HEATER_POWER_CONTROLLER_LABEL,
       .sensor = TEMPERATURE_SENSOR_LABEL,
       .pidSettings = m_daemonConfig.brewTemperatureControllerPidSettings(),
-      .enablePidStateDump = false,
+      .enablePidStateDump = m_daemonConfig.pidStateMonitoringEnabled(),
       .flowCounter = INTERNAL_FLOW_SENSOR_LABEL,
     },
   };
@@ -306,7 +306,7 @@ LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeSteamPreh
       .powerController = HEATER_POWER_CONTROLLER_LABEL,
       .sensor = TEMPERATURE_SENSOR_LABEL,
       .pidSettings = m_daemonConfig.steamPreheatTemperatureControllerPidSettings(),
-      .enablePidStateDump = false,
+      .enablePidStateDump = m_daemonConfig.pidStateMonitoringEnabled(),
     },
   };
 }
@@ -319,7 +319,7 @@ LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeSteamActi
       .powerController = HEATER_POWER_CONTROLLER_LABEL,
       .sensor = TEMPERATURE_SENSOR_LABEL,
       .pidSettings = m_daemonConfig.steamActiveTemperatureControllerPidSettings(),
-      .enablePidStateDump = false,
+      .enablePidStateDump = m_daemonConfig.pidStateMonitoringEnabled(),
     },
   };
 }
@@ -343,9 +343,8 @@ LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeSteamCont
   return {
     STEAM_CONTROLLER_LABEL,
     libopenpresso::SteamControllerConfig{
-      .steamTemperature = m_daemonConfig.steamTemperature(),
       .pressureThreshold = m_daemonConfig.steamPressureThreshold(),
-      .temperatureThreshold = m_daemonConfig.steamTemperature() - STEAM_TEMPERATURE_THRESHOLD_OFFSET,
+      .temperatureRelativeThreshold = STEAM_TEMPERATURE_THRESHOLD_OFFSET,
       .refillFlow = m_daemonConfig.steamRefillFlow(),
       .refillUpdatePeriod = STEAM_CONTROLLER_STATE_UPDATE_PERIOD,
       .preheatController = STEAM_PREHEAT_TEMPERATURE_CONTROLLER_LABEL,

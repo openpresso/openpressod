@@ -1,18 +1,25 @@
 #include "async_events_dispatcher.hpp"
 
+#include "service/events_stream_reactor.hpp"
+#include "state_manager/brew_profile_manager.hpp"
 #include "state_manager/state_manager.hpp"
+#include "state_manager/user_settings_manager.hpp"
 
 #include <functional>
 #include <memory>
 #include <utility>
 #include <variant>
 
-#include <libopenpresso/interfaces/libopenpresso_core.hpp>
+#include <openpresso_proto/openpresso.pb.h>
 
 using namespace openpressod;
 
-AsyncEventDispatcher::AsyncEventDispatcher(std::unique_ptr<StateManager>&& stateManager)
+AsyncEventDispatcher::AsyncEventDispatcher(std::unique_ptr<StateManager> stateManager,
+                                           std::unique_ptr<BrewProfileManager> brewProfileManager,
+                                           std::unique_ptr<UserSettingsManager> userSettingsManager)
 : m_stateManager{std::move(stateManager)}
+, m_brewProfileManager{std::move(brewProfileManager)}
+, m_userSettings{std::move(userSettingsManager)}
 , m_brewCallback{m_stateManager->registerBrewProfilerCallback(
     std::bind_front(&AsyncEventDispatcher::brewCallback, this))}
 {
@@ -76,9 +83,16 @@ void openpressod::AsyncEventDispatcher::setSteamModeState(bool state)
 
 void openpressod::AsyncEventDispatcher::addEventsStreamReactor(std::unique_ptr<EventsStreamReactor> reactor)
 {
-  m_executor.executeDiscardResult(&StateManager::addEventsStreamReactor,
-                                  m_stateManager.get(),
-                                  std::move(reactor));
+  m_executor.executeDiscardResult([this, reactor = std::move(reactor)] mutable {
+    m_eventsSinks.push_back(std::move(reactor));
+  });
+}
+
+void AsyncEventDispatcher::releaseEventsStreamReactor(const EventsStreamReactor* reactor)
+{
+  m_executor.executeDiscardResult([this, reactor] {
+    m_eventsSinks.remove_if([reactor](auto&& val) { return val.get() == reactor; });
+  });
 }
 
 void openpressod::AsyncEventDispatcher::brewCallback(std::variant<step_index_t, stopped_flag_t> step)
@@ -87,13 +101,12 @@ void openpressod::AsyncEventDispatcher::brewCallback(std::variant<step_index_t, 
     stopBrew();
   }
   else {
-    m_executor.executeDiscardResult(&StateManager::onBrewStepChange,
-                                    m_stateManager.get(),
-                                    std::get<step_index_t>(step));
+    m_executor.executeDiscardResult([this, index = std::get<step_index_t>(step)] {
+      BrewProgress progress;
+      progress.set_brewstepindex(index);
+      for (auto&& sink : m_eventsSinks) {
+        sink->notifyChanged(progress);
+      }
+    });
   }
-}
-
-void AsyncEventDispatcher::releaseEventsStreamReactor(const EventsStreamReactor* reactor)
-{
-  m_executor.executeDiscardResult(&StateManager::releaseEventsStreamReactor, m_stateManager.get(), reactor);
 }

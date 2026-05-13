@@ -5,12 +5,17 @@
 #include "metrics_stream_reactor.hpp"
 
 #include <chrono>
-#include <cstdint>
+#include <exception>
 #include <future>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
+#include <google/protobuf/empty.pb.h>
+#include <grpcpp/server_context.h>
+#include <grpcpp/support/server_callback.h>
 #include <grpcpp/support/status.h>
+#include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <openpresso_proto/openpresso.pb.h>
 #include <spdlog/spdlog.h>
 
@@ -46,42 +51,31 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::resetScales(
   return reactor;
 }
 
-grpc::ServerUnaryReactor* OpenpressodServiceImpl::getBrewProfileInfo(
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::getBrewProfile(
   grpc::CallbackServerContext* context,
   [[maybe_unused]] const google::protobuf::Empty* request,
-  BrewProfileInfo* response)
+  BrewProfile* response)
 {
   auto* reactor = context->DefaultReactor();
-  auto callback = [reactor, response](std::future<std::pair<std::string, uint64_t>> result) {
+  auto callback = [reactor, response](std::future<const BrewProfile&> result) {
     try {
-      auto info = result.get();
-      response->mutable_name()->assign(info.first);
-      response->set_hash(info.second);
+      response->CopyFrom(result.get());
       reactor->Finish(grpc::Status::OK);
     }
     catch (const std::exception& e) {
       reactor->Finish(grpc::Status{grpc::StatusCode::UNKNOWN, e.what()});
     }
   };
-  m_dispatcher->getBrewProfileInfo(std::move(callback));
+  m_dispatcher->getBrewProfile(std::move(callback));
   return reactor;
 }
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::setBrewProfile(grpc::CallbackServerContext* context,
                                                                  const BrewProfile* request,
-                                                                 SetProfileResult* response)
+                                                                 [[maybe_unused]] google::protobuf::Empty* response)
 {
   auto* reactor = context->DefaultReactor();
-  auto callback = [reactor, request, response](std::future<uint64_t> result) {
-    try {
-      response->set_profilehash(result.get());
-      reactor->Finish(grpc::Status::OK);
-    }
-    catch (const std::exception& e) {
-      reactor->Finish(grpc::Status{grpc::StatusCode::ABORTED, e.what()});
-    }
-  };
-  m_dispatcher->setBrewProfile(request, std::move(callback));
+  m_dispatcher->setBrewProfile(request, makeVoidCallback(reactor));
   return reactor;
 }
 
@@ -195,6 +189,40 @@ grpc::ServerWriteReactor<Metrics>* OpenpressodServiceImpl::metrics(
   auto updateRate = std::chrono::seconds{request->updaterate().seconds()} +
                     std::chrono::nanoseconds{request->updaterate().nanos()};
 
-  auto reactor = std::make_unique<MetricsStreamReactor>(m_core, updateRate);
-  return reactor.release();
+  try {
+    auto reactor = std::make_unique<MetricsStreamReactor>(m_core, updateRate, request->pidsource());
+    return reactor.release();
+  }
+  catch (const std::runtime_error& e) {
+    spdlog::error(e.what());
+    return nullptr;
+  }
+}
+
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::getUserSettings(
+  grpc::CallbackServerContext* context,
+  [[maybe_unused]] const google::protobuf::Empty* request,
+  UserSettings* response)
+{
+  auto* reactor = context->DefaultReactor();
+  auto callback = [reactor, response](std::future<const UserSettings&> result) {
+    try {
+      response->CopyFrom(result.get());
+      reactor->Finish(grpc::Status::OK);
+    }
+    catch (const std::exception& e) {
+      reactor->Finish(grpc::Status{grpc::StatusCode::UNKNOWN, e.what()});
+    }
+  };
+  m_dispatcher->getUserSettings(std::move(callback));
+  return reactor;
+}
+
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::setUserSettings(grpc::CallbackServerContext* context,
+                                                                  const UserSettings* request,
+                                                                  [[maybe_unused]] google::protobuf::Empty* response)
+{
+  auto* reactor = context->DefaultReactor();
+  m_dispatcher->setUserSettings(request, makeVoidCallback(reactor));
+  return reactor;
 }

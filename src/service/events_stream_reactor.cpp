@@ -3,6 +3,7 @@
 #include "async_events_dispatcher/async_events_dispatcher.hpp"
 
 #include <atomic>
+#include <list>
 #include <mutex>
 #include <utility>
 
@@ -55,10 +56,10 @@ void EventsStreamReactor::notifyChanged(const SteamModeState& steamModeState)
   pushEvent(std::move(event));
 }
 
-void EventsStreamReactor::notifyChanged(const BrewProfileInfo& brewProfileInfo)
+void EventsStreamReactor::notifyChanged(const BrewProfile& brewProfile)
 {
   Event event;
-  event.mutable_brewprofile()->CopyFrom(brewProfileInfo);
+  event.mutable_brewprofile()->CopyFrom(brewProfile);
   pushEvent(std::move(event));
 }
 

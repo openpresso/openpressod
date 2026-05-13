@@ -14,7 +14,6 @@ using namespace openpressod;
 
 LedsHandler::LedsHandler(const libopenpresso::CorePtr& core, const OpenpressodConfig& config)
 : m_brewTempretureWindow(config.brewTemperatureWindow())
-, m_steamTempreture(config.steamTemperature())
 , m_steamTempretureWindow(config.steamTemperatureWindow())
 , m_power(core->getLogicalOutput(libopenpresso_config_labels::POWER_LED_LABEL))
 , m_brew(core->getLogicalOutput(libopenpresso_config_labels::BREW_LED_LABEL))
@@ -61,15 +60,16 @@ void openpressod::LedsHandler::indicateBrewState(libopenpresso::millidegrees_t t
   m_steam->setState(false);
 }
 
-void openpressod::LedsHandler::indicateSteamState()
+void openpressod::LedsHandler::indicateSteamState(libopenpresso::millidegrees_t targetTemp)
 {
   if (m_temperatureCallback.has_value()) {
     m_temperatureSensor->unregisterCallback(std::exchange(m_temperatureCallback, {}).value());
   }
 
   m_temperatureCallback = m_temperatureSensor->registerCallback(
-    [targetTemp = m_steamTempreture, window = m_steamTempretureWindow, led = m_steam](
-      libopenpresso::millidegrees_t temp) { led->setState(std::abs(targetTemp - temp) <= window); });
+    [targetTemp, window = m_steamTempretureWindow, led = m_steam](libopenpresso::millidegrees_t temp) {
+      led->setState(std::abs(targetTemp - temp) <= window);
+    });
 
   m_power->setState(true);
   m_brew->setState(false);

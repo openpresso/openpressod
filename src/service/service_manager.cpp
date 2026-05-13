@@ -3,8 +3,12 @@
 #include "config/openpressod_config.hpp"
 
 #include <chrono>
+#include <filesystem>
+#include <memory>
 
 #include <grpcpp/security/server_credentials.h>
+#include <grpcpp/server_builder.h>
+#include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <spdlog/spdlog.h>
 
 using namespace openpressod;

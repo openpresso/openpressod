@@ -28,11 +28,13 @@ public:
 
   // [global]
   std::filesystem::path brewProfilePath() const;
+  std::filesystem::path userSettingsPath() const;
   std::filesystem::path socketPath() const;
   size_t mainsFrequency() const;
   libopenpresso::unix_dev_addr_t i2cBus() const;
   libopenpresso::unix_dev_addr_t gpioChip() const;
   libopenpresso::pin_number_t mainsZeroCrossPin() const;
+  bool pidStateMonitoringEnabled() const;
 
   // [logs]
   bool logfileOutputEnabled() const;

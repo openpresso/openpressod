@@ -12,7 +12,8 @@ namespace openpressod::config_defaults
 
 using namespace std::chrono_literals;
 
-static constexpr auto DEFAULT_BREW_PROFILE_NAME = "brew_profile.json";
+static constexpr auto DEFAULT_BREW_PROFILE_FILE_NAME = "brew_profile.json";
+static constexpr auto DEFAULT_USER_SETTINGS_FILE_NAME = "user_settings.json";
 static constexpr auto DEFAULT_SOCKET_PATH = "/var/run/openpresso.sock";
 
 static constexpr auto DEFAULT_I2C_BUS = "/dev/i2c-0";
@@ -28,6 +29,7 @@ static constexpr auto DEFAULT_LOGFILE_LEVEL = spdlog::level::info;
 static constexpr auto DEFAULT_CONSOLE_LOG_LEVEL = spdlog::level::info;
 
 static constexpr bool DEFAULT_WATCHDOG_ENABLE = true;
+static constexpr bool DEFAULT_PID_STATE_MONITORING_ENABLE = false;
 
 static constexpr bool DEFAULT_POWER_BUTTON_BISTABLE = false;
 static constexpr bool DEFAULT_BREW_BUTTON_BISTABLE = true;
