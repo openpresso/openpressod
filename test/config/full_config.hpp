@@ -14,12 +14,8 @@ user_settings_path = "/custom/user_settings.json"
 pid_state_monitoring_enabled = true
 
 [log]
-file_output_enabled = false
-file_loglevel = "debug"
-file_output_pattern = "[%H:%M:%S] %v"
-files_directory = "/var/log/custom"
-console_output_pattern = "[%l] %v"
-console_loglevel = "warn"
+console_log_pattern = "[%l] %v"
+console_log_level = "warn"
 
 [watchdog]
 enabled = false

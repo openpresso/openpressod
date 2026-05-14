@@ -4,17 +4,14 @@
 #include "leds/leds_handler_interface.hpp"
 
 #include <memory>
-#include <ranges>
 #include <stdexcept>
 #include <utility>
 
-#include <libopenpresso/brew_steps_data.hpp>
 #include <libopenpresso/interfaces/brew_profiler.hpp>      // IWYU pragma: keep
 #include <libopenpresso/interfaces/controller_base.hpp>    // IWYU pragma: keep
 #include <libopenpresso/interfaces/libopenpresso_core.hpp> // IWYU pragma: keep
 #include <libopenpresso/interfaces/logical_input.hpp>      // IWYU pragma: keep
 #include <libopenpresso/types.hpp>
-#include <openpresso_proto/openpresso.pb.h>
 #include <spdlog/spdlog.h>
 
 using namespace openpressod;
@@ -38,8 +35,11 @@ bool StateManager::getPowerState() const noexcept
 void StateManager::setPowerState(bool state)
 {
   if (m_power == state) {
+    spdlog::warn("Power is already {}", m_steam ? "ON" : "OFF");
     return;
   }
+
+  spdlog::debug("Power state change from {} to: {}", m_power ? "ON" : "OFF", state ? "ON" : "OFF");
 
   if (m_power) {
     m_brewProfiler->deactivate();
@@ -67,8 +67,11 @@ bool StateManager::getBrewState() const noexcept
 void StateManager::startBrew()
 {
   if (m_brewProfiler->isActive()) {
+    spdlog::warn("Brew process is already running");
     return;
   }
+
+  spdlog::debug("Starting brew process");
 
   if (!m_power) {
     throw std::runtime_error{"Cannot start brew while power is off"};
@@ -79,20 +82,40 @@ void StateManager::startBrew()
   }
 
   m_brewProfiler->activate();
+
+  spdlog::debug("Brew process started");
 }
 
 void StateManager::stopBrew()
 {
   if (!m_brewProfiler->isActive()) {
+    spdlog::warn("Brew process is already stopped");
     return;
   }
 
+  spdlog::debug("Stopping brew process");
+
   m_brewProfiler->deactivate();
+
+  spdlog::debug("Brew process stopped");
+}
+
+void StateManager::setBrewTemperature(libopenpresso::millidegrees_t temperature)
+{
+  m_brewTemperatureController->setTargetTemperature(temperature);
+  if (!m_steam && m_power) {
+    m_leds->indicateBrewState(temperature);
+  }
+  spdlog::info("Brew temperature changed, new value: {}", temperature);
 }
 
 void StateManager::setSteamTemperature(libopenpresso::millidegrees_t temperature)
 {
   m_steamController->setTargetTemperature(temperature);
+  if (m_steam && m_power) {
+    m_leds->indicateSteamState(temperature);
+  }
+  spdlog::info("Steam temperature changed, new value: {}", temperature);
 }
 
 bool StateManager::getSteamModeState() const noexcept
@@ -108,7 +131,7 @@ void StateManager::setSteamModeState(bool state)
     return;
   }
 
-  spdlog::info("Steam mode state change from {} to: {}", m_steam ? "ON" : "OFF", state ? "ON" : "OFF");
+  spdlog::debug("Steam mode state change from {} to: {}", m_steam ? "ON" : "OFF", state ? "ON" : "OFF");
 
   if (m_brewProfiler->isActive()) {
     throw std::runtime_error{"Cannot switch to steam mode while brewing"};
@@ -138,87 +161,7 @@ void StateManager::resetScales()
   m_weightSensor->tare();
 }
 
-libopenpresso::step_target_t StateManager::getStepTarget(const BrewStep& step)
-{
-  using namespace libopenpresso::brew_step_targets;
-
-  if (step.has_pressure()) {
-    return ConstantPressure{step.pressure()};
-  }
-
-  if (step.has_flowrate()) {
-    return ConstantFlow{step.flowrate()};
-  }
-
-  throw std::runtime_error{"Brew step has no target"};
-}
-
-libopenpresso::next_step_condition_t StateManager::getStepCondition(const BrewStep& step)
-{
-  using namespace libopenpresso::brew_step_advance_conditions;
-
-  if (step.has_steptime()) {
-    return OnStepTime{std::chrono::seconds{step.steptime().seconds()} +
-                      std::chrono::nanoseconds{step.steptime().nanos()}};
-  }
-
-  if (step.has_totaltime()) {
-    return OnTotalTime{std::chrono::seconds{step.totaltime().seconds()} +
-                       std::chrono::nanoseconds{step.totaltime().nanos()}};
-  }
-
-  if (step.has_totalweight()) {
-    return OnWeight{step.totalweight()};
-  }
-
-  return Never{};
-}
-
-void StateManager::setAutoStopCondition(const BrewProfile* profile)
-{
-  using namespace libopenpresso::brew_step_advance_conditions;
-
-  if (profile->has_totaltime()) {
-    auto time = std::chrono::seconds{profile->totaltime().seconds()} +
-                std::chrono::nanoseconds{profile->totaltime().nanos()};
-    m_brewProfiler->setAutoStopCondition(OnTotalTime{time});
-  }
-  else if (profile->has_totalweight()) {
-    m_brewProfiler->setAutoStopCondition(OnWeight{profile->totalweight()});
-  }
-  else {
-    m_brewProfiler->setAutoStopCondition(Never{});
-  }
-}
-
 void StateManager::unregisterBrewProfileCallback(libopenpresso::callback_descriptor_t descr)
 {
   m_brewProfiler->unregisterStepChangeCallback(descr);
-}
-
-void StateManager::applyProfile(const BrewProfile* profile)
-{
-  if (m_brewProfiler->isActive()) {
-    throw std::runtime_error{"Cannot change profile while brewing"};
-  }
-
-  m_brewTemperatureController->setTargetTemperature(profile->temperature());
-  if (!m_steam && m_power) {
-    m_leds->indicateBrewState(profile->temperature());
-  }
-
-  constexpr auto stepTransformer = [](const BrewStep& step) {
-    return std::make_pair(getStepTarget(step), getStepCondition(step));
-  };
-  auto steps = profile->steps() | std::views::transform(stepTransformer);
-  m_brewProfiler->setSteps({steps.begin(), steps.end()});
-
-  setAutoStopCondition(profile);
-
-  if (profile->name().empty()) {
-    spdlog::warn("Unnamed brew profile applied");
-  }
-  else {
-    spdlog::info("Brew profile \"{}\" applied", profile->name());
-  }
 }

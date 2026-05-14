@@ -26,8 +26,8 @@ namespace
 void runDaemon(const std::atomic<bool>& exitFlag)
 {
   auto config = OpenpressodConfig::fromFile();
-  spdlog::set_level(config.consoleOutputLevel());
-  spdlog::set_pattern(config.consoleOutputPattern());
+  spdlog::set_level(config.logLevel());
+  spdlog::set_pattern(config.logMessagePattern());
 
   auto deviceConfig = LibopenpressoConfigMaker(config, spdlog::default_logger()).make();
   auto core = libopenpresso::getCore(deviceConfig);
@@ -50,7 +50,7 @@ void runDaemon(const std::atomic<bool>& exitFlag)
     settingsManager->loadDefaultSettings();
   }
 
-  stateManager->applyProfile(std::addressof(profileManager->getProfile()));
+  profileManager->applyBrewProfile(*stateManager);
   stateManager->setSteamTemperature(settingsManager->getSettings().steamttemperature());
 
   auto dispatcher = std::make_shared<AsyncEventDispatcher>(std::move(stateManager),

@@ -118,7 +118,7 @@ inline void AsyncEventDispatcher::setBrewProfile(const BrewProfile* profile, Cb&
   m_executor.executeWithCallback(
     [this, profile] {
       m_brewProfileManager->saveProfile(*profile);
-      m_stateManager->applyProfile(profile);
+      m_brewProfileManager->applyBrewProfile(*m_stateManager);
       for (auto&& sink : m_eventsSinks) {
         sink->notifyChanged(*profile);
       }

@@ -21,11 +21,7 @@ static constexpr auto DEFAULT_GPIO_CHIP = "/dev/gpiochip0";
 static constexpr auto DEFAULT_WATCHDOG = "/dev/watchdog0";
 static constexpr auto DEFAULT_TEMPERATURE_SENSOR_SPI = "/dev/spidev0.0";
 
-static constexpr bool DEFAULT_LOGFILE_ENABLE = true;
-static constexpr auto DEFAULT_LOGFILES_DIRECTORY_NAME = "logs";
-static constexpr auto DEFAULT_LOGFILE_OUTPUT_PATTERN = "%+";
 static constexpr auto DEFAULT_CONSOLE_LOG_OUTPUT_PATTERN = "%+";
-static constexpr auto DEFAULT_LOGFILE_LEVEL = spdlog::level::info;
 static constexpr auto DEFAULT_CONSOLE_LOG_LEVEL = spdlog::level::info;
 
 static constexpr bool DEFAULT_WATCHDOG_ENABLE = true;

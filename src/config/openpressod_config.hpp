@@ -37,12 +37,8 @@ public:
   bool pidStateMonitoringEnabled() const;
 
   // [logs]
-  bool logfileOutputEnabled() const;
-  spdlog::level::level_enum logFileLevel() const;
-  std::string logFileOutputPattern() const;
-  std::filesystem::path logFilesDirectory() const;
-  std::string consoleOutputPattern() const;
-  spdlog::level::level_enum consoleOutputLevel() const;
+  std::string logMessagePattern() const;
+  spdlog::level::level_enum logLevel() const;
 
   // [watchdog]
   bool watchdogEnabled() const;

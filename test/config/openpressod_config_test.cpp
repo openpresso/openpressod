@@ -38,12 +38,8 @@ TEST(OpenpressodConfig, DefaultValues)
   EXPECT_FALSE(config.pidStateMonitoringEnabled());
 
   // [log] defaults
-  EXPECT_TRUE(config.logfileOutputEnabled());
-  EXPECT_EQ(spdlog::level::info, config.logFileLevel());
-  EXPECT_EQ("%+", config.logFileOutputPattern());
-  EXPECT_EQ(EXPECTED_DAEMON_DIR / "logs", config.logFilesDirectory());
-  EXPECT_EQ("%+", config.consoleOutputPattern());
-  EXPECT_EQ(spdlog::level::info, config.consoleOutputLevel());
+  EXPECT_EQ("%+", config.logMessagePattern());
+  EXPECT_EQ(spdlog::level::info, config.logLevel());
 
   // [watchdog] defaults
   EXPECT_TRUE(config.watchdogEnabled());
@@ -225,12 +221,8 @@ TEST(OpenpressodConfig, FullConfig)
   EXPECT_TRUE(config.pidStateMonitoringEnabled());
 
   // [log]
-  EXPECT_FALSE(config.logfileOutputEnabled());
-  EXPECT_EQ(spdlog::level::debug, config.logFileLevel());
-  EXPECT_EQ("[%H:%M:%S] %v", config.logFileOutputPattern());
-  EXPECT_EQ("/var/log/custom", config.logFilesDirectory());
-  EXPECT_EQ("[%l] %v", config.consoleOutputPattern());
-  EXPECT_EQ(spdlog::level::warn, config.consoleOutputLevel());
+  EXPECT_EQ("[%l] %v", config.logMessagePattern());
+  EXPECT_EQ(spdlog::level::warn, config.logLevel());
 
   // [watchdog]
   EXPECT_FALSE(config.watchdogEnabled());

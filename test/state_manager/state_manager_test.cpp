@@ -199,149 +199,101 @@ TEST_F(StateManagerTest, ResetScales)
   EXPECT_THROW(manager->resetScales(), std::runtime_error);
 }
 
-TEST_F(StateManagerTest, SetBrewProfilePowerOffNoSteam)
+TEST_F(StateManagerTest, SetBrewTemperaturePowerOff)
 {
-  using namespace libopenpresso::brew_step_targets;
-  using namespace libopenpresso::brew_step_advance_conditions;
-
   auto manager = createManager();
 
-  BrewProfile profile;
-  profile.set_temperature(95000);
-
-  auto* step = profile.add_steps();
-  step->set_pressure(8000);
-  step->mutable_steptime()->set_seconds(10);
-
-  profile.set_totalweight(36000);
-
-  // In power off state, temperature controller is updated but LEDs are not.
   EXPECT_CALL(*temperatureController, setTargetTemperature(95000));
   EXPECT_CALL(*ledsHandler, indicateBrewState(_)).Times(0);
-
-  EXPECT_CALL(*brewProfiler, setSteps(_)).WillOnce([](const auto& steps) {
-    EXPECT_EQ(steps.size(), 1);
-    EXPECT_TRUE(std::holds_alternative<ConstantPressure>(steps[0].first));
-    EXPECT_EQ(std::get<ConstantPressure>(steps[0].first).pressure, 8000);
-    EXPECT_TRUE(std::holds_alternative<OnStepTime>(steps[0].second));
-  });
-
-  EXPECT_CALL(*brewProfiler, setAutoStopCondition(Matcher<OnWeight>(_))).WillOnce([](const OnWeight& cond) {
-    EXPECT_EQ(cond.weight, 36000);
-  });
-
-  manager->applyProfile(&profile);
+  manager->setBrewTemperature(95000);
 }
 
-TEST_F(StateManagerTest, SetBrewProfilePowerOffSteam)
+TEST_F(StateManagerTest, SetBrewTemperaturePowerOnNoSteam)
 {
-  using namespace libopenpresso::brew_step_targets;
-  using namespace libopenpresso::brew_step_advance_conditions;
-
   auto manager = createManager();
-  manager->setSteamModeState(true);
-
-  BrewProfile profile;
-  profile.set_temperature(95000);
-
-  auto* step = profile.add_steps();
-  step->set_pressure(8000);
-  step->mutable_steptime()->set_seconds(10);
-
-  profile.set_totalweight(36000);
-
-  // In power off state, temperature controller is updated but LEDs are not.
-  EXPECT_CALL(*temperatureController, setTargetTemperature(95000));
-  EXPECT_CALL(*ledsHandler, indicateBrewState(_)).Times(0);
-
-  EXPECT_CALL(*brewProfiler, setSteps(_)).WillOnce([](const auto& steps) {
-    EXPECT_EQ(steps.size(), 1);
-    EXPECT_TRUE(std::holds_alternative<ConstantPressure>(steps[0].first));
-    EXPECT_EQ(std::get<ConstantPressure>(steps[0].first).pressure, 8000);
-    EXPECT_TRUE(std::holds_alternative<OnStepTime>(steps[0].second));
-  });
-
-  EXPECT_CALL(*brewProfiler, setAutoStopCondition(Matcher<OnWeight>(_))).WillOnce([](const OnWeight& cond) {
-    EXPECT_EQ(cond.weight, 36000);
-  });
-
-  manager->applyProfile(&profile);
-}
-
-TEST_F(StateManagerTest, SetBrewProfileBrewPreheat)
-{
-  using namespace libopenpresso::brew_step_targets;
-  using namespace libopenpresso::brew_step_advance_conditions;
-
-  auto manager = createManager();
-
-  // Turn power on to enter brew preheat state
   manager->setPowerState(true);
 
-  BrewProfile profile;
-  profile.set_temperature(96000);
-
-  auto* step = profile.add_steps();
-  step->set_pressure(8000);
-  step->mutable_steptime()->set_seconds(10);
-
-  profile.set_totalweight(36000);
-
-  // Expect both temperature controller and LEDs to be updated in brew preheat state
   EXPECT_CALL(*temperatureController, setTargetTemperature(96000));
   EXPECT_CALL(*ledsHandler, indicateBrewState(96000));
-
-  EXPECT_CALL(*brewProfiler, setSteps(_));
-  EXPECT_CALL(*brewProfiler, setAutoStopCondition(Matcher<OnWeight>(_)));
-
-  manager->applyProfile(&profile);
+  manager->setBrewTemperature(96000);
 }
 
-TEST_F(StateManagerTest, SetBrewProfileSteamMode)
+TEST_F(StateManagerTest, SetBrewTemperaturePowerOnSteam)
 {
-  using namespace libopenpresso::brew_step_targets;
-  using namespace libopenpresso::brew_step_advance_conditions;
-
   auto manager = createManager();
-
-  // Enter steam mode
   manager->setSteamModeState(true);
+  manager->setPowerState(true);
 
-  BrewProfile profile;
-  profile.set_temperature(97000);
-
-  auto* step = profile.add_steps();
-  step->set_pressure(8000);
-  step->mutable_steptime()->set_seconds(10);
-
-  profile.set_totalweight(36000);
-
-  // In steam mode, temperature controller is updated with brew temp but LEDs are not updated with
-  // brew temp
   EXPECT_CALL(*temperatureController, setTargetTemperature(97000));
   EXPECT_CALL(*ledsHandler, indicateBrewState(_)).Times(0);
-
-  EXPECT_CALL(*brewProfiler, setSteps(_));
-  EXPECT_CALL(*brewProfiler, setAutoStopCondition(Matcher<OnWeight>(_)));
-
-  manager->applyProfile(&profile);
+  manager->setBrewTemperature(97000);
 }
 
-TEST_F(StateManagerTest, SetBrewProfileActiveBrewing)
-{
-  auto manager = createManager();
-
-  BrewProfile profile;
-
-  // Test set profile while brewing throws
-  EXPECT_CALL(*brewProfiler, isActive()).WillRepeatedly(Return(true));
-  EXPECT_THROW(manager->applyProfile(&profile), std::runtime_error);
-}
-
-TEST_F(StateManagerTest, SetSteamTemperature)
+TEST_F(StateManagerTest, SetSteamTemperaturePowerOff)
 {
   auto manager = createManager();
 
   EXPECT_CALL(*steamController, setTargetTemperature(160000));
+  EXPECT_CALL(*ledsHandler, indicateSteamState(_)).Times(0);
   manager->setSteamTemperature(160000);
+}
+
+TEST_F(StateManagerTest, SetSteamTemperaturePowerOnNoSteam)
+{
+  auto manager = createManager();
+  manager->setPowerState(true);
+
+  EXPECT_CALL(*steamController, setTargetTemperature(160000));
+  EXPECT_CALL(*ledsHandler, indicateSteamState(_)).Times(0);
+  manager->setSteamTemperature(160000);
+}
+
+TEST_F(StateManagerTest, SetSteamTemperaturePowerOnSteam)
+{
+  auto manager = createManager();
+  manager->setSteamModeState(true);
+  manager->setPowerState(true);
+
+  EXPECT_CALL(*steamController, setTargetTemperature(160000));
+  EXPECT_CALL(*ledsHandler, indicateSteamState(160000));
+  manager->setSteamTemperature(160000);
+}
+
+TEST_F(StateManagerTest, SetBrewSteps)
+{
+  using namespace libopenpresso::brew_step_targets;
+  using namespace libopenpresso::brew_step_advance_conditions;
+
+  auto manager = createManager();
+  std::vector<std::pair<libopenpresso::step_target_t, libopenpresso::next_step_condition_t>> steps;
+  steps.push_back({ConstantPressure{8000}, OnStepTime{std::chrono::seconds{10}}});
+
+  EXPECT_CALL(*brewProfiler, setSteps(_)).WillOnce([](const auto& set_steps) {
+    EXPECT_EQ(set_steps.size(), 1);
+    EXPECT_TRUE(std::holds_alternative<ConstantPressure>(set_steps[0].first));
+    EXPECT_EQ(std::get<ConstantPressure>(set_steps[0].first).pressure, 8000);
+    EXPECT_TRUE(std::holds_alternative<OnStepTime>(set_steps[0].second));
+  });
+
+  manager->setBrewSteps(steps);
+
+  EXPECT_CALL(*brewProfiler, isActive()).WillRepeatedly(Return(true));
+  EXPECT_THROW(manager->setBrewSteps(steps), std::runtime_error);
+}
+
+TEST_F(StateManagerTest, SetAutoStopCondition)
+{
+  using namespace libopenpresso::brew_step_advance_conditions;
+
+  auto manager = createManager();
+  OnWeight cond{36000};
+
+  EXPECT_CALL(*brewProfiler, setAutoStopCondition(Matcher<OnWeight>(_))).WillOnce([](const OnWeight& set_cond) {
+    EXPECT_EQ(set_cond.weight, 36000);
+  });
+
+  manager->setAutoStopCondition(cond);
+
+  EXPECT_CALL(*brewProfiler, isActive()).WillRepeatedly(Return(true));
+  EXPECT_THROW(manager->setAutoStopCondition(cond), std::runtime_error);
 }

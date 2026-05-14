@@ -1,15 +1,18 @@
 #include "brew_profile_manager.hpp"
 
 #include "config/openpressod_config.hpp"
+#include "state_manager.hpp"
 
 #include <format>
 #include <fstream>
 #include <iterator>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <utility>
 
 #include <google/protobuf/util/json_util.h>
+#include <libopenpresso/brew_steps_data.hpp>
 #include <openpresso_proto/openpresso.pb.h>
 #include <spdlog/spdlog.h>
 
@@ -98,4 +101,77 @@ void BrewProfileManager::saveProfile(const BrewProfile& profile)
 const BrewProfile& BrewProfileManager::getProfile() const noexcept
 {
   return m_currentProfile;
+}
+
+void BrewProfileManager::applyBrewProfile(StateManager& stateManager) const
+{
+  stateManager.setBrewTemperature(m_currentProfile.temperature());
+
+  constexpr auto stepTransformer = [](const BrewStep& step) {
+    return std::make_pair(getStepTarget(step), getStepCondition(step));
+  };
+
+  stateManager.setBrewSteps(m_currentProfile.steps() | std::views::transform(stepTransformer));
+
+  setAutoStopCondition(stateManager);
+
+  if (m_currentProfile.name().empty()) {
+    spdlog::warn("Unnamed brew profile applied");
+  }
+  else {
+    spdlog::info("Brew profile \"{}\" applied", m_currentProfile.name());
+  }
+}
+
+libopenpresso::step_target_t BrewProfileManager::getStepTarget(const BrewStep& step)
+{
+  using namespace libopenpresso::brew_step_targets;
+
+  if (step.has_pressure()) {
+    return ConstantPressure{step.pressure()};
+  }
+
+  if (step.has_flowrate()) {
+    return ConstantFlow{step.flowrate()};
+  }
+
+  throw std::runtime_error{"Brew step has no target"};
+}
+
+libopenpresso::next_step_condition_t BrewProfileManager::getStepCondition(const BrewStep& step)
+{
+  using namespace libopenpresso::brew_step_advance_conditions;
+
+  if (step.has_steptime()) {
+    return OnStepTime{std::chrono::seconds{step.steptime().seconds()} +
+                      std::chrono::nanoseconds{step.steptime().nanos()}};
+  }
+
+  if (step.has_totaltime()) {
+    return OnTotalTime{std::chrono::seconds{step.totaltime().seconds()} +
+                       std::chrono::nanoseconds{step.totaltime().nanos()}};
+  }
+
+  if (step.has_totalweight()) {
+    return OnWeight{step.totalweight()};
+  }
+
+  return Never{};
+}
+
+void BrewProfileManager::setAutoStopCondition(StateManager& stateManager) const
+{
+  using namespace libopenpresso::brew_step_advance_conditions;
+
+  if (m_currentProfile.has_totaltime()) {
+    auto time = std::chrono::seconds{m_currentProfile.totaltime().seconds()} +
+                std::chrono::nanoseconds{m_currentProfile.totaltime().nanos()};
+    stateManager.setAutoStopCondition(OnTotalTime{time});
+  }
+  else if (m_currentProfile.has_totalweight()) {
+    stateManager.setAutoStopCondition(OnWeight{m_currentProfile.totalweight()});
+  }
+  else {
+    stateManager.setAutoStopCondition(Never{});
+  }
 }

@@ -4,8 +4,9 @@
 #include "leds/leds_handler_interface.hpp"
 
 #include <memory>
+#include <ranges>
+#include <utility>
 
-#include <libopenpresso/brew_steps_data.hpp>
 #include <libopenpresso/interfaces/brew_profiler.hpp>
 #include <libopenpresso/types.hpp>
 
@@ -19,9 +20,6 @@ class WeightSensor;
 
 namespace openpressod
 {
-
-class BrewProfile;
-class BrewStep;
 
 class StateManager {
   using core_ptr_t = std::shared_ptr<libopenpresso::interfaces::LibopenpressoCore>;
@@ -44,8 +42,26 @@ public:
 
   void resetScales();
 
-  void applyProfile(const BrewProfile* profile);
+  void setBrewTemperature(libopenpresso::millidegrees_t temperature);
   void setSteamTemperature(libopenpresso::millidegrees_t temperature);
+
+  template <std::ranges::range Steps>
+  void setBrewSteps(const Steps& steps)
+  {
+    if (m_brewProfiler->isActive()) {
+      throw std::runtime_error{"Cannot set brew steps sequence brewing"};
+    }
+    m_brewProfiler->setSteps({steps.begin(), steps.end()});
+  }
+
+  template <typename T>
+  void setAutoStopCondition(T&& cond)
+  {
+    if (m_brewProfiler->isActive()) {
+      throw std::runtime_error{"Cannot change auto stop condition while brewing"};
+    }
+    m_brewProfiler->setAutoStopCondition(std::forward<T>(cond));
+  }
 
   template <typename T>
   libopenpresso::callback_descriptor_t registerBrewProfilerCallback(T&& callback)
@@ -54,11 +70,6 @@ public:
   }
 
   void unregisterBrewProfileCallback(libopenpresso::callback_descriptor_t descr);
-
-private:
-  static libopenpresso::step_target_t getStepTarget(const BrewStep& step);
-  static libopenpresso::next_step_condition_t getStepCondition(const BrewStep& step);
-  void setAutoStopCondition(const BrewProfile* profile);
 
 private:
   bool m_power = false;

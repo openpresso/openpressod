@@ -86,40 +86,15 @@ libopenpresso::pin_number_t OpenpressodConfig::valveOutputPin() const
   return toml::find<libopenpresso::pin_number_t>(m_config, "valve", "control_pin");
 }
 
-bool OpenpressodConfig::logfileOutputEnabled() const
+std::string OpenpressodConfig::logMessagePattern() const
 {
-  return toml::find_or(m_config, "log", "file_output_enabled", DEFAULT_LOGFILE_ENABLE);
+  return toml::find_or(m_config, "log", "console_log_pattern", DEFAULT_CONSOLE_LOG_OUTPUT_PATTERN);
 }
 
-spdlog::level::level_enum OpenpressodConfig::logFileLevel() const
+spdlog::level::level_enum OpenpressodConfig::logLevel() const
 {
   return magic_enum::enum_cast<spdlog::level::level_enum>(
-           toml::find_or(m_config, "log", "file_loglevel", magic_enum::enum_name(DEFAULT_LOGFILE_LEVEL)))
-    .value();
-}
-
-std::string OpenpressodConfig::logFileOutputPattern() const
-{
-  return toml::find_or(m_config, "log", "file_output_pattern", DEFAULT_LOGFILE_OUTPUT_PATTERN);
-}
-
-std::filesystem::path OpenpressodConfig::logFilesDirectory() const
-{
-  return toml::find_or(m_config,
-                       "log",
-                       "files_directory",
-                       (daemonBaseDirectory() / DEFAULT_LOGFILES_DIRECTORY_NAME).c_str());
-}
-
-std::string OpenpressodConfig::consoleOutputPattern() const
-{
-  return toml::find_or(m_config, "log", "console_output_pattern", DEFAULT_CONSOLE_LOG_OUTPUT_PATTERN);
-}
-
-spdlog::level::level_enum OpenpressodConfig::consoleOutputLevel() const
-{
-  return magic_enum::enum_cast<spdlog::level::level_enum>(
-           toml::find_or(m_config, "log", "console_loglevel", magic_enum::enum_name(DEFAULT_CONSOLE_LOG_LEVEL)))
+           toml::find_or(m_config, "log", "console_log_level", magic_enum::enum_name(DEFAULT_CONSOLE_LOG_LEVEL)))
     .value();
 }
 
