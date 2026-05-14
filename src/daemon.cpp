@@ -15,7 +15,6 @@
 #include <utility>
 
 #include <libopenpresso/libopenpresso.hpp>
-#include <spdlog/common.h>
 #include <spdlog/spdlog.h>
 
 using namespace openpressod;

@@ -1,6 +1,9 @@
 #include "daemon.hpp"
 #include "signals_handler/signals_handler.hpp"
 
+#include <atomic>
+#include <exception>
+
 #include <spdlog/spdlog.h>
 
 int main()
