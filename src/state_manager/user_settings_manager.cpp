@@ -1,6 +1,7 @@
 #include "user_settings_manager.hpp"
 
 #include "config/openpressod_config.hpp"
+#include "state_manager/state_manager.hpp"
 
 #include <format>
 #include <fstream>
@@ -43,7 +44,7 @@ void UserSettingsManager::loadSavedSettings()
     throw std::runtime_error{std::format("Failed to deserialize user settings: {}", status.message())};
   }
 
-  spdlog::info("User settings loaded from file: {}", m_settingsPath.string());
+  spdlog::debug("User settings loaded from file: {}", m_settingsPath.string());
 }
 
 void UserSettingsManager::loadDefaultSettings()
@@ -94,4 +95,10 @@ UserSettings UserSettingsManager::makeDefaultSettings(const OpenpressodConfig& c
   UserSettings settings;
   settings.set_steamttemperature(config.steamTemperature());
   return settings;
+}
+
+void UserSettingsManager::applySettings(StateManager& stateManager)
+{
+  stateManager.setSteamTemperature(m_currentSettings.steamttemperature());
+  spdlog::info("User settings applied");
 }

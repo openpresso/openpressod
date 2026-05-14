@@ -25,6 +25,7 @@ StateManager::StateManager(const core_ptr_t& core, std::unique_ptr<LedsHandlerIn
 , m_weightSensor{core->getWeightSensor(libopenpresso_config_labels::WEIGHT_SENSOR_LABEL)}
 , m_leds{std::move(leds)}
 {
+  spdlog::debug("State manager created");
 }
 
 bool StateManager::getPowerState() const noexcept
@@ -106,7 +107,7 @@ void StateManager::setBrewTemperature(libopenpresso::millidegrees_t temperature)
   if (!m_steam && m_power) {
     m_leds->indicateBrewState(temperature);
   }
-  spdlog::info("Brew temperature changed, new value: {}", temperature);
+  spdlog::debug("Brew temperature changed, new value: {}", temperature);
 }
 
 void StateManager::setSteamTemperature(libopenpresso::millidegrees_t temperature)
@@ -115,12 +116,12 @@ void StateManager::setSteamTemperature(libopenpresso::millidegrees_t temperature
   if (m_steam && m_power) {
     m_leds->indicateSteamState(temperature);
   }
-  spdlog::info("Steam temperature changed, new value: {}", temperature);
+  spdlog::debug("Steam temperature changed, new value: {}", temperature);
 }
 
 bool StateManager::getSteamModeState() const noexcept
 {
-  spdlog::info("Steam mode state requsted, state: {}", m_steam ? "ON" : "OFF");
+  spdlog::debug("Steam mode state requsted, state: {}", m_steam ? "ON" : "OFF");
   return m_steam;
 }
 

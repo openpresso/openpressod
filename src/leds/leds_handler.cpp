@@ -9,6 +9,7 @@
 
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/types.hpp>
+#include <spdlog/spdlog.h>
 
 using namespace openpressod;
 
@@ -23,6 +24,8 @@ LedsHandler::LedsHandler(const libopenpresso::CorePtr& core, const OpenpressodCo
   m_power->activate();
   m_brew->activate();
   m_steam->activate();
+
+  spdlog::debug("Leds manager created");
 }
 
 LedsHandler::~LedsHandler() // NOLINT (bugprone-exception-escape)

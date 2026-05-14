@@ -1,5 +1,7 @@
 add_executable(openpressod
     main.cpp
+    daemon.hpp
+    daemon.cpp
 )
 
 target_include_directories(openpressod_objects PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -24,4 +26,3 @@ target_link_libraries(openpressod PRIVATE
 )
 
 set_property(GLOBAL APPEND PROPERTY TIDY_TARGETS openpressod openpressod_objects)
- 

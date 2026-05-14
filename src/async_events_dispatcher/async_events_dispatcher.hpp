@@ -85,6 +85,7 @@ public:
   void addEventsStreamReactor(std::unique_ptr<EventsStreamReactor> reactor);
   void releaseEventsStreamReactor(const EventsStreamReactor* reactor);
 
+private:
   void brewCallback(std::variant<step_index_t, stopped_flag_t> step);
 
 private:
@@ -216,7 +217,7 @@ inline void AsyncEventDispatcher::setUserSettings(const UserSettings* settings, 
   m_executor.executeWithCallback(
     [this, settings] {
       m_userSettings->saveSettings(*settings);
-      m_stateManager->setSteamTemperature(settings->steamttemperature());
+      m_userSettings->applySettings(*m_stateManager);
     },
     std::forward<Cb>(callback));
 }

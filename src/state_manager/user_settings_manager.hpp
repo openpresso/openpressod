@@ -9,6 +9,7 @@ namespace openpressod
 {
 
 class OpenpressodConfig;
+class StateManager;
 
 class UserSettingsManager {
 public:
@@ -17,6 +18,7 @@ public:
   void loadDefaultSettings();
   void saveSettings(const UserSettings& settings);
   const UserSettings& getSettings() const noexcept;
+  void applySettings(StateManager& stateManager);
 
 private:
   static UserSettings makeDefaultSettings(const OpenpressodConfig& config);

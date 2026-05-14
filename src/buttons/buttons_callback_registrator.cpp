@@ -9,6 +9,7 @@
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/interfaces/logical_input.hpp>
 #include <libopenpresso/types.hpp>
+#include <spdlog/spdlog.h>
 
 using namespace openpressod;
 
@@ -23,6 +24,7 @@ ButtonsCallbackRegistrator::ButtonsCallbackRegistrator(const std::shared_ptr<But
 , m_brewButtonCallback{registerBrewButtonCallback(config.brewButtonBistable())}
 , m_steamButtonCallback{registerSteamButtonCallback(config.steamButtonBistable())}
 {
+  spdlog::debug("Buttons handller created");
 }
 
 ButtonsCallbackRegistrator::~ButtonsCallbackRegistrator()

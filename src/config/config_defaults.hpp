@@ -21,7 +21,7 @@ static constexpr auto DEFAULT_GPIO_CHIP = "/dev/gpiochip0";
 static constexpr auto DEFAULT_WATCHDOG = "/dev/watchdog0";
 static constexpr auto DEFAULT_TEMPERATURE_SENSOR_SPI = "/dev/spidev0.0";
 
-static constexpr auto DEFAULT_CONSOLE_LOG_OUTPUT_PATTERN = "%+";
+static constexpr auto DEFAULT_CONSOLE_LOG_OUTPUT_PATTERN = "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v";
 static constexpr auto DEFAULT_CONSOLE_LOG_LEVEL = spdlog::level::info;
 
 static constexpr bool DEFAULT_WATCHDOG_ENABLE = true;

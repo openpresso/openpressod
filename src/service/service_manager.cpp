@@ -19,14 +19,15 @@ ServiceManager::ServiceManager(const std::shared_ptr<AsyncEventDispatcher>& disp
 : m_impl{dispatcher, core}
 , m_server{buildServer(config.socketPath())}
 {
+  spdlog::debug("Openpresso service created");
 }
 
 ServiceManager::~ServiceManager()
 {
   if (m_server) {
-    spdlog::info("Shutting down grpc server");
+    spdlog::debug("Shutting down grpc server");
     m_server->Shutdown(std::chrono::system_clock::now());
-    spdlog::info("Waiting for server close");
+    spdlog::debug("Waiting for server close");
     m_server->Wait();
   }
 }

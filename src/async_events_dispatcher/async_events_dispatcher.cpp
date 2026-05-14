@@ -11,6 +11,7 @@
 #include <variant>
 
 #include <openpresso_proto/openpresso.pb.h>
+#include <spdlog/spdlog.h>
 
 using namespace openpressod;
 
@@ -23,13 +24,16 @@ AsyncEventDispatcher::AsyncEventDispatcher(std::unique_ptr<StateManager> stateMa
 , m_brewCallback{m_stateManager->registerBrewProfilerCallback(
     std::bind_front(&AsyncEventDispatcher::brewCallback, this))}
 {
+  spdlog::debug("Events dispatcher created");
 }
 
 AsyncEventDispatcher::~AsyncEventDispatcher()
 {
   m_executor
     .executeWithFuture([this] {
-      m_stateManager->stopBrew();
+      if (m_stateManager->getBrewState()) {
+        m_stateManager->stopBrew();
+      }
       m_stateManager->unregisterBrewProfileCallback(m_brewCallback);
     })
     .get();
@@ -66,7 +70,13 @@ void AsyncEventDispatcher::startBrew()
 
 void openpressod::AsyncEventDispatcher::stopBrew()
 {
-  m_executor.executeDiscardResult(&StateManager::stopBrew, m_stateManager.get());
+  m_executor.executeDiscardResult([this] {
+    m_stateManager->stopBrew();
+    BrewProgress noProgress;
+    for (auto&& sink : m_eventsSinks) {
+      sink->notifyChanged(noProgress);
+    }
+  });
 }
 
 void openpressod::AsyncEventDispatcher::toggleSteamModeState()
@@ -102,6 +112,8 @@ void openpressod::AsyncEventDispatcher::brewCallback(std::variant<step_index_t, 
   }
   else {
     m_executor.executeDiscardResult([this, index = std::get<step_index_t>(step)] {
+      spdlog::debug("Process to brew step {}", index);
+
       BrewProgress progress;
       progress.set_brewstepindex(index);
       for (auto&& sink : m_eventsSinks) {

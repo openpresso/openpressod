@@ -57,7 +57,7 @@ void BrewProfileManager::loadSavedProfile()
     throw std::runtime_error{std::format("Failed to deserialize brew profile: {}", status.message())};
   }
 
-  spdlog::info("Brew profile \"{}\" loaded from file: {}", m_currentProfile.name(), m_profilePath.string());
+  spdlog::debug("Brew profile \"{}\" loaded from file: {}", m_currentProfile.name(), m_profilePath.string());
 }
 
 void BrewProfileManager::loadDefaultProfile()

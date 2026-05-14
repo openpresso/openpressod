@@ -16,6 +16,7 @@
 #include <libopenpresso/types.hpp>
 #include <magic_enum/magic_enum.hpp>
 #include <spdlog/common.h>
+#include <spdlog/spdlog.h>
 
 using namespace openpressod;
 using namespace openpressod::config_defaults;
@@ -23,6 +24,7 @@ using namespace openpressod::config_defaults;
 OpenpressodConfig::OpenpressodConfig(toml::value config)
 : m_config{std::move(config)}
 {
+  spdlog::debug("Config loaded");
 }
 
 OpenpressodConfig OpenpressodConfig::fromFile(const std::filesystem::path& configPath)
