@@ -25,4 +25,4 @@ target_sources(openpressod_mock PUBLIC FILE_SET HEADERS
 
 target_link_libraries(openpressod_mock INTERFACE GTest::gmock openpressod_objects)
 
-set_property(GLOBAL APPEND PROPERTY FORMAT_TARGETS libopenpresso_mock openpressod_mock)
+append_targets_to_clang_format_list(libopenpresso_mock openpressod_mock)

@@ -4,12 +4,12 @@ project(Openpressod)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(clang-format)
 include(clang-tidy)
+include(openpressod)
 include(CTest)
 
 find_package(spdlog REQUIRED)
@@ -18,10 +18,22 @@ find_package(magic_enum REQUIRED)
 find_package(openpresso_proto REQUIRED)
 find_package(libopenpresso REQUIRED)
 
-add_library(openpressod_objects OBJECT)
+declare_clang_tools_targets_lists()
 
-set_property(GLOBAL PROPERTY TIDY_TARGETS)
-set_property(GLOBAL PROPERTY FORMAT_TARGETS)
+add_library(openpressod_objects OBJECT)
+target_link_libraries(openpressod_objects PUBLIC
+    spdlog::spdlog
+    openpresso_proto::openpresso_proto  
+    libopenpresso::libopenpresso
+    toml11::toml11
+    magic_enum::magic_enum
+)
+
+add_executable(openpressod)
+target_link_libraries(openpressod PRIVATE openpressod_objects)
+
+openpressod_targets_compile_warnings(openpressod openpressod_objects)
+append_targets_to_clang_tidy_list(openpressod openpressod_objects)
 
 add_subdirectory(src)
 
@@ -29,14 +41,7 @@ if(BUILD_TESTING)
     add_subdirectory(test)
 endif()
 
-get_property(TIDY_TARGETS_LIST GLOBAL PROPERTY TIDY_TARGETS)
-get_property(FORMAT_TARGETS_LIST GLOBAL PROPERTY FORMAT_TARGETS)
+process_clang_tools_targets()
 
-list(APPEND FORMAT_TARGETS_LIST ${TIDY_TARGETS_LIST})
-
-add_clang_format_targets(clang_format_validate TARGETS ${FORMAT_TARGETS_LIST} DRY_RUN)
-add_clang_format_targets(clang_format_apply TARGETS ${FORMAT_TARGETS_LIST})
-
-add_clang_tidy_targets(clang_tidy_validate TARGETS ${TIDY_TARGETS_LIST} ARGS --quiet -p=${CMAKE_BINARY_DIR} --warnings-as-errors=*)
-add_clang_tidy_targets(clang_tidy_analyze TARGETS ${TIDY_TARGETS_LIST} ARGS --quiet -p=${CMAKE_BINARY_DIR})
+install(TARGETS openpressod)
 
