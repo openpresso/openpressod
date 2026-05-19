@@ -307,6 +307,7 @@ LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeSteamPreh
       .sensor = TEMPERATURE_SENSOR_LABEL,
       .pidSettings = m_daemonConfig.steamPreheatTemperatureControllerPidSettings(),
       .enablePidStateDump = m_daemonConfig.pidStateMonitoringEnabled(),
+      .flowCounter = std::nullopt,
     },
   };
 }
@@ -320,6 +321,7 @@ LibopenpressoConfigMaker::config_entry_t LibopenpressoConfigMaker::makeSteamActi
       .sensor = TEMPERATURE_SENSOR_LABEL,
       .pidSettings = m_daemonConfig.steamActiveTemperatureControllerPidSettings(),
       .enablePidStateDump = m_daemonConfig.pidStateMonitoringEnabled(),
+      .flowCounter = std::nullopt,
     },
   };
 }

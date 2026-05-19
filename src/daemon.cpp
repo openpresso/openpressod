@@ -54,7 +54,7 @@ std::unique_ptr<BrewProfileManager> Daemon::setupBrewProfileManager(const Openpr
     spdlog::warn(e.what());
     profileManager->loadDefaultProfile();
   }
-  return std::move(profileManager);
+  return profileManager;
 }
 
 std::unique_ptr<UserSettingsManager> Daemon::setupUserSettingsManager(const OpenpressodConfig& config)
@@ -67,7 +67,7 @@ std::unique_ptr<UserSettingsManager> Daemon::setupUserSettingsManager(const Open
     spdlog::warn(e.what());
     settingsManager->loadDefaultSettings();
   }
-  return std::move(settingsManager);
+  return settingsManager;
 }
 
 void Daemon::setupLogger(const OpenpressodConfig& config)
