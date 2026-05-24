@@ -1,0 +1,56 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Create system user and group if they don't exist
+        if ! getent passwd "@OPENPRESSOD_SYSTEM_USER@" > /dev/null 2>&1; then
+            adduser --system --group --no-create-home \
+                    --home "@OPENPRESSOD_DATA_DIR@" --shell /usr/sbin/nologin "@OPENPRESSOD_SYSTEM_USER@"
+        fi
+
+        # Create required directories
+        install -d -m 750 -o "@OPENPRESSOD_SYSTEM_USER@" -g "@OPENPRESSOD_SYSTEM_USER@" "@OPENPRESSOD_DATA_DIR@"
+        install -d -m 755 "@OPENPRESSOD_CONFIG_DIR@"
+
+        # Create hardware groups if missing and add user to them
+        for grp in gpio i2c spi watchdog; do
+            if ! getent group "$grp" > /dev/null 2>&1; then
+                addgroup --system "$grp"
+            fi
+            usermod -aG "$grp" "@OPENPRESSOD_SYSTEM_USER@"
+        done
+
+        # Reload udev rules and re-trigger relevant devices
+        udevadm control --reload-rules 2>/dev/null || true
+        udevadm trigger --subsystem-match=gpio \
+                        --subsystem-match=i2c-dev \
+                        --subsystem-match=spidev \
+                        --subsystem-match=misc 2>/dev/null || true
+
+        # Register unit with systemd but do NOT enable or start it
+        if [ -d /run/systemd/system ]; then
+            systemctl --system daemon-reload >/dev/null || true
+        fi
+
+        echo ""
+        echo "============================================================"
+        echo "  openpressod installed — ACTION REQUIRED before starting"
+        echo "============================================================"
+        echo "  1. Create your config:"
+        echo "     cp @OPENPRESSOD_CONFIG_EXAMPLE_PATH@ @OPENPRESSOD_CONFIG_PATH@"
+        echo ""
+        echo "  2. Edit @OPENPRESSOD_CONFIG_PATH@""
+        echo "     Set required fields for corresponding to your hardware setup."
+        echo ""
+        echo "  3. Enable and start the service:"
+        echo "     sudo systemctl enable --now @OPENPRESSOD_SERVICE_NAME@"
+        echo ""
+        echo "  4. View logs:"
+        echo "     journalctl -u @OPENPRESSOD_SERVICE_NAME@ -f"
+        echo "============================================================"
+        echo ""
+    ;;
+esac
+
+exit 0

@@ -1,6 +1,15 @@
 from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
 
+CONAN_TO_DEB_ARCH = {
+    "armv8":   "arm64",
+    "armv7hf": "armhf",
+    "armv7":   "armhf",
+    "armv6":   "armhel",
+    "x86_64":  "amd64",
+    "x86":     "i386",
+}
+
 class openpressod(ConanFile):
     name = "openpressod"
     settings = "os", "arch", "compiler", "build_type"
@@ -18,6 +27,7 @@ class openpressod(ConanFile):
 
     def generate(self):
         tc = CMakeToolchain(self)
+        tc.cache_variables["CPACK_DEBIAN_PACKAGE_ARCHITECTURE"] = CONAN_TO_DEB_ARCH[str(self.settings.arch)]
         tc.generate()
         deps = CMakeDeps(self)
         deps.generate()

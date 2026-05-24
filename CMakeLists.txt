@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.30)
-project(Openpressod)
+
+set(OPENPRESSOD_VERSION 0.0.0 CACHE STRING "")
+set(OPENPRESSOD_VERSION_MAJOR 0 CACHE STRING "")
+set(OPENPRESSOD_VERSION_MINOR 0 CACHE STRING "")
+set(OPENPRESSOD_VERSION_PATCH 0 CACHE STRING "")
+
+project(Openpressod VERSION ${OPENPRESSOD_VERSION_MAJOR}.${OPENPRESSOD_VERSION_MINOR}.${OPENPRESSOD_VERSION_PATCH})
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,6 +18,7 @@ include(clang-tidy)
 include(openpressod)
 include(openpressod-constatnts)
 include(CTest)
+include(GNUInstallDirs)
 
 find_package(spdlog REQUIRED)
 find_package(toml11 REQUIRED)
@@ -50,5 +57,8 @@ endif()
 
 process_clang_tools_targets()
 
-install(TARGETS openpressod)
+install(TARGETS openpressod RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+create_deb_package()
+
 

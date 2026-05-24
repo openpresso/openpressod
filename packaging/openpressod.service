@@ -1,0 +1,30 @@
+[Unit]
+Description=OpenPresso Daemon
+Documentation=https://github.com/openpresso/openpressod
+After=network.target
+ConditionPathExists=@OPENPRESSOD_CONFIG_PATH@
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+User=@OPENPRESSOD_SYSTEM_USER@
+Group=@OPENPRESSOD_SYSTEM_USER@
+RuntimeDirectory=@OPENPRESSOD_RUNTIME_DIR_NAME@
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+SupplementaryGroups=gpio i2c spi watchdog
+
+ExecStart=@OPENPRESSOD_BIN_DIR@/@OPENPRESSOD_SERVICE_NAME@
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=openpressod
+
+LimitRTPRIO=99
+LimitRTTIME=infinity
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=@OPENPRESSOD_DATA_DIR@

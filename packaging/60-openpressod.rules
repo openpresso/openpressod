@@ -1,0 +1,8 @@
+# packaging/60-openpressod.rules
+SUBSYSTEM=="gpio",    KERNEL=="gpiochip[0-9]*", GROUP="gpio",     MODE="0660"
+SUBSYSTEM=="i2c-dev",                           GROUP="i2c",      MODE="0660"
+SUBSYSTEM=="spidev",                            GROUP="spi",      MODE="0660"
+
+# Watchdog — assign to dedicated group
+KERNEL=="watchdog", SUBSYSTEM=="misc", GROUP="watchdog", MODE="0660"
+KERNEL=="watchdog[0-9]*", SUBSYSTEM=="watchdog", GROUP="watchdog", MODE="0660"

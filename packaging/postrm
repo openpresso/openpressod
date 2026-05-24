@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    purge)
+        if getent passwd @OPENPRESSOD_SYSTEM_USER@ > /dev/null 2>&1; then
+            deluser --system @OPENPRESSOD_SYSTEM_USER@ >/dev/null || true
+        fi
+        rm -rf @OPENPRESSOD_DATA_DIR@
+        if [ -d /run/systemd/system ]; then
+            systemctl --system daemon-reload >/dev/null || true
+        fi
+    ;;
+esac
+
+exit 0
