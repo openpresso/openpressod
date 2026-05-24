@@ -40,7 +40,7 @@ case "$1" in
         echo "  1. Create your config:"
         echo "     cp @OPENPRESSOD_CONFIG_EXAMPLE_PATH@ @OPENPRESSOD_CONFIG_PATH@"
         echo ""
-        echo "  2. Edit @OPENPRESSOD_CONFIG_PATH@""
+        echo "  2. Edit @OPENPRESSOD_CONFIG_PATH@"
         echo "     Set required fields for corresponding to your hardware setup."
         echo ""
         echo "  3. Enable and start the service:"
