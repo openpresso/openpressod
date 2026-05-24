@@ -1,60 +1,112 @@
+# Openpressod Configuration Example
+# Required fields are commented out and must be uncommented and provided by the user.
+# Optional fields are commented out with their default values shown.
+
 [global]
-mains_frequency = 50
-mains_zc_pin = 17
-pid_state_monitoring_enabled = true
+# mains_frequency = 50 # Required
+# mains_zc_pin = 17 # Required
+
+# pid_state_monitoring_enabled = false # Optional
+# user_settings_path = "/var/lib/openpressod/user_settings.json" # Optional
+# brew_profile_path = "/var/lib/openpressod/brew_profile.json" # Optional
+# i2c_bus = "/dev/i2c-0" # Optional
+# gpio_chip = "/dev/gpiochip0" # Optional
+
+[service]
+# socket_path = "/run/openpresso/openpresso.sock" # Optional
+# tcp_enable = false # Optional
+# tcp_bind_address = "0.0.0.0:5001" # Optional
+
+[log]
+# console_log_pattern = "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v" # Optional
+# console_log_level = "info" # Optional
+
+[watchdog]
+# enabled = true # Optional
+# device_path = "/dev/watchdog0" # Optional
+# timeout = 00:00:01 # Optional
+# temperature_limit = 170000 # Optional
 
 [buttons]
-power_pin = 26
-brew_pin = 19
-steam_pin = 13
+# power_pin = 26 # Required
+# brew_pin = 19 # Required
+# steam_pin = 13 # Required
+
+# inverted = true # Optional
+# power_bistable = false # Optional
+# brew_bistable = true # Optional
+# steam_bistable = true # Optional
+# pull_mode = "PullUp" # Optional
+# debounce_period = 00:00:00.010 # Optional
 
 [leds]
-power_pin = 21
-brew_pin = 16
-steam_pin = 20
+# power_pin = 21 # Required
+# brew_pin = 16 # Required
+# steam_pin = 20 # Required
+
+# inverted = false # Optional
 
 [pressure_sensor]
-signal_pin = 4
+# signal_pin = 4 # Required
+
+# i2c_addr = 0x48 # Optional
 
 [weight_sensor]
-scale = 27762
-signal_pin = 12
+# scale = 27762 # Required
+# signal_pin = 12 # Required
+
+# filter_timing = 00:00:00.600 # Optional
+# i2c_addr = 0x2A # Optional
 
 [temperature_sensor]
-signal_pin = 25
+# signal_pin = 25 # Required
+
+# filter_timing = 00:00:00.750 # Optional
+# spi_addr = "/dev/spidev0.0" # Optional
 
 [pump]
-flow_controller_multiplier = 0.00005
-control_pin = 27
-volume_per_pulse = 205000
-stall_pressure = 18500
+# flow_controller_multiplier = 0.00005 # Required
+# control_pin = 27 # Required
+# volume_per_pulse = 205000 # Required
+# stall_pressure = 18500 # Required
 
 [heater]
-control_pin = 23
+# control_pin = 23 # Required
 
 [valve]
-control_pin = 22
+# control_pin = 22 # Required
+
+[brew]
+# temperature = 95000 # Optional
+# pressure = 9000 # Optional
+# brew_temperature_window = 500 # Optional
 
 [brew.pid_settings]
-p = 0.07
-d = 0.25
-i = 0.003
-d_relax = 0.025
-i_relax = 1.0
-f = 0.04
-w = 0.002
-w_decay = 0.02
+# p = 0.07 # Required
+# d = 0.25 # Required
+# i = 0.003 # Required
+# d_relax = 0.025 # Required
+# i_relax = 1.0 # Required
+# f = 0.04 # Required
+# w = 0.002 # Required
+# w_decay = 0.02 # Required
+
+[steam]
+# pressure_threshold = 2500 # Optional
+# temperature = 155000 # Optional
+# refill_flow = 500 # Optional
+# steam_temperature_window = 1000 # Optional
 
 [steam.preheat_pid_settings]
-p = 0.08
-d = 0.2
-i = 0.01
-d_relax = 0.05
-i_relax = 1.5
+# p = 0.08 # Required
+# d = 0.2 # Required
+# i = 0.01 # Required
+# d_relax = 0.05 # Required
+# i_relax = 1.5 # Required
 
 [steam.active_pid_settings]
-p = 0.25
-d = 0.5
-i = 0.02
-d_relax = 0.0
-i_relax = 0.5
+# p = 0.25 # Required
+# d = 0.5 # Required
+# i = 0.02 # Required
+# d_relax = 0.0 # Required
+# i_relax = 0.5 # Required
