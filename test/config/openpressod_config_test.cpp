@@ -31,10 +31,14 @@ TEST(OpenpressodConfig, DefaultValues)
   // [global] defaults
   EXPECT_EQ(EXPECTED_DAEMON_DIR / "brew_profile.json", config.brewProfilePath());
   EXPECT_EQ(EXPECTED_DAEMON_DIR / "user_settings.json", config.userSettingsPath());
-  EXPECT_EQ("/run/openpresso/openpresso.sock", config.socketPath());
   EXPECT_EQ("/dev/i2c-0", config.i2cBus());
   EXPECT_EQ("/dev/gpiochip0", config.gpioChip());
   EXPECT_FALSE(config.pidStateMonitoringEnabled());
+
+  // [service] defaults
+  EXPECT_EQ("/run/openpresso/openpresso.sock", config.socketPath());
+  EXPECT_FALSE(config.tcpEnable());
+  EXPECT_EQ("0.0.0.0:5001", config.tcpBindAddress());
 
   // [log] defaults
   EXPECT_EQ("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v", config.logMessagePattern());
@@ -214,10 +218,14 @@ TEST(OpenpressodConfig, FullConfig)
   EXPECT_EQ(5, config.mainsZeroCrossPin());
   EXPECT_EQ("/custom/profile.json", config.brewProfilePath());
   EXPECT_EQ("/custom/user_settings.json", config.userSettingsPath());
-  EXPECT_EQ("/tmp/custom.sock", config.socketPath());
   EXPECT_EQ("/dev/i2c-1", config.i2cBus());
   EXPECT_EQ("/dev/gpiochip4", config.gpioChip());
   EXPECT_TRUE(config.pidStateMonitoringEnabled());
+
+  // [service]
+  EXPECT_EQ("/tmp/custom.sock", config.socketPath());
+  EXPECT_TRUE(config.tcpEnable());
+  EXPECT_EQ("127.0.0.1:80", config.tcpBindAddress());
 
   // [log]
   EXPECT_EQ("[%l] %v", config.logMessagePattern());

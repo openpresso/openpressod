@@ -28,7 +28,7 @@ public:
   ~ServiceManager();
 
 private:
-  std::unique_ptr<grpc::Server> buildServer(const std::filesystem::path& socketPath);
+  std::unique_ptr<grpc::Server> buildServer(const OpenpressodConfig& config);
 
 private:
   OpenpressodServiceImpl m_impl;

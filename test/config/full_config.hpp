@@ -7,11 +7,15 @@ static constexpr auto FULL_CONFIG = R"(
 mains_frequency = 60
 mains_zc_pin = 5
 brew_profile_path = "/custom/profile.json"
-socket_path = "/tmp/custom.sock"
 i2c_bus = "/dev/i2c-1"
 gpio_chip = "/dev/gpiochip4"
 user_settings_path = "/custom/user_settings.json"
 pid_state_monitoring_enabled = true
+
+[service]
+socket_path = "/tmp/custom.sock"
+tcp_enable = true
+tcp_bind_address = "127.0.0.1:80"
 
 [log]
 console_log_pattern = "[%l] %v"

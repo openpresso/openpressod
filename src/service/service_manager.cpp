@@ -17,7 +17,7 @@ ServiceManager::ServiceManager(const std::shared_ptr<AsyncEventDispatcher>& disp
                                const libopenpresso::CorePtr& core,
                                const OpenpressodConfig& config)
 : m_impl{dispatcher, core}
-, m_server{buildServer(config.socketPath())}
+, m_server{buildServer(config)}
 {
   spdlog::debug("Openpresso service created");
 }
@@ -32,11 +32,14 @@ ServiceManager::~ServiceManager()
   }
 }
 
-std::unique_ptr<grpc::Server> ServiceManager::buildServer(const std::filesystem::path& socketPath)
+std::unique_ptr<grpc::Server> ServiceManager::buildServer(const OpenpressodConfig& config)
 {
   grpc::ServerBuilder builder;
 
-  builder.AddListeningPort("unix:" + socketPath.string(), grpc::InsecureServerCredentials());
+  builder.AddListeningPort("unix:" + config.socketPath().string(), grpc::InsecureServerCredentials());
+  if (config.tcpEnable()) {
+    builder.AddListeningPort(config.tcpBindAddress(), grpc::InsecureServerCredentials());
+  }
   builder.RegisterService(&m_impl);
   return builder.BuildAndStart();
 }

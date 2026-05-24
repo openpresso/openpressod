@@ -58,11 +58,6 @@ std::filesystem::path OpenpressodConfig::brewProfilePath() const
                        (daemonBaseDirectory() / DEFAULT_BREW_PROFILE_FILE_NAME).c_str());
 }
 
-std::filesystem::path OpenpressodConfig::socketPath() const
-{
-  return toml::find_or(m_config, "global", "socket_path", OPENPRESSOD_SOCKET_PATH);
-}
-
 size_t OpenpressodConfig::mainsFrequency() const
 {
   return toml::find<size_t>(m_config, "global", "mains_frequency");
@@ -81,6 +76,21 @@ libopenpresso::unix_dev_addr_t OpenpressodConfig::gpioChip() const
 libopenpresso::pin_number_t OpenpressodConfig::mainsZeroCrossPin() const
 {
   return toml::find<libopenpresso::pin_number_t>(m_config, "global", "mains_zc_pin");
+}
+
+std::filesystem::path OpenpressodConfig::socketPath() const
+{
+  return toml::find_or(m_config, "service", "socket_path", OPENPRESSOD_SOCKET_PATH);
+}
+
+bool openpressod::OpenpressodConfig::tcpEnable() const
+{
+  return toml::find_or(m_config, "service", "tcp_enable", DEFAULT_SERVICE_TCP_ENABLE);
+}
+
+std::string openpressod::OpenpressodConfig::tcpBindAddress() const
+{
+  return toml::find_or(m_config, "service", "tcp_bind_address", DEFAULT_SERVICE_TCP_BIND_ADDRESS);
 }
 
 libopenpresso::pin_number_t OpenpressodConfig::valveOutputPin() const
