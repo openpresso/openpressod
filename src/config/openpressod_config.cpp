@@ -60,7 +60,7 @@ std::filesystem::path OpenpressodConfig::brewProfilePath() const
 
 std::filesystem::path OpenpressodConfig::socketPath() const
 {
-  return toml::find_or(m_config, "global", "socket_path", DEFAULT_SOCKET_PATH);
+  return toml::find_or(m_config, "global", "socket_path", OPENPRESSOD_SOCKET_PATH);
 }
 
 size_t OpenpressodConfig::mainsFrequency() const
@@ -344,9 +344,5 @@ libopenpresso::PidSettings OpenpressodConfig::steamActiveTemperatureControllerPi
 
 std::filesystem::path OpenpressodConfig::daemonBaseDirectory()
 {
-  auto* pswd = getpwuid(getuid());
-  if (pswd == nullptr) {
-    throw std::runtime_error{"cannot get current user directory"};
-  }
-  return std::filesystem::path(pswd->pw_dir) / DEFAULT_DAEMON_FOLDER_NAME;
+  return OPENPRESSOD_DATA_DIR;
 }

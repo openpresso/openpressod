@@ -12,8 +12,7 @@
 using openpressod::OpenpressodConfig;
 using namespace std::chrono_literals;
 
-static const auto EXPECTED_DAEMON_DIR =
-  std::filesystem::path(getpwuid(getuid())->pw_dir) / ".openpressod";
+static const auto EXPECTED_DAEMON_DIR = std::filesystem::path{"/var/lib/openpressod"};
 
 TEST(OpenpressodConfig, DaemonBaseDirectory)
 {
@@ -32,13 +31,13 @@ TEST(OpenpressodConfig, DefaultValues)
   // [global] defaults
   EXPECT_EQ(EXPECTED_DAEMON_DIR / "brew_profile.json", config.brewProfilePath());
   EXPECT_EQ(EXPECTED_DAEMON_DIR / "user_settings.json", config.userSettingsPath());
-  EXPECT_EQ("/var/run/openpresso.sock", config.socketPath());
+  EXPECT_EQ("/run/openpresso/openpresso.sock", config.socketPath());
   EXPECT_EQ("/dev/i2c-0", config.i2cBus());
   EXPECT_EQ("/dev/gpiochip0", config.gpioChip());
   EXPECT_FALSE(config.pidStateMonitoringEnabled());
 
   // [log] defaults
-  EXPECT_EQ("%+", config.logMessagePattern());
+  EXPECT_EQ("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v", config.logMessagePattern());
   EXPECT_EQ(spdlog::level::info, config.logLevel());
 
   // [watchdog] defaults

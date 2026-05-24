@@ -10,6 +10,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(clang-format)
 include(clang-tidy)
 include(openpressod)
+include(openpressod-constatnts)
 include(CTest)
 
 find_package(spdlog REQUIRED)
@@ -31,6 +32,12 @@ target_link_libraries(openpressod_objects PUBLIC
 
 add_executable(openpressod)
 target_link_libraries(openpressod PRIVATE openpressod_objects)
+
+target_compile_definitions(openpressod_objects PUBLIC
+    OPENPRESSOD_SOCKET_PATH="${OPENPRESSOD_SOCKET_PATH}"
+    OPENPRESSOD_CONFIG_PATH="${OPENPRESSOD_CONFIG_PATH}"
+    OPENPRESSOD_DATA_DIR="${OPENPRESSOD_DATA_DIR}"
+)
 
 openpressod_targets_compile_warnings(openpressod openpressod_objects)
 append_targets_to_clang_tidy_list(openpressod openpressod_objects)

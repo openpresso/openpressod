@@ -18,12 +18,9 @@ namespace openpressod
 {
 
 class OpenpressodConfig {
-  static constexpr auto DEFAULT_DAEMON_FOLDER_NAME = ".openpressod";
-
 public:
   static std::filesystem::path daemonBaseDirectory();
-  static OpenpressodConfig fromFile(const std::filesystem::path& configPath = daemonBaseDirectory() /
-                                                                              "config.toml");
+  static OpenpressodConfig fromFile(const std::filesystem::path& configPath = OPENPRESSOD_CONFIG_PATH);
   static OpenpressodConfig fromString(const std::string& conf);
 
   // [global]
