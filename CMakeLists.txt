@@ -16,7 +16,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(clang-format)
 include(clang-tidy)
 include(openpressod)
-include(openpressod-constatnts)
+include(openpressod-constants)
 include(CTest)
 include(GNUInstallDirs)
 
