@@ -49,6 +49,7 @@ jobs:
   linter-checks:
     name: Run clang-format and clang-tidy
     runs-on: ubuntu-latest
+    needs: [ define-version ]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -56,14 +57,17 @@ jobs:
       - name: Setup Conan
         uses: conan-io/setup-conan@v1
 
-      - name: Add conan remotes
-        run: |
-          conan remote add testing ${{ vars.OPENPRESSO_CONAN_TESTING }}
-          conan remote add canary ${{ vars.OPENPRESSO_CONAN_CANARY }}
-          conan remote add stable ${{ vars.OPENPRESSO_CONAN_STABLE }}
-          conan remote login -p ${{ secrets.CONAN_DEPLOY_KEY }} testing ${{ vars.CONAN_CI_USER }}
-          conan remote login -p ${{ secrets.CONAN_DEPLOY_KEY }} canary ${{ vars.CONAN_CI_USER }}
-          conan remote login -p ${{ secrets.CONAN_DEPLOY_KEY }} stable ${{ vars.CONAN_CI_USER }}
+      - name: Add Conan remotes
+        uses: ./.github/actions/setup-conan-remotes
+        with:
+          version-type: ${{ needs.define-version.outputs.version-type }}
+          ci-user: ${{ vars.CONAN_CI_USER }}
+          ci-token: ${{ secrets.CONAN_DEPLOY_KEY }}
+          testing-repo: ${{ vars.OPENPRESSO_CONAN_TESTING }}
+          canary-repo: ${{ vars.OPENPRESSO_CONAN_CANARY }}
+          draft-repo: ${{ vars.OPENPRESSO_CONAN_DRAFT }}
+          stable-repo: ${{ vars.OPENPRESSO_CONAN_STABLE }}
+          conancenter-cache-repo: ${{ vars.OPENPRESSO_CONANCENTER_CACHE }}
 
       - name: Install Conan dependencies
         run: |
@@ -101,16 +105,24 @@ jobs:
       - name: Copy conan config from root user
         run: cp -r /root/.conan2 ~/.conan2
 
-      - name: Add conan remotes
+      - name: Add Conan remotes
+        uses: ./.github/actions/setup-conan-remotes
+        with:
+          version-type: ${{ needs.define-version.outputs.version-type }}
+          ci-user: ${{ vars.CONAN_CI_USER }}
+          ci-token: ${{ secrets.CONAN_DEPLOY_KEY }}
+          testing-repo: ${{ vars.OPENPRESSO_CONAN_TESTING }}
+          canary-repo: ${{ vars.OPENPRESSO_CONAN_CANARY }}
+          draft-repo: ${{ vars.OPENPRESSO_CONAN_DRAFT }}
+          stable-repo: ${{ vars.OPENPRESSO_CONAN_STABLE }}
+          conancenter-cache-repo: ${{ vars.OPENPRESSO_CONANCENTER_CACHE }}
+
+      - name: Install Conan dependencies
         run: |
-          conan remote add testing ${{ vars.OPENPRESSO_CONAN_TESTING }}
-          conan remote add canary ${{ vars.OPENPRESSO_CONAN_CANARY }}
-          conan remote add stable ${{ vars.OPENPRESSO_CONAN_STABLE }}
-          conan remote login -p ${{ secrets.CONAN_DEPLOY_KEY }} testing ${{ vars.CONAN_CI_USER }}
-          conan remote login -p ${{ secrets.CONAN_DEPLOY_KEY }} canary ${{ vars.CONAN_CI_USER }}
-          conan remote login -p ${{ secrets.CONAN_DEPLOY_KEY }} stable ${{ vars.CONAN_CI_USER }}
+          conan install -b=missing --version="${{ needs.define-version.outputs.version }}"
 
       - name: Build
+        shell: bash
         run: |
             source ./build/Release/generators/conanbuild.sh
             cmake --preset conan-release
