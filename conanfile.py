@@ -42,7 +42,7 @@ class openpressod(ConanFile):
         self.requires("magic_enum/[>=0.9.7]")
         
         self.requires("libopenpresso/0.0.0-7-gce5e05c-feat-steam-temperature-controller")
-        self.requires("openpresso_proto/1.0.0-rc1")
+        self.requires("openpresso_proto/0.0.0-7-g407b710")
         
     def generate(self):
         major, minor, patch = self.__version_components()
