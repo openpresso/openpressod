@@ -110,6 +110,7 @@ macro(create_deb_package)
     set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
     set(CPACK_PACKAGING_INSTALL_PREFIX "/")
     set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION TRUE)
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libstdc++6, libgcc-s1")
     set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${CMAKE_PROJECT_NAME};openpressod-deb-package-content;/")
     set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
         "${CMAKE_BINARY_DIR}/packaging/postinst"
