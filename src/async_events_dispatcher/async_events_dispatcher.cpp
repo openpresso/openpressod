@@ -5,7 +5,6 @@
 #include "state_manager/state_manager.hpp"
 #include "state_manager/user_settings_manager.hpp"
 
-#include <functional>
 #include <memory>
 #include <utility>
 #include <variant>
@@ -21,8 +20,8 @@ AsyncEventDispatcher::AsyncEventDispatcher(std::unique_ptr<StateManager> stateMa
 : m_stateManager{std::move(stateManager)}
 , m_brewProfileManager{std::move(brewProfileManager)}
 , m_userSettings{std::move(userSettingsManager)}
-, m_brewCallback{m_stateManager->registerBrewProfilerCallback(
-    std::bind_front(&AsyncEventDispatcher::brewCallback, this))}
+, m_brewCallback{
+    m_stateManager->registerBrewProfilerCallback([this](auto cbData) { brewCallback(cbData); })}
 {
   spdlog::debug("Events dispatcher created");
 }
