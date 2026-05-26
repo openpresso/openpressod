@@ -82,7 +82,7 @@ jobs:
         run: source ./build/Release/generators/conanbuild.sh
 
       - name: Configure CMake
-        run: cmake --preset conan-release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        run: cmake --preset conan-release
 
       - name: Run clang-format
         run: cmake --build --preset conan-release --target clang_format_validate
@@ -96,7 +96,7 @@ jobs:
     needs: [ define-version, linter-checks ]
     strategy:
       matrix:
-        target: [ armv6, armv8 ]
+        target: [ armv6, armv8, x86_64 ]
     container: ghcr.io/openpresso/openpresso-toolchain-${{ matrix.target }}
     steps:
       - name: Checkout
