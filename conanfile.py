@@ -41,7 +41,7 @@ class openpressod(ConanFile):
         self.requires("toml11/[>=4.4.0]")
         self.requires("magic_enum/[>=0.9.7]")
         
-        self.requires("libopenpresso/0.0.0-7-gce5e05c-feat-steam-temperature-controller")
+        self.requires("libopenpresso/0.0.0-9-g5d06b0f-feat-steam-temperature-controller")
         self.requires("openpresso_proto/0.0.0-7-g407b710")
         
     def generate(self):
