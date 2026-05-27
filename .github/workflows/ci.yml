@@ -105,7 +105,8 @@ jobs:
       - name: Copy conan config from root user
         run: cp -r /root/.conan2 ~/.conan2
 
-      - name: Add Conan remotes
+      - name: Setup remotes
+        id: setup-remotes
         uses: ./.github/actions/setup-conan-remotes
         with:
           version-type: ${{ needs.define-version.outputs.version-type }}
@@ -131,10 +132,18 @@ jobs:
             cmake --install ./build/Release --prefix ./artifacts --component installer
 
       - name: Upload built artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
-          name: openpressod_${{ matrix.target }}_${{ needs.define-version.outputs.version }}.deb
-          path: ./artifacts/*
+          path: ./artifacts/openpressod*.deb
+          archive: false
+
+      - name: Setup Cloudsmith CLI
+        uses: cloudsmith-io/cloudsmith-cli-action@v2
+        with:
+          api-key: ${{ secrets.CONAN_DEPLOY_KEY }}
+
+      - name: Upload to remote
+        run: cloudsmith push deb openpresso/${{ steps.setup-remotes.outputs.target-repo }}/debian/trixie ./artifacts/openpressod*.deb
 
   release-draft:
     name: Create release draft

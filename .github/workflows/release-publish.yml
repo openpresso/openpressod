@@ -1,0 +1,27 @@
+name: Publish release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-artifacts:
+    name: Publish docs and packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Cloudsmith CLI
+        uses: cloudsmith-io/cloudsmith-cli-action@v2
+        with:
+          api-key: ${{ secrets.CONAN_DEPLOY_KEY }}
+
+      - name: Parse version from tag
+        id: version
+        uses: release-kit/semver@v2
+
+      - name: Publish conan packages
+        run: |
+          QUERY="name:openpressod AND version:${{ steps.version.outputs.full }}"
+          SLUGS=$(cloudsmith list packages openpresso/draft -F pretty_json -q "$QUERY" | jq -r '.data[].slug_perm')
+          while read -r slug; do
+            cloudsmith move -y openpresso/draft/$slug stable
+          done <<< "$SLUGS"
