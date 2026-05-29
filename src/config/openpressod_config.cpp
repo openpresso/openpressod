@@ -5,10 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <pwd.h>
 #include <string>
 #include <toml.hpp>
-#include <unistd.h>
 #include <utility>
 
 #include <libopenpresso/pid_settings.hpp>

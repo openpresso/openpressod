@@ -1,0 +1,78 @@
+name: 'Setup Conan Remotes'
+description: 'Configure and authenticate OpenPresso Conan repositories'
+inputs:
+  version-type:
+    description: 'Type of version/build (testing, canary, stable, draft)'
+    required: true
+  ci-user:
+    description: 'User name for login into openpresso conan remotes'
+    required: false
+    default: openpresso-ci
+  ci-token:
+    description: 'Token for login into openpresso conan remotes'
+    required: true
+  testing-repo:
+    description: 'Url for openpresso testing conan remote'
+    required: true
+  canary-repo:
+    description: 'Url for openpresso canary conan remote'
+    required: true
+  draft-repo:
+    description: 'Url for openpresso draft conan remote'
+    required: true
+  stable-repo:
+    description: 'Url for openpresso stable conan remote'
+    required: true
+  conancenter-cache-repo:
+    description: 'Url for openpresso conancenter cache remote'
+    required: true
+
+outputs:
+  target-repo:
+    value: ${{ steps.testing-remotes.outputs.target_repo || steps.canary-remotes.outputs.target_repo || steps.stable-remotes.outputs.target_repo }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Add OpenPresso Conan Center cache remote
+      shell: bash
+      run: conan remote add openpresso_conancenter_cache ${{ inputs.conancenter-cache-repo }}
+
+    - name: Setup testing, canary, and stable remotes
+      id: testing-remotes
+      if: ${{ inputs.version-type == 'testing' }}
+      shell: bash
+      run: |
+        conan remote add stable ${{ inputs.stable-repo }}
+        conan remote login -p ${{ inputs.ci-token }} stable ${{ inputs.ci-user }}
+        conan remote add draft ${{ inputs.draft-repo }}
+        conan remote login -p ${{ inputs.ci-token }} draft ${{ inputs.ci-user }}
+        conan remote add canary ${{ inputs.canary-repo }}
+        conan remote login -p ${{ inputs.ci-token }} canary ${{ inputs.ci-user }}
+        conan remote add testing ${{ inputs.testing-repo }}
+        conan remote login -p ${{ inputs.ci-token }} testing ${{ inputs.ci-user }}
+        echo "target_repo=testing" >> $GITHUB_OUTPUT
+
+    - name: Setup canary and stable remotes
+      id: canary-remotes
+      if: ${{ inputs.version-type == 'canary' }}
+      shell: bash
+      run: |
+        conan remote add stable ${{ inputs.stable-repo }}
+        conan remote login -p ${{ inputs.ci-token }} stable ${{ inputs.ci-user }}
+        conan remote add draft ${{ inputs.draft-repo }}
+        conan remote login -p ${{ inputs.ci-token }} draft ${{ inputs.ci-user }}
+        conan remote add canary ${{ inputs.canary-repo }}
+        conan remote login -p ${{ inputs.ci-token }} canary ${{ inputs.ci-user }}
+        echo "target_repo=canary" >> $GITHUB_OUTPUT
+
+    - name: Setup stable remote
+      id: stable-remotes
+      if: ${{ inputs.version-type == 'stable' || inputs.version-type == 'draft' }}
+      shell: bash
+      run: |
+        conan remote add stable ${{ inputs.stable-repo }}
+        conan remote login -p ${{ inputs.ci-token }} stable ${{ inputs.ci-user }}
+        conan remote add draft ${{ inputs.draft-repo }}
+        conan remote login -p ${{ inputs.ci-token }} draft ${{ inputs.ci-user }}
+        echo "target_repo=draft" >> $GITHUB_OUTPUT

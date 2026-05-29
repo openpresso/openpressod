@@ -4,7 +4,6 @@
 #include "async_events_dispatcher/async_events_dispatcher.hpp"
 #include "openppressod_service_impl.hpp"
 
-#include <filesystem>
 #include <memory>
 
 #include <grpcpp/grpcpp.h>
