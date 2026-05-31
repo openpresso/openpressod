@@ -18,6 +18,7 @@ include(clang-format)
 include(clang-tidy)
 include(openpressod)
 include(openpressod-constants)
+include(sphinx-docs)
 include(CTest)
 include(GNUInstallDirs)
 
@@ -60,5 +61,6 @@ process_clang_tools_targets()
 
 install(TARGETS openpressod RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+add_subdirectory(docs)
 add_subdirectory(packaging)
 
