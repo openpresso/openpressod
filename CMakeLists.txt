@@ -60,6 +60,5 @@ process_clang_tools_targets()
 
 install(TARGETS openpressod RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-create_deb_package()
-
+add_subdirectory(packaging)
 
