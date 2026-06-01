@@ -1,0 +1,34 @@
+DOXYFILE_ENCODING      = UTF-8
+PROJECT_NAME           = Openpressod
+PROJECT_NUMBER         = @OPENPRESSOD_VERSION@
+PROJECT_BRIEF          = Smart espresso machine control library
+PROJECT_LOGO           = @CMAKE_CURRENT_SOURCE_DIR@/logo-light.svg
+HTML_OUTPUT            = @DOXYGEN_HTML_DIR@
+LATEX_OUTPUT           = @DOXYGEN_LATEX_DIR@
+MAN_OUTPUT             = @DOXYGEN_MAN_DIR@
+INPUT                  = @DOXYGEN_INPUT@
+CASE_SENSE_NAMES       = NO
+FILE_PATTERNS          = *.md
+FULL_PATH_NAMES        = YES
+GENERATE_HTML          = YES
+GENERATE_XML           = NO
+GENERATE_LATEX         = YES 
+GENERATE_MAN           = YES
+USE_MATHJAX            = YES
+MARKDOWN_SUPPORT       = YES
+MAN_LINKS              = YES
+USE_MDFILE_AS_MAINPAGE = @CMAKE_CURRENT_BINARY_DIR@/index.md
+
+HTML_EXTRA_STYLESHEET  = @AWESOME_CSS_DIR@/doxygen-awesome.css \
+                         @CMAKE_CURRENT_SOURCE_DIR@/custom.css 
+
+HTML_EXTRA_FILES       = @AWESOME_CSS_DIR@/doxygen-awesome-darkmode-toggle.js \
+                         @AWESOME_CSS_DIR@/doxygen-awesome-paragraph-link.js \
+                         @CMAKE_CURRENT_SOURCE_DIR@/logo-dark.svg
+
+HTML_HEADER            = @CMAKE_CURRENT_SOURCE_DIR@/header.html
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = LIGHT 
+

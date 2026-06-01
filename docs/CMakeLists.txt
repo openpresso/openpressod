@@ -1,46 +1,59 @@
-find_program(LATEXMK_EXECUTABLE NAMES latexmk)
-if(LATEXMK_EXECUTABLE)
-    execute_process(COMMAND "${LATEXMK_EXECUTABLE}" --version 
-        OUTPUT_VARIABLE LATEXMK_VERSION)
-    string(STRIP "${LATEXMK_VERSION}" LATEXMK_VERSION)
-    message(STATUS "${LATEXMK_VERSION}")
-else()
-    message(WARNING "latexmk not found, PDF will be skipped.")
-endif()
+FetchContent_Declare(doxygen-awesome-css
+    GIT_REPOSITORY https://github.com/jothepro/doxygen-awesome-css
+    GIT_TAG v2.4.2)
+FetchContent_MakeAvailable(doxygen-awesome-css)
+FetchContent_GetProperties(doxygen-awesome-css SOURCE_DIR AWESOME_CSS_DIR)
 
-set(SPHINX_CONFIGURED_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/sphinx_sources")
-
-configure_file(
-    conf.py
-    "${SPHINX_CONFIGURED_SOURCE_DIR}/conf.py"
-    @ONLY
+set(DOXY_PAGES
+    index.md
+    usage.md
+    config.md
 )
 
-file(COPY pages/ DESTINATION "${SPHINX_CONFIGURED_SOURCE_DIR}")
+foreach(DOCFILE ${DOXY_PAGES})
+  configure_file(pages/${DOCFILE} ${CMAKE_CURRENT_BINARY_DIR}/${DOCFILE} @ONLY)
+endforeach()
 
-add_sphinx_docs(html_docs 
-    FORMAT html 
-    SOURCE_DIR "${SPHINX_CONFIGURED_SOURCE_DIR}" 
-    OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/html_docs"
-)
+list(TRANSFORM DOXY_PAGES PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+list(JOIN DOXY_PAGES " " DOXY_PAGES_STR)
+  
+set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+set(DOXYGEN_INPUT "${DOXY_PAGES_STR}")
+set(DOXYGEN_HTML_DIR ${CMAKE_CURRENT_BINARY_DIR}/html)
+set(DOXYGEN_LATEX_DIR ${CMAKE_CURRENT_BINARY_DIR}/pdf)
+set(DOXYGEN_MAN_DIR ${CMAKE_CURRENT_BINARY_DIR}/man)
+configure_file(Doxyfile.in ${DOXYFILE_OUT} @ONLY)
 
-add_sphinx_docs(latex_docs 
-    FORMAT latex 
-    SOURCE_DIR "${SPHINX_CONFIGURED_SOURCE_DIR}" 
-    OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/pdf_docs"
-)
-
-if(LATEXMK_EXECUTABLE)
-    add_custom_target(pdf_docs
-        COMMAND "${LATEXMK_EXECUTABLE}" -pdf -interaction=nonstopmode
-        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/pdf_docs"
-        DEPENDS latex_docs
-    )
-endif()
-
-add_sphinx_docs(man_docs
+add_doxygen_target(docs
     ALL
-    FORMAT man 
-    SOURCE_DIR "${SPHINX_CONFIGURED_SOURCE_DIR}" 
-    OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/man_docs"
+    DOXYFILE ${DOXYFILE_OUT} 
+    DEPENDS 
+        ${DOXY_PAGES} 
+        ${CMAKE_CURRENT_SOURCE_DIR}/header.html 
+        ${CMAKE_CURRENT_SOURCE_DIR}/custom.css
+        ${CMAKE_CURRENT_SOURCE_DIR}/logo-light.svg
+        ${CMAKE_CURRENT_SOURCE_DIR}/logo-dark.svg
 )
+
+add_latex_target(pdf
+    OUTPUT_NAME openpressod
+    WORKDIR "${DOXYGEN_LATEX_DIR}"
+)
+
+add_dependencies(pdf docs)
+
+install(DIRECTORY "${DOXYGEN_HTML_DIR}/"
+  DESTINATION docs
+  COMPONENT DocumentationHtml
+  EXCLUDE_FROM_ALL)
+
+install(FILES "${DOXYGEN_LATEX_DIR}/openpressod.pdf"
+  DESTINATION .
+  COMPONENT DocumentationPdf
+  EXCLUDE_FROM_ALL)
+
+install(DIRECTORY "${DOXYGEN_MAN_DIR}/"
+  DESTINATION usr/share/man
+  COMPONENT openpressod-deb-package-content
+  EXCLUDE_FROM_ALL)
+

@@ -37,6 +37,8 @@ class openpressod(ConanFile):
     def build_requirements(self):
         self.tool_requires("cmake/[>=3.30]")
         self.test_requires("gtest/1.17.0")
+        if self.options.with_docs:
+            self.tool_requires("doxygen/[>=1.16.0]")
 
     def requirements(self):
         self.requires("spdlog/[>=1.17.0 <2.0]")
@@ -50,14 +52,8 @@ class openpressod(ConanFile):
         major, minor, patch = self.__version_components()
         tc = CMakeToolchain(self)
 
-        pip_packages = []
         if self.options.with_clang_tools:
-            pip_packages.extend(["clang-tidy", "clang-format"])
-        if self.options.with_docs:
-            pip_packages.extend(["sphinx", "myst-parser", "sphinx-rtd-theme"])
-        
-        if pip_packages:
-            self.__intall_with_pip(tc, pip_packages)
+            self.__intall_clang_tools(tc)
 
         tc.cache_variables["CPACK_DEBIAN_PACKAGE_ARCHITECTURE"] = CONAN_TO_DEB_ARCH[str(self.settings.arch)]
         tc.cache_variables["OPENPRESSOD_VERSION"] = self.version
@@ -84,13 +80,13 @@ class openpressod(ConanFile):
         except Exception:
             return 0, 0, 0
 
-    def __intall_with_pip(self, cmtc, packages):
+    def __intall_clang_tools(self, cmtc):
         try:
             from conan.tools.system import PyEnv
         except ImportError:
             from conan.tools.system import PipEnv as PyEnv
         venv = PyEnv(self)
-        venv.install(packages)
+        venv.install(["clang-tidy", "clang-format"])
         venv.generate()
         bin_dir = getattr(venv, "bin_path", None) or getattr(venv, "bin_dir", None)
         cmtc.cache_variables["CMAKE_PROGRAM_PATH"] = bin_dir
