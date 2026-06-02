@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <exception>
+#include <sysexits.h>
 
 #include <libopenpresso/exception.hpp>
 #include <spdlog/spdlog.h>
@@ -25,14 +26,14 @@ int main()
                      e.throwLocation().file_name(),
                      e.throwLocation().function_name(),
                      e.throwLocation().line());
-    throw;
+    return EX_SOFTWARE;
   }
   catch (const std::exception& e) {
     spdlog::critical("daemon will be stopped due to unhandled exception: {}", e.what());
-    throw;
+    return EX_SOFTWARE;
   }
 
   spdlog::info("Daemon finished");
 
-  return 0;
+  return EX_OK;
 }
