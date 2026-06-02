@@ -22,6 +22,18 @@ else()
     message(WARNING "latexmk not found")
 endif()
 
+find_program(pandoc_EXECUTABLE pandoc)
+if(pandoc_EXECUTABLE)
+    add_executable(pandoc::pandoc IMPORTED GLOBAL)
+    set_property(TARGET pandoc::pandoc PROPERTY IMPORTED_LOCATION ${pandoc_EXECUTABLE})
+
+    execute_process(COMMAND "${pandoc_EXECUTABLE}" --version OUTPUT_VARIABLE PANDOC_VERSION)
+    string(STRIP "${PANDOC_VERSION}" PANDOC_VERSION)
+    message(STATUS "${PANDOC_VERSION}")
+else()
+    message(WARNING "pandoc not found")
+endif()
+
 function(add_doxygen_target target_name)
     if(NOT TARGET doxygen::doxygen)
         message(WARNING "Doxygen not found, target ${target_name} will not be created")
@@ -101,5 +113,72 @@ function(add_latex_target target_name)
     add_custom_target(${TARGET_KEYWORDS}
         COMMAND latexmk::latexmk -pdf -interaction=nonstopmode ${jobname_arg} refman
         WORKING_DIRECTORY "${DOXYGEN_LATEX_DIR}"
+    )
+endfunction()
+
+function(add_pandoc_man_target target_name)
+    if(NOT TARGET pandoc::pandoc)
+        message(WARNING "Pandoc not found, target ${target_name} will not be created")
+        return()
+    endif()
+
+    set(options ALL)
+    set(one_value_args OUTPUT_DIR)
+    set(multi_value_args INPUTS)
+    cmake_parse_arguments(PANDOC_ARG "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
+
+    if(NOT PANDOC_ARG_INPUTS)
+        message(FATAL_ERROR "add_pandoc_man_target: INPUTS is required")
+    endif()
+
+    if(NOT PANDOC_ARG_OUTPUT_DIR)
+        message(FATAL_ERROR "add_pandoc_man_target: OUTPUT_DIR is required")
+    endif()
+
+    set(output_files)
+
+    foreach(input_file IN LISTS PANDOC_ARG_INPUTS)
+        if(IS_ABSOLUTE "${input_file}")
+            set(input_path "${input_file}")
+        else()
+            set(input_path "${CMAKE_CURRENT_BINARY_DIR}/${input_file}")
+        endif()
+
+        get_filename_component(input_name "${input_path}" NAME)
+
+        if(NOT input_name MATCHES "^(.+)\\.([1-9])\\.md$")
+            message(FATAL_ERROR
+                "add_pandoc_man_target: input '${input_file}' must match <name>.<section>.md")
+        endif()
+
+        set(page_name "${CMAKE_MATCH_1}")
+        set(page_section "${CMAKE_MATCH_2}")
+
+        set(output_dir "${PANDOC_ARG_OUTPUT_DIR}/man${page_section}")
+        set(output_file "${output_dir}/${page_name}.${page_section}")
+
+        list(APPEND output_files "${output_file}")
+
+        add_custom_command(
+            OUTPUT "${output_file}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${output_dir}"
+            COMMAND pandoc::pandoc
+                --standalone
+                --from markdown
+                --to man
+                "${input_path}"
+                -o "${output_file}"
+            DEPENDS "${input_path}" ${PANDOC_ARG_DEPENDS}
+            VERBATIM
+        )
+    endforeach()
+
+    set(target_keywords ${target_name})
+    if(PANDOC_ARG_ALL)
+        list(APPEND target_keywords ALL)
+    endif()
+
+    add_custom_target(${target_keywords}
+        DEPENDS ${output_files}
     )
 endfunction()

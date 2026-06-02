@@ -17,15 +17,13 @@ endforeach()
 list(TRANSFORM DOXY_PAGES PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
 list(JOIN DOXY_PAGES " " DOXY_PAGES_STR)
   
-set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
 set(DOXYGEN_INPUT "${DOXY_PAGES_STR}")
 set(DOXYGEN_HTML_DIR ${CMAKE_CURRENT_BINARY_DIR}/html)
 set(DOXYGEN_LATEX_DIR ${CMAKE_CURRENT_BINARY_DIR}/pdf)
-set(DOXYGEN_MAN_DIR ${CMAKE_CURRENT_BINARY_DIR}/man)
+set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
 configure_file(Doxyfile.in ${DOXYFILE_OUT} @ONLY)
 
 add_doxygen_target(docs
-    ALL
     DOXYFILE ${DOXYFILE_OUT} 
     DEPENDS 
         ${DOXY_PAGES} 
@@ -33,6 +31,24 @@ add_doxygen_target(docs
         ${CMAKE_CURRENT_SOURCE_DIR}/custom.css
         ${CMAKE_CURRENT_SOURCE_DIR}/logo-light.svg
         ${CMAKE_CURRENT_SOURCE_DIR}/logo-dark.svg
+)
+
+set(MAN_DIR ${CMAKE_CURRENT_BINARY_DIR}/man)
+set(MAN_PAGES
+    openpressod.conf.5.md
+    openpressod.8.md
+)
+
+foreach(man_page ${MAN_PAGES})
+  configure_file(pages/${man_page} ${CMAKE_CURRENT_BINARY_DIR}/${man_page} @ONLY)
+endforeach()
+
+list(TRANSFORM MAN_PAGES PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+
+add_pandoc_man_target(man_docs
+    ALL
+    INPUTS ${MAN_PAGES}
+    OUTPUT_DIR ${MAN_DIR}
 )
 
 add_latex_target(pdf
@@ -52,7 +68,7 @@ install(FILES "${DOXYGEN_LATEX_DIR}/openpressod.pdf"
   COMPONENT DocumentationPdf
   EXCLUDE_FROM_ALL)
 
-install(DIRECTORY "${DOXYGEN_MAN_DIR}/"
+install(DIRECTORY "${MAN_DIR}/"
   DESTINATION usr/share/man
   COMPONENT openpressod-deb-package-content
   EXCLUDE_FROM_ALL)
