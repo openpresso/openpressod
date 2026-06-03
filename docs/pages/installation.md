@@ -175,7 +175,7 @@ systemctl status openpressod
 A successful startup looks like:
 
 ```
-● openpressod.service - OpenPresso Daemon
+ * openpressod.service - OpenPresso Daemon
      Loaded: loaded (/lib/systemd/system/openpressod.service; enabled; ...)
      Active: active (running) since ...
 ```

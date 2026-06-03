@@ -196,7 +196,7 @@ High-pressure water pump control.
 : Integer, required. Water volume delivered per pump pulse, in micrograms.
 
 `stall_pressure`
-: Integer, required. Pressure limit above which the pump is de-energized for protection, in millibars.
+: Integer, required. The theoretical pressure limit at which the pump stalls and produces zero flow, in millibars.
 
 ## `[valve]`
 
@@ -217,10 +217,10 @@ Boiler heating element control.
 Brew mode control parameters.
 
 `temperature`
-: Integer, optional. Target extraction temperature in millidegrees Celsius. Default: `95000`.
+: Integer, optional. Default extraction temperature in millidegrees Celsius if user preset not found. Default: `95000`.
 
 `pressure`
-: Integer, optional. Target extraction pressure in millibars. Default: `9000`.
+: Integer, optional. Default extraction pressure in millibars if user preset not found. Default: `9000`.
 
 `brew_temperature_window`
 : Integer, optional. Allowed temperature deviation around the target, in millidegrees Celsius. Default: `500`.
@@ -258,16 +258,16 @@ PID parameters for temperature control during brewing.
 Steam mode control parameters.
 
 `pressure_threshold`
-: Integer, optional. Maximum allowed pressure during steam operations, in millibars. Default: `2500`.
+: Integer, optional. Steam pressure threshold in millibars; boiler refill is disabled above this pressure (should be slightly above maximum possible pressure with opened steam valve). Default: `2500`.
 
 `temperature`
-: Integer, optional. Target steaming temperature in millidegrees Celsius. Default: `155000`.
+: Integer, optional. Default steaming temperature in millidegrees Celsius if user preset not found. Default: `155000`.
 
 `refill_flow`
 : Integer, optional. Boiler refill flow rate during steam operation, in milligrams per second. Default: `500`.
 
 `steam_temperature_window`
-: Integer, optional. Allowed temperature deviation around the steam target, in millidegrees Celsius. Default: `1000`.
+: Integer, optional. Temperature deviation window in millidegrees Celsius around the steam target for the steam indicator LED to signal readiness. Default: `1000`.
 
 ### `[steam.preheat_pid_settings]`
 
