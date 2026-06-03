@@ -38,7 +38,7 @@ class openpressod(ConanFile):
         self.tool_requires("cmake/[>=3.30]")
         self.test_requires("gtest/1.17.0")
         if self.options.with_docs:
-            self.tool_requires("doxygen/[>=1.16.0]")
+            self.tool_requires("doxygen/[>=1.16.0 <1.17.0]")
 
     def requirements(self):
         self.requires("spdlog/[>=1.17.0 <2.0]")
