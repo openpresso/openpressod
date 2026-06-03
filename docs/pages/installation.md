@@ -115,13 +115,21 @@ ls /dev/watchdog*
 
 GPIO, I²C, and SPI must be present. The hardware watchdog is optional but **highly recommended** for safety — if the daemon crashes, the watchdog resets the device and returns hardware outputs to a safe state. If any expected device node is missing, check that the corresponding kernel modules are loaded and the relevant device tree overlays are active.
 
-**4. Copy the example configuration:**
+**4. Configure GPIO output pin defaults**
+
+`openpressod` uses a hardware watchdog as part of its safety model: if the daemon crashes or the system is reset, the watchdog triggers a reboot. After the reboot, the heater, pump, and valve GPIO output pins must return to a safe (off) state **before** the daemon starts again.
+
+This is not guaranteed by the daemon itself — it depends entirely on the board's hardware default pin states at boot. Configure GPIO output pins so that all actuator outputs are de-energized (off) on power-up or reset. On Raspberry Pi and similar SoCs this is done through device tree pin configuration or board-level pull resistors.
+
+Verify the safe boot-time state by powering on the board without the daemon running and confirming that the boiler, pump, and valve are all off. Incorrect pull configuration or pin muxing at boot may undermine the intended fail-safe behavior.
+
+**5. Copy the example configuration:**
 
 ```sh
 sudo cp @OPENPRESSOD_CONFIG_DIR@/openpressod.conf.example @OPENPRESSOD_CONFIG_PATH@
 ```
 
-**5. Edit the configuration file:**
+**6. Edit the configuration file:**
 
 ```sh
 sudo nano @OPENPRESSOD_CONFIG_PATH@
@@ -140,13 +148,13 @@ If the device nodes found in step 3 differ from the defaults assumed by the conf
 
 See [Configuration](@ref config) for the full reference.
 
-**6. Enable and start the service:**
+**7. Enable and start the service:**
 
 ```sh
 sudo systemctl enable --now openpressod
 ```
 
-**7. Follow the logs to verify startup:**
+**8. Follow the logs to verify startup:**
 
 ```sh
 journalctl -u openpressod -f
