@@ -60,6 +60,7 @@ class openpressod(ConanFile):
         tc.cache_variables["OPENPRESSOD_VERSION_MAJOR"] = str(major)
         tc.cache_variables["OPENPRESSOD_VERSION_MINOR"] = str(minor)
         tc.cache_variables["OPENPRESSOD_VERSION_PATCH"] = str(patch)
+        tc.cache_variables["OPENPRESSOD_REPO_CHANNEL"] = self.__repo_channel()
         tc.generate()
         deps = CMakeDeps(self)
         deps.generate()
@@ -71,6 +72,15 @@ class openpressod(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
+
+    def __repo_channel(self) -> str:
+        release_pattern = r'\d+\.\d+\.\d+(?:-rc\d+)?'
+        canary_pattern = r'\d+\.\d+\.\d+-\d+-g[0-9a-f]{7}'
+        if re.fullmatch(release_pattern, self.version):
+            return "stable"
+        if re.fullmatch(canary_pattern, self.version):
+            return "canary"
+        return "testing"
 
     def __version_components(self):
         try:
