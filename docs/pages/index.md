@@ -10,30 +10,21 @@ The daemon takes control over all the machine hardware: boiler, pump, valve and 
 
 ## Architecture
 
-```
-  ┌─────────────────────────────────────────────┐
-  │  Clients                                    │
-  │  Web UI backend · openpresso-ctl · custom   │
-  └──────────────────┬──────────────────────────┘
-                     │ gRPC
-                     │ Unix domain socket (default)
-                     │ TCP (optional)
-  ┌──────────────────▼──────────────────────────┐
-  │  openpressod daemon                         │
-  │  Events dispatching                         │
-  │  Profile & settings management              │
-  └──────────────────┬──────────────────────────┘
-                     │ 
-  ┌──────────────────▼──────────────────────────┐
-  │  libopenpresso                              │
-  │  Run loops, drivers interaction             │
-  └─────────────────────────────────────────────┘
-                     |
-  ┌──────────────────▼──────────────────────────┐
-  │  Hardware                                   │
-  │  GPIO · I²C · SPI · watchdog                │
-  └─────────────────────────────────────────────┘
-```
+\dot
+digraph Architecture {
+  node [shape=box, fontname="Helvetica", fontsize=10, margin="0.2,0.1"];
+  edge [fontname="Helvetica", fontsize=9];
+  
+  Clients [label="Clients\nWeb UI backend · openpresso-ctl · custom"];
+  Daemon [label="openpressod daemon\nEvents dispatching\nProfile & settings management"];
+  Libopenpresso [label="libopenpresso\nRun loops, drivers interaction"];
+  Hardware [label="Hardware\nGPIO · I²C · SPI · watchdog"];
+
+  Clients -> Daemon [label="gRPC\nUnix domain socket (default)\nTCP (optional)"];
+  Daemon -> Libopenpresso;
+  Libopenpresso -> Hardware;
+}
+\enddot
 
 The public API surface is defined by the Protocol Buffers definitions in the
 [openpresso-proto](https://github.com/openpresso/openpresso-proto) repository.
