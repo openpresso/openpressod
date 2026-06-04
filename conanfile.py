@@ -30,7 +30,8 @@ class openpressod(ConanFile):
             self.version = "0.0.0-unknown"
 
     def validate(self):
-        check_min_cppstd(self, "23")
+        if(self.options.build_docs != "DocsOnly"):
+            check_min_cppstd(self, "23")
         if not self.settings.os == "Linux":
             raise ConanInvalidConfiguration("Only Linux is supported")
 
