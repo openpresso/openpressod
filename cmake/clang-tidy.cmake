@@ -27,7 +27,7 @@ function(add_clang_tidy_target CUSTOM_TARGET_NAME)
     cmake_parse_arguments(arg "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT arg_TARGET)
-        message(FATAL_ERROR "TARGET argument is required for add_clang_tidy_target")
+        message(WARNING "TARGET argument is required for add_clang_tidy_target")
     endif()
 
     # Get all sources and headers from the target
@@ -92,7 +92,8 @@ function(add_clang_tidy_targets CUSTOM_TARGET_NAME)
     cmake_parse_arguments(arg "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT arg_TARGETS)
-        message(FATAL_ERROR "TARGETS argument is required for add_clang_tidy_targets")
+        message(WARNING "No targets specified for clang-tidy")
+        return()
     endif()
 
     list(REMOVE_DUPLICATES arg_TARGETS)
