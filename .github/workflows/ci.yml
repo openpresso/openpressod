@@ -104,7 +104,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y graphviz latexmk
+          sudo apt-get install -y graphviz latexmk texlive-full
 
       - name: Setup Conan
         uses: conan-io/setup-conan@v1
