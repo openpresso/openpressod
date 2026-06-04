@@ -57,11 +57,11 @@ add_latex_target(pdf
     WORKDIR "${DOXYGEN_LATEX_DIR}"
 )
 
-add_dependencies(pdf doxy)
-
-add_custom_target(docs)
-
-add_dependencies(docs pdf doxy)
+if(TARGET doxy)
+  add_dependencies(pdf doxy)
+  add_custom_target(docs)
+  add_dependencies(docs pdf doxy)
+endif()
 
 install(DIRECTORY "${DOXYGEN_HTML_DIR}/"
   DESTINATION docs
