@@ -104,13 +104,13 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y graphviz latexmk texlive-full
+          sudo apt-get install -y graphviz latexmk texlive-latex-extra
 
       - name: Setup Conan
         uses: conan-io/setup-conan@v1
 
       - name: Install Conan dependencies
-        run: conan install . -o "&:build_docs=DocsOnly" -b=missing -s compiler.cppstd=23  --version=${{ needs.define-version.outputs.version }}
+        run: conan install . -o "&:build_docs=DocsOnly" -b=missing --version=${{ needs.define-version.outputs.version }}
 
       - name: Activate buildenv
         run: source ./build/Release/generators/conanbuild.sh
