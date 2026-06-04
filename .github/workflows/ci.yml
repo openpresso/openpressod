@@ -136,10 +136,10 @@ jobs:
       
       - name: Upload pdf docs as artifact
         id: upload-pdf
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
-          name: openpressod-pdf-docs-${{ needs.define-version.outputs.version }}
           path: ./artifacts/*.pdf
+          archive: false
 
   cross-compile:
     name: Cross-compile binaries for ${{ matrix.target }}
