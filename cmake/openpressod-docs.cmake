@@ -28,6 +28,7 @@ if(pandoc_EXECUTABLE)
     set_property(TARGET pandoc::pandoc PROPERTY IMPORTED_LOCATION ${pandoc_EXECUTABLE})
 
     execute_process(COMMAND "${pandoc_EXECUTABLE}" --version OUTPUT_VARIABLE PANDOC_VERSION)
+    string(REGEX REPLACE "\n.*" "" PANDOC_VERSION "${PANDOC_VERSION}")
     string(STRIP "${PANDOC_VERSION}" PANDOC_VERSION)
     message(STATUS "${PANDOC_VERSION}")
 else()
