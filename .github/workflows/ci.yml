@@ -181,12 +181,19 @@ jobs:
             cmake --build --preset conan-release
             cpack --config build/Release/CPackConfig.cmake -B build/Release
             cmake --install ./build/Release --prefix ./artifacts --component installer
+            cmake --install ./build/Release --prefix ./artifacts
 
-      - name: Upload built artifact
+      - name: Upload deb package to artifacts
         uses: actions/upload-artifact@v7
         with:
           path: ./artifacts/openpressod*.deb
           archive: false
+
+      - name: Upload executable to artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: openpressod-${{ needs.define-version.outputs.version }}-${{ matrix.target }}
+          path: ./artifacts/bin/*
 
       - name: Setup Cloudsmith CLI
         uses: cloudsmith-io/cloudsmith-cli-action@v2
