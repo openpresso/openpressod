@@ -18,6 +18,26 @@ jobs:
         id: version
         uses: release-kit/semver@v2
 
+      - name: Download docs asset
+        uses: robinraju/release-downloader@v1
+        with:
+          tag: ${{ github.event.release.tag_name }}
+          fileName: 'openpressod-html-docs-${{ steps.version.outputs.full }}.zip'
+          out-file-path: openpresso-html-docs-${{ steps.version.outputs.full }}
+          extract: true
+
+      - name: Publish docs
+        uses: openpresso/openpresso.github.io/.github/actions/deploy-docs@gh-pages
+        with:
+          commit_message: "[CI] Libopenpresso docs deployed: ${{ steps.version.outputs.full }}"
+          repository: openpresso/openpresso.github.io
+          deployment_key: ${{ secrets.PAGES_DEPLOY_KEY }}
+          source_dir: openpressod-html-docs-${{ steps.version.outputs.full }}
+          target_dir: openpressod
+          checkout_path: pages
+          version: ${{ steps.version.outputs.full }}
+          verion_type: 'stable'
+
       - name: Publish conan packages
         run: |
           QUERY="name:openpressod AND version:${{ steps.version.outputs.full }}"
