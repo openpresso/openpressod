@@ -106,7 +106,8 @@ function(add_clang_format_targets CUSTOM_TARGET_NAME)
     cmake_parse_arguments(FORMAT "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT FORMAT_TARGETS)
-        message(FATAL_ERROR "TARGETS argument is required for add_clang_format_targets")
+        message(WARNING "No targets specified for clang-format")
+        return()
     endif()
 
     list(REMOVE_DUPLICATES FORMAT_TARGETS)

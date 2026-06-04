@@ -1,3 +1,5 @@
+find_package(libopenpresso REQUIRED)
+
 add_library(libopenpresso_mock INTERFACE)
 target_sources(libopenpresso_mock PUBLIC FILE_SET HEADERS
     FILES 

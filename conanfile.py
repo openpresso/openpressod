@@ -17,10 +17,12 @@ class openpressod(ConanFile):
     name = "openpressod"
     settings = "os", "arch", "compiler", "build_type"
     options = { 
-        "with_clang_tools": [True, False]
+        "with_clang_tools": [True, False],
+        "build_docs": [True, False, "DocsOnly"]
     }
     default_options = { 
-        "with_clang_tools": False
+        "with_clang_tools": False,
+        "build_docs": False
     }
 
     def set_version(self):
@@ -28,21 +30,26 @@ class openpressod(ConanFile):
             self.version = "0.0.0-unknown"
 
     def validate(self):
-        check_min_cppstd(self, "23")
+        if(self.options.build_docs != "DocsOnly"):
+            check_min_cppstd(self, "23")
         if not self.settings.os == "Linux":
             raise ConanInvalidConfiguration("Only Linux is supported")
 
     def build_requirements(self):
         self.tool_requires("cmake/[>=3.30]")
-        self.test_requires("gtest/1.17.0")
+        if(self.options.build_docs != "DocsOnly"):
+            self.test_requires("gtest/1.17.0")
+        if self.options.build_docs:
+            self.tool_requires("doxygen/[>=1.16.0 <1.17.0]")
 
     def requirements(self):
-        self.requires("spdlog/[>=1.17.0 <2.0]")
-        self.requires("toml11/[>=4.4.0]")
-        self.requires("magic_enum/[>=0.9.7]")
-        
-        self.requires("libopenpresso/0.0.0-6-g2f5af31")
-        self.requires("openpresso_proto/0.0.0-7-g407b710")
+        if(self.options.build_docs != "DocsOnly"):
+            self.requires("spdlog/[>=1.17.0 <2.0]")
+            self.requires("toml11/[>=4.4.0]")
+            self.requires("magic_enum/[>=0.9.7]")
+            
+            self.requires("libopenpresso/0.0.0-6-g2f5af31")
+            self.requires("openpresso_proto/0.0.0-7-g407b710")
         
     def generate(self):
         major, minor, patch = self.__version_components()
@@ -56,6 +63,9 @@ class openpressod(ConanFile):
         tc.cache_variables["OPENPRESSOD_VERSION_MAJOR"] = str(major)
         tc.cache_variables["OPENPRESSOD_VERSION_MINOR"] = str(minor)
         tc.cache_variables["OPENPRESSOD_VERSION_PATCH"] = str(patch)
+        tc.cache_variables["OPENPRESSOD_VERSION_PATCH"] = str(patch)
+        tc.cache_variables["DOCS_ONLY"] = self.options.build_docs == "DocsOnly"
+        tc.cache_variables["OPENPRESSOD_REPO_CHANNEL"] = self.__repo_channel()
         tc.generate()
         deps = CMakeDeps(self)
         deps.generate()
@@ -67,6 +77,15 @@ class openpressod(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
+
+    def __repo_channel(self) -> str:
+        release_pattern = r'\d+\.\d+\.\d+(?:-rc\d+)?'
+        canary_pattern = r'\d+\.\d+\.\d+-\d+-g[0-9a-f]{7}'
+        if re.fullmatch(release_pattern, self.version):
+            return "stable"
+        if re.fullmatch(canary_pattern, self.version):
+            return "canary"
+        return "testing"
 
     def __version_components(self):
         try:

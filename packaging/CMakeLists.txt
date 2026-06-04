@@ -1,4 +1,4 @@
-set(OPENPRESSOD_CONFIG_EXAMPLE_PATH "${OPENPRESSOD_CONFIG_DIR}/config.toml.example")
+set(OPENPRESSOD_CONFIG_EXAMPLE_PATH "${OPENPRESSOD_CONFIG_DIR}/openpressod.conf.example")
 set(OPENPRESSOD_SERVICE_NAME openpressod)
 set(OPENPRESSOD_SYSTEM_USER openpressod)
 set(OPENPRESSOD_BIN_DIR /usr/bin)
@@ -59,7 +59,7 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openpressod.service"
     EXCLUDE_FROM_ALL
 )
 
-install(FILES "config.toml.example"
+install(FILES "openpressod.conf.example"
     DESTINATION "${OPENPRESSOD_CONFIG_DIR}"
     COMPONENT openpressod-deb-package-content
     EXCLUDE_FROM_ALL

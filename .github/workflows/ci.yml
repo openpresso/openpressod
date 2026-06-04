@@ -90,6 +90,57 @@ jobs:
       - name: Run clang-tidy
         run: cmake --build --preset conan-release --target clang_tidy_validate
 
+  make-docs:
+    name: Make Documentation
+    runs-on: ubuntu-latest
+    needs: define-version
+    outputs:
+      html_artifact_id: ${{ steps.upload-html.outputs.artifact_id }}
+      pdf_artifact_id: ${{ steps.upload-pdf.outputs.artifact_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz latexmk texlive-latex-extra
+
+      - name: Setup Conan
+        uses: conan-io/setup-conan@v1
+
+      - name: Install Conan dependencies
+        run: conan install . -o "&:build_docs=DocsOnly" -b=missing --version=${{ needs.define-version.outputs.version }}
+
+      - name: Activate buildenv
+        run: source ./build/Release/generators/conanbuild.sh
+
+      - name: Configure CMake
+        run: cmake --preset conan-release
+
+      - name: Build docs target
+        run: cmake --build --preset conan-release --target docs
+
+      - name: Install HTML Documentation component
+        run: cmake --install build/Release --prefix ./artifacts --component DocumentationHtml
+
+      - name: Install PDF Documentation component
+        run: cmake --install build/Release --prefix ./artifacts --component DocumentationPdf
+
+      - name: Upload html docs files as artifact
+        id: upload-html
+        uses: actions/upload-artifact@v6
+        with:
+          name: openpressod-html-docs-${{ needs.define-version.outputs.version }}
+          path: ./artifacts/docs
+      
+      - name: Upload pdf docs as artifact
+        id: upload-pdf
+        uses: actions/upload-artifact@v7
+        with:
+          path: ./artifacts/*.pdf
+          archive: false
+
   cross-compile:
     name: Cross-compile binaries for ${{ matrix.target }}
     runs-on: ubuntu-latest
@@ -144,6 +195,30 @@ jobs:
 
       - name: Upload to remote
         run: cloudsmith push deb openpresso/${{ steps.setup-remotes.outputs.target-repo }}/debian/trixie ./artifacts/openpressod*.deb
+
+  deploy-docs:
+    name: Deploy Documentation
+    runs-on: ubuntu-latest
+    needs: [ make-docs, define-version, linter-checks ]
+    if: ${{ needs.define-version.outputs.version-type == 'canary' && github.repository == 'openpresso/openpressod' }}
+    steps:
+      - name: Download docs artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: openpressod-html-docs-${{ needs.define-version.outputs.version }}
+          path: ./docs
+
+      - name: Deploy docs
+        uses: openpresso/openpresso.github.io/.github/actions/deploy-docs@gh-pages
+        with:
+          commit_message: "[CI] Openpressod docs deployed: ${{ github.event.head_commit.message }}"
+          repository: openpresso/openpresso.github.io
+          deployment_key: ${{ secrets.PAGES_DEPLOY_KEY }}
+          source_dir: ./docs
+          target_dir: openpressod
+          checkout_path: pages
+          version: ${{ needs.define-version.outputs.version }}
+          verion_type: 'canary'
 
   release-draft:
     name: Create release draft
