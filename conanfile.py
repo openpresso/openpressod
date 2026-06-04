@@ -18,11 +18,11 @@ class openpressod(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
     options = { 
         "with_clang_tools": [True, False],
-        "with_docs": [True, False]
+        "build_docs": [True, False, "DocsOnly"]
     }
     default_options = { 
         "with_clang_tools": False,
-        "with_docs": False
+        "build_docs": False
     }
 
     def set_version(self):
@@ -36,17 +36,19 @@ class openpressod(ConanFile):
 
     def build_requirements(self):
         self.tool_requires("cmake/[>=3.30]")
-        self.test_requires("gtest/1.17.0")
-        if self.options.with_docs:
+        if(self.options.build_docs != "DocsOnly"):
+            self.test_requires("gtest/1.17.0")
+        if self.options.build_docs:
             self.tool_requires("doxygen/[>=1.16.0 <1.17.0]")
 
     def requirements(self):
-        self.requires("spdlog/[>=1.17.0 <2.0]")
-        self.requires("toml11/[>=4.4.0]")
-        self.requires("magic_enum/[>=0.9.7]")
-        
-        self.requires("libopenpresso/0.0.0-6-g2f5af31")
-        self.requires("openpresso_proto/0.0.0-7-g407b710")
+        if(self.options.build_docs != "DocsOnly"):
+            self.requires("spdlog/[>=1.17.0 <2.0]")
+            self.requires("toml11/[>=4.4.0]")
+            self.requires("magic_enum/[>=0.9.7]")
+            
+            self.requires("libopenpresso/0.0.0-6-g2f5af31")
+            self.requires("openpresso_proto/0.0.0-7-g407b710")
         
     def generate(self):
         major, minor, patch = self.__version_components()
@@ -60,6 +62,8 @@ class openpressod(ConanFile):
         tc.cache_variables["OPENPRESSOD_VERSION_MAJOR"] = str(major)
         tc.cache_variables["OPENPRESSOD_VERSION_MINOR"] = str(minor)
         tc.cache_variables["OPENPRESSOD_VERSION_PATCH"] = str(patch)
+        tc.cache_variables["OPENPRESSOD_VERSION_PATCH"] = str(patch)
+        tc.cache_variables["DOCS_ONLY"] = self.options.build_docs == "DocsOnly"
         tc.cache_variables["OPENPRESSOD_REPO_CHANNEL"] = self.__repo_channel()
         tc.generate()
         deps = CMakeDeps(self)

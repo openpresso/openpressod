@@ -24,7 +24,7 @@ set(DOXYGEN_LATEX_DIR ${CMAKE_CURRENT_BINARY_DIR}/pdf)
 set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
 configure_file(Doxyfile.in ${DOXYFILE_OUT} @ONLY)
 
-add_doxygen_target(docs
+add_doxygen_target(doxy
     DOXYFILE ${DOXYFILE_OUT} 
     DEPENDS 
         ${DOXY_PAGES} 
@@ -46,7 +46,7 @@ endforeach()
 
 list(TRANSFORM MAN_PAGES PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
 
-add_pandoc_man_target(man_docs
+add_pandoc_man_target(man
     ALL
     INPUTS ${MAN_PAGES}
     OUTPUT_DIR ${MAN_DIR}
@@ -57,7 +57,11 @@ add_latex_target(pdf
     WORKDIR "${DOXYGEN_LATEX_DIR}"
 )
 
-add_dependencies(pdf docs)
+add_dependencies(pdf doxy)
+
+add_custom_target(docs)
+
+add_dependencies(docs pdf doxy)
 
 install(DIRECTORY "${DOXYGEN_HTML_DIR}/"
   DESTINATION docs
