@@ -15,6 +15,10 @@ CONAN_TO_DEB_ARCH = {
 
 class openpressod(ConanFile):
     name = "openpressod"
+    homepage = "https://openpresso.org"
+    url = "https://github.com/openpresso/openpressod.git"
+    license = "GPL-3.0-or-later"
+    package_type = "application"
     settings = "os", "arch", "compiler", "build_type"
     options = { 
         "with_clang_tools": [True, False],
