@@ -236,17 +236,10 @@ jobs:
       contents: write
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
-          path: artifacts
-
-      - name: Archive artifacts
-        run: |
-          mkdir release-assets
-          for dir in artifacts/*/; do 
-            name=$(basename "${dir%/}")
-            (cd "$dir" && zip -r "../../release-assets/${name}.zip" .)
-          done
+          path: release-assets
+          skip-decompress: true
 
       - name: Create draft release
         uses: softprops/action-gh-release@v2
