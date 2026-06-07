@@ -23,7 +23,7 @@ jobs:
         with:
           tag: ${{ github.event.release.tag_name }}
           fileName: 'openpressod-html-docs-${{ steps.version.outputs.full }}.zip'
-          out-file-path: openpresso-html-docs-${{ steps.version.outputs.full }}
+          out-file-path: openpressod-html-docs-${{ steps.version.outputs.full }}
           extract: true
 
       - name: Publish docs
