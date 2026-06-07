@@ -230,7 +230,7 @@ jobs:
   release-draft:
     name: Create release draft
     runs-on: ubuntu-latest
-    needs: [ define-version, cross-compile ]
+    needs: [ define-version, cross-compile, make-docs ]
     if: ${{ needs.define-version.outputs.version-type == 'draft' && github.repository == 'openpresso/openpressod' }}
     permissions:
       contents: write
