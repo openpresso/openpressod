@@ -26,6 +26,7 @@ case "$1" in
         udevadm trigger --subsystem-match=gpio \
                         --subsystem-match=i2c-dev \
                         --subsystem-match=spidev \
+                        --subsystem-match=watchdog \
                         --subsystem-match=misc 2>/dev/null || true
 
         # Register unit with systemd but do NOT enable or start it
