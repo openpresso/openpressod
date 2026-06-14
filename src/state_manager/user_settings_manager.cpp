@@ -93,12 +93,12 @@ const UserSettings& UserSettingsManager::getSettings() const noexcept
 UserSettings UserSettingsManager::makeDefaultSettings(const OpenpressodConfig& config)
 {
   UserSettings settings;
-  settings.set_steamttemperature(config.steamTemperature());
+  settings.set_steamtemperature(config.steamTemperature());
   return settings;
 }
 
 void UserSettingsManager::applySettings(StateManager& stateManager)
 {
-  stateManager.setSteamTemperature(m_currentSettings.steamttemperature());
+  stateManager.setSteamTemperature(m_currentSettings.steamtemperature());
   spdlog::info("User settings applied");
 }
