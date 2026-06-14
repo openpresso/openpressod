@@ -12,6 +12,7 @@
 
 #include <exception>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include <libopenpresso/libopenpresso.hpp>
@@ -19,9 +20,9 @@
 
 using namespace openpressod;
 
-Daemon::Daemon()
+Daemon::Daemon(const std::string& configPath)
 {
-  auto config = OpenpressodConfig::fromFile();
+  auto config = OpenpressodConfig::fromFile(configPath);
   setupLogger(config);
 
   auto deviceConfig = LibopenpressoConfigMaker(config, spdlog::default_logger()).make();

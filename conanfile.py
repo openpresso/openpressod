@@ -47,13 +47,16 @@ class openpressod(ConanFile):
             self.tool_requires("doxygen/[>=1.16.0 <1.17.0]")
 
     def requirements(self):
-        if(self.options.build_docs != "DocsOnly"):
-            self.requires("spdlog/[>=1.17.0 <2.0]")
-            self.requires("toml11/[>=4.4.0]")
-            self.requires("magic_enum/[>=0.9.7]")
+        if(self.options.build_docs == "DocsOnly"):
+            return
+        
+        self.requires("spdlog/[>=1.17.0 <2.0]")
+        self.requires("toml11/[>=4.4.0]")
+        self.requires("magic_enum/[>=0.9.7]")
+        self.requires("cli11/[>=2.3.0]")
             
-            self.requires("libopenpresso/1.0.0-rc2")
-            self.requires("openpresso_proto/1.0.0-rc2")
+        self.requires("libopenpresso/1.0.0-rc2")
+        self.requires("openpresso_proto/1.0.0-rc2")
         
     def generate(self):
         major, minor, patch = self.__version_components()

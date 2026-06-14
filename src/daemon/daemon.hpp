@@ -5,6 +5,7 @@
 #include "service/service_manager.hpp"
 
 #include <memory>
+#include <string>
 
 namespace openpressod
 {
@@ -15,7 +16,7 @@ class OpenpressodConfig;
 
 class Daemon {
 public:
-  Daemon();
+  Daemon(const std::string& configPath);
 
 private:
   static void setupLogger(const OpenpressodConfig& config);

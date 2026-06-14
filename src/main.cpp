@@ -3,18 +3,34 @@
 
 #include <atomic>
 #include <exception>
+#include <string>
 #include <sysexits.h>
 
+#include <CLI/CLI.hpp>
 #include <libopenpresso/exception.hpp>
 #include <spdlog/spdlog.h>
 
-int main()
+int main(int argc, char** argv)
 {
+  std::string configPath;
+  try {
+    CLI::App app{"Openpresso Daemon"};
+    app.set_version_flag("-v,--version", OPENPRESSOD_VERSION);
+    app.add_option("-c,--conf", configPath, "Path to daemon config")
+      ->envname("OPENPRESSOD_CONFIG_PATH")
+      ->default_val(OPENPRESSOD_CONFIG_PATH);
+    CLI11_PARSE(app, argc, argv);
+  }
+  catch (const CLI::Error& e) {
+    spdlog::critical("CLI args parse failed, daemon won't be started: {}", e.what());
+    return EX_SOFTWARE;
+  }
+
   spdlog::info("Starting openpresso daemon");
   openpressod::SignalsHandler::init();
 
   try {
-    openpressod::Daemon daemon;
+    openpressod::Daemon daemon{configPath};
     spdlog::info("Waiting for exit signal...");
     openpressod::SignalsHandler::exitFlag().wait(false, std::memory_order_relaxed);
     spdlog::info("Exit signal received");
