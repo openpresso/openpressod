@@ -7,7 +7,7 @@
 ## Synopsis
 
 ```text
-openpressod
+openpressod [-h|--help] [-v|--version] [-c|--conf <path>]
 ```
 
 `openpressod` is intended to be started and supervised by `systemd`. When run directly, it stays in the foreground and does not daemonize itself.
@@ -20,13 +20,31 @@ The primary intended client is a web UI backend process, but advanced users or i
 
 ## Operation
 
-`openpressod` reads all runtime settings from a single configuration file:
+`openpressod` reads all runtime settings from a single configuration file. By default, the configuration path is:
 
 ```text
 @OPENPRESSOD_CONFIG_PATH@
 ```
 
-The daemon currently accepts no command-line options and recognizes no environment variables. The configuration file is the only supported place for setting communication endpoints, hardware parameters, persistence locations, watchdog behavior, and network exposure policy.
+This path can be overridden using command-line options or by setting the `OPENPRESSOD_CONFIG_PATH` environment variable.
+
+## Options
+
+The following command-line options are supported:
+
+* **-h**, **--help**
+  Print help message and exit.
+
+* **-v**, **--version**
+  Print version information and exit.
+
+* **-c**, **--conf** `<path>`
+  Path to the daemon configuration file. Can also be set via the **OPENPRESSOD_CONFIG_PATH** environment variable. If not specified, the default configuration path is used.
+
+## Environment Variables
+
+* **OPENPRESSOD_CONFIG_PATH**
+  Specifies the path to the daemon configuration file. Overridden by the **-c**/**--conf** command-line option if specified.
 
 By default, local IPC uses a Unix domain socket at:
 

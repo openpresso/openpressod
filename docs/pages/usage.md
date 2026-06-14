@@ -58,6 +58,32 @@ systemctl cat openpressod
 
 ---
 
+## Command-line options
+
+When running `openpressod` directly, you can pass command-line options or set environment variables to configure its behavior.
+
+**Synopsis:**
+
+```text
+openpressod [-h|--help] [-v|--version] [-c|--conf <path>]
+```
+
+**Options:**
+
+* `-h`, `--help`
+  Print help message and exit.
+* `-v`, `--version`
+  Print version information and exit.
+* `-c`, `--conf <path>`
+  Path to the daemon configuration file. Can also be set via the `OPENPRESSOD_CONFIG_PATH` environment variable. Defaults to `@OPENPRESSOD_CONFIG_PATH@`.
+
+**Environment Variables:**
+
+* `OPENPRESSOD_CONFIG_PATH`
+  Specifies the path to the daemon configuration file. Overridden by the `-c`/`--conf` command-line option if specified.
+
+---
+
 ## openpresso-ctl
 
 `openpresso-ctl` is the companion command-line client for `openpressod`. It can be used to control and monitor the daemon from the terminal — querying machine state, managing brew profiles, adjusting user settings, and streaming live sensor data.
