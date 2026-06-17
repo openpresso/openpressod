@@ -11,6 +11,7 @@ WantedBy=multi-user.target
 Type=simple
 User=@OPENPRESSOD_SYSTEM_USER@
 Group=@OPENPRESSOD_SYSTEM_USER@
+UMask=0002
 RuntimeDirectory=@OPENPRESSOD_RUNTIME_DIR_NAME@
 RuntimeDirectoryMode=0755
 RuntimeDirectoryPreserve=yes
