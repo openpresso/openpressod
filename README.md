@@ -16,7 +16,7 @@ It utilizes the underlying [libopenpresso](https://github.com/openpresso/libopen
 For detailed information on installation, configuration, and usage, please refer to the following resources:
 
 - 🏠 **[OpenPresso Main Site](https://openpresso.org)**: General project overview and ecosystem.
-- 📖 **[Technical Documentation](https://openpresso.org/openpressod)**: Detailed installation, configuration and usage guides.
+- 📖 **[Technical Documentation](https://openpresso.org/openpresso-docs/openpressod)**: Detailed installation, configuration and usage guides.
 
 ---
 
