@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include <libopenpresso/brew_steps_data.hpp>
+#include <libopenpresso/types.hpp>
 #include <openpresso_proto/openpresso.pb.h>
 
 namespace openpressod
@@ -26,6 +27,7 @@ private:
   static BrewProfile makeDefaultProfile(const OpenpressodConfig& config);
   static libopenpresso::step_target_t getStepTarget(const BrewStep& step);
   static libopenpresso::next_step_condition_t getStepCondition(const BrewStep& step);
+  static libopenpresso::time_delta_t fpSecondsCast(float value);
   void setAutoStopCondition(StateManager& stateManager) const;
 
 private:

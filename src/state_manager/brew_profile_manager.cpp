@@ -3,6 +3,7 @@
 #include "config/openpressod_config.hpp"
 #include "state_manager.hpp"
 
+#include <chrono>
 #include <format>
 #include <fstream>
 #include <iterator>
@@ -13,6 +14,7 @@
 
 #include <google/protobuf/util/json_util.h>
 #include <libopenpresso/brew_steps_data.hpp>
+#include <libopenpresso/types.hpp>
 #include <openpresso_proto/openpresso.pb.h>
 #include <spdlog/spdlog.h>
 
@@ -29,7 +31,8 @@ BrewProfile BrewProfileManager::makeDefaultProfile(const OpenpressodConfig& conf
   BrewProfile defaultProfile;
   defaultProfile.set_temperature(config.brewTemperature());
   BrewStep step;
-  step.set_pressure(config.brewPressure());
+  step.set_targetvalue(static_cast<float>(config.brewPressure()));
+  step.set_targettype(BrewStepTargetType::BrewStepTargetType_Pressure);
   defaultProfile.mutable_steps()->Add(std::move(step));
   return defaultProfile;
 }
@@ -127,51 +130,60 @@ libopenpresso::step_target_t BrewProfileManager::getStepTarget(const BrewStep& s
 {
   using namespace libopenpresso::brew_step_targets;
 
-  if (step.has_pressure()) {
-    return ConstantPressure{step.pressure()};
+  switch (step.targettype()) {
+  case BrewStepTargetType_Pressure:
+    return ConstantPressure{static_cast<libopenpresso::millibars_t>(step.targetvalue())};
+  case BrewStepTargetType_FlowRate:
+    return ConstantFlow{static_cast<libopenpresso::milligrams_p_second_t>(step.targetvalue())};
+  default:
+    throw std::runtime_error{"Brew step has no target"};
   }
-
-  if (step.has_flowrate()) {
-    return ConstantFlow{step.flowrate()};
-  }
-
-  throw std::runtime_error{"Brew step has no target"};
 }
 
 libopenpresso::next_step_condition_t BrewProfileManager::getStepCondition(const BrewStep& step)
 {
   using namespace libopenpresso::brew_step_advance_conditions;
 
-  if (step.has_steptime()) {
-    return OnStepTime{std::chrono::seconds{step.steptime().seconds()} +
-                      std::chrono::nanoseconds{step.steptime().nanos()}};
+  if (!step.has_advancecondition()) {
+    return Never{};
   }
 
-  if (step.has_totaltime()) {
-    return OnTotalTime{std::chrono::seconds{step.totaltime().seconds()} +
-                       std::chrono::nanoseconds{step.totaltime().nanos()}};
+  switch (step.advancecondition().type()) {
+  case BrewStepAdvanceConditionType_TotalTime:
+    return OnTotalTime{fpSecondsCast(step.advancecondition().value())};
+  case BrewStepAdvanceConditionType_TotalWeight:
+    return OnStepTime{fpSecondsCast(step.advancecondition().value())};
+  case BrewStepAdvanceConditionType_StepTime:
+    return OnWeight{static_cast<libopenpresso::milligrams_t>(step.advancecondition().value())};
+  default:
+    throw std::runtime_error{"Unknow advance condition"};
   }
-
-  if (step.has_totalweight()) {
-    return OnWeight{step.totalweight()};
-  }
-
-  return Never{};
 }
 
 void BrewProfileManager::setAutoStopCondition(StateManager& stateManager) const
 {
   using namespace libopenpresso::brew_step_advance_conditions;
 
-  if (m_currentProfile.has_totaltime()) {
-    auto time = std::chrono::seconds{m_currentProfile.totaltime().seconds()} +
-                std::chrono::nanoseconds{m_currentProfile.totaltime().nanos()};
-    stateManager.setAutoStopCondition(OnTotalTime{time});
-  }
-  else if (m_currentProfile.has_totalweight()) {
-    stateManager.setAutoStopCondition(OnWeight{m_currentProfile.totalweight()});
-  }
-  else {
+  if (!m_currentProfile.has_stopcondition()) {
     stateManager.setAutoStopCondition(Never{});
+    return;
   }
+
+  switch (m_currentProfile.stopcondition().type()) {
+  case StopConditionType_TotalTime:
+    stateManager.setAutoStopCondition(OnTotalTime{fpSecondsCast(m_currentProfile.stopcondition().value())});
+    break;
+  case StopConditionType_TotalWeight:
+    stateManager.setAutoStopCondition(OnWeight{
+      static_cast<libopenpresso::milligrams_t>(m_currentProfile.stopcondition().value())});
+    break;
+  default:
+    throw std::runtime_error{"Unknow stop condition"};
+  }
+}
+
+libopenpresso::time_delta_t openpressod::BrewProfileManager::fpSecondsCast(float value)
+{
+  using fp_seconds = std::chrono::duration<float>;
+  return std::chrono::duration_cast<libopenpresso::time_delta_t>(fp_seconds{value});
 }

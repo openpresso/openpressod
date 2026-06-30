@@ -106,11 +106,11 @@ std::optional<libopenpresso::component_label_t> MetricsStreamReactor::pidSourceT
 {
   using namespace libopenpresso_config_labels;
   switch (pidSource) {
-  case PidSource::BrewTemperatureController:
+  case PidSource::PidSource_BrewTemperatureController:
     return BREW_TEMPERATURE_CONTROLLER_LABEL;
-  case PidSource::SteamPreheatTemperatureController:
+  case PidSource::PidSource_SteamPreheatTemperatureController:
     return STEAM_PREHEAT_TEMPERATURE_CONTROLLER_LABEL;
-  case PidSource::SteamActiveTemperatureController:
+  case PidSource::PidSource_SteamActiveTemperatureController:
     return STEAM_ACTIVE_TEMPERATURE_CONTROLLER_LABEL;
   default:
     return std::nullopt;
