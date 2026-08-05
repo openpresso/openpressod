@@ -27,7 +27,8 @@ private:
   static BrewProfile makeDefaultProfile(const OpenpressodConfig& config);
   static libopenpresso::step_target_t getStepTarget(const BrewStep& step);
   static libopenpresso::next_step_condition_t getStepCondition(const BrewStep& step);
-  static libopenpresso::time_delta_t fpSecondsCast(float value);
+  static libopenpresso::time_delta_t ToDuration(float value);
+  static libopenpresso::milligrams_t ToWeight(float value);
   void setAutoStopCondition(StateManager& stateManager) const;
 
 private:

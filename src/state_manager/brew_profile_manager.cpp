@@ -150,11 +150,11 @@ libopenpresso::next_step_condition_t BrewProfileManager::getStepCondition(const 
 
   switch (step.advancecondition().type()) {
   case BrewStepAdvanceConditionType_TotalTime:
-    return OnTotalTime{fpSecondsCast(step.advancecondition().value())};
+    return OnTotalTime{ToDuration(step.advancecondition().value())};
   case BrewStepAdvanceConditionType_TotalWeight:
-    return OnStepTime{fpSecondsCast(step.advancecondition().value())};
+    return OnWeight{ToWeight(step.advancecondition().value())};
   case BrewStepAdvanceConditionType_StepTime:
-    return OnWeight{static_cast<libopenpresso::milligrams_t>(step.advancecondition().value())};
+    return OnStepTime{ToDuration(step.advancecondition().value())};
   default:
     throw std::runtime_error{"Unknow advance condition"};
   }
@@ -171,19 +171,23 @@ void BrewProfileManager::setAutoStopCondition(StateManager& stateManager) const
 
   switch (m_currentProfile.stopcondition().type()) {
   case StopConditionType_TotalTime:
-    stateManager.setAutoStopCondition(OnTotalTime{fpSecondsCast(m_currentProfile.stopcondition().value())});
+    stateManager.setAutoStopCondition(OnTotalTime{ToDuration(m_currentProfile.stopcondition().value())});
     break;
   case StopConditionType_TotalWeight:
-    stateManager.setAutoStopCondition(OnWeight{
-      static_cast<libopenpresso::milligrams_t>(m_currentProfile.stopcondition().value())});
+    stateManager.setAutoStopCondition(OnWeight{ToWeight(m_currentProfile.stopcondition().value())});
     break;
   default:
     throw std::runtime_error{"Unknow stop condition"};
   }
 }
 
-libopenpresso::time_delta_t openpressod::BrewProfileManager::fpSecondsCast(float value)
+libopenpresso::time_delta_t openpressod::BrewProfileManager::ToDuration(float value)
 {
   using fp_seconds = std::chrono::duration<float>;
   return std::chrono::duration_cast<libopenpresso::time_delta_t>(fp_seconds{value});
+}
+
+libopenpresso::milligrams_t openpressod::BrewProfileManager::ToWeight(float value)
+{
+  return static_cast<libopenpresso::milligrams_t>(value);
 }
