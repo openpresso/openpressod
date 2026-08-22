@@ -4,6 +4,7 @@
 #include "state_manager/brew_profile_manager.hpp"
 #include "state_manager/state_manager.hpp"
 #include "state_manager/user_settings_manager.hpp"
+#include "utils/lambda_overload.hpp"
 
 #include <memory>
 #include <utility>
@@ -40,14 +41,12 @@ AsyncEventDispatcher::~AsyncEventDispatcher()
 
 void AsyncEventDispatcher::togglePowerState()
 {
-  m_executor.executeDiscardResult([this] {
-    m_stateManager->setPowerState(!m_stateManager->getPowerState());
-  });
+  m_executor.executeDiscardResult([this] { doSetPowerState(!m_stateManager->getPowerState()); });
 }
 
 void AsyncEventDispatcher::setPowerState(bool state)
 {
-  m_executor.executeDiscardResult(&StateManager::setPowerState, m_stateManager.get(), state);
+  m_executor.executeDiscardResult(&AsyncEventDispatcher::doSetPowerState, this, state);
 }
 
 void AsyncEventDispatcher::toggleBrew()
@@ -69,25 +68,19 @@ void AsyncEventDispatcher::startBrew()
 
 void openpressod::AsyncEventDispatcher::stopBrew()
 {
-  m_executor.executeDiscardResult([this] {
-    m_stateManager->stopBrew();
-    BrewProgress noProgress;
-    for (auto&& sink : m_eventsSinks) {
-      sink->notifyChanged(noProgress);
-    }
-  });
+  m_executor.executeDiscardResult(&StateManager::stopBrew, m_stateManager.get());
 }
 
 void openpressod::AsyncEventDispatcher::toggleSteamModeState()
 {
   m_executor.executeDiscardResult([this] {
-    m_stateManager->setSteamModeState(!m_stateManager->getSteamModeState());
+    doSetSteamModeState(!m_stateManager->getSteamModeState());
   });
 }
 
 void openpressod::AsyncEventDispatcher::setSteamModeState(bool state)
 {
-  m_executor.executeDiscardResult(&StateManager::setSteamModeState, m_stateManager.get(), state);
+  m_executor.executeDiscardResult(&AsyncEventDispatcher::doSetSteamModeState, this, state);
 }
 
 void openpressod::AsyncEventDispatcher::addEventsStreamReactor(std::unique_ptr<EventsStreamReactor> reactor)
@@ -97,6 +90,47 @@ void openpressod::AsyncEventDispatcher::addEventsStreamReactor(std::unique_ptr<E
   });
 }
 
+void openpressod::AsyncEventDispatcher::doSetPowerState(bool state)
+{
+  m_stateManager->setPowerState(state);
+  PowerState stateChange;
+  stateChange.set_value(state);
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(stateChange);
+  }
+}
+
+void openpressod::AsyncEventDispatcher::doSetSteamModeState(bool state)
+{
+  m_stateManager->setSteamModeState(state);
+  SteamModeState stateChange;
+  stateChange.set_isactive(state);
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(stateChange);
+  }
+}
+
+void AsyncEventDispatcher::doProcessBrewProfilerStop()
+{
+  spdlog::debug("Brew profiler stoppped");
+  m_stateManager->stopBrew();
+  BrewProgress noProgress;
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(noProgress);
+  }
+}
+
+void AsyncEventDispatcher::doNotifyBrewStepChange(step_index_t step)
+{
+  spdlog::debug("Proceed to brew step {}", step);
+
+  BrewProgress progress;
+  progress.set_brewstepindex(step);
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(progress);
+  }
+}
+
 void AsyncEventDispatcher::releaseEventsStreamReactor(const EventsStreamReactor* reactor)
 {
   m_executor.executeDiscardResult([this, reactor] {
@@ -104,20 +138,16 @@ void AsyncEventDispatcher::releaseEventsStreamReactor(const EventsStreamReactor*
   });
 }
 
-void openpressod::AsyncEventDispatcher::brewCallback(std::variant<step_index_t, stopped_flag_t> step)
+void AsyncEventDispatcher::brewCallback(std::variant<step_index_t, stopped_flag_t> step)
 {
-  if (std::holds_alternative<stopped_flag_t>(step)) {
-    stopBrew();
-  }
-  else {
-    m_executor.executeDiscardResult([this, index = std::get<step_index_t>(step)] {
-      spdlog::debug("Process to brew step {}", index);
+  auto visitor = overload{
+    [this](step_index_t step) {
+      m_executor.executeDiscardResult(&AsyncEventDispatcher::doNotifyBrewStepChange, this, step);
+    },
+    [this](stopped_flag_t) {
+      m_executor.executeDiscardResult(&AsyncEventDispatcher::doProcessBrewProfilerStop, this);
+    },
+  };
 
-      BrewProgress progress;
-      progress.set_brewstepindex(index);
-      for (auto&& sink : m_eventsSinks) {
-        sink->notifyChanged(progress);
-      }
-    });
-  }
+  std::visit(visitor, step);
 }

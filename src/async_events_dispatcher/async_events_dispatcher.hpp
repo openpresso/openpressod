@@ -86,6 +86,10 @@ public:
   void releaseEventsStreamReactor(const EventsStreamReactor* reactor);
 
 private:
+  void doSetPowerState(bool state);
+  void doSetSteamModeState(bool state);
+  void doNotifyBrewStepChange(step_index_t step);
+  void doProcessBrewProfilerStop();
   void brewCallback(std::variant<step_index_t, stopped_flag_t> step);
 
 private:
@@ -138,16 +142,7 @@ inline void AsyncEventDispatcher::getPowerState(Cb&& callback)
 template <typename Cb>
 inline void AsyncEventDispatcher::setPowerState(bool state, Cb&& callback)
 {
-  m_executor.executeWithCallback(
-    [this, state] {
-      m_stateManager->setPowerState(state);
-      PowerState stateChange;
-      stateChange.set_value(state);
-      for (auto&& sink : m_eventsSinks) {
-        sink->notifyChanged(stateChange);
-      }
-    },
-    std::forward<Cb>(callback));
+  m_executor.executeWithCallback(&AsyncEventDispatcher::doSetPowerState, std::forward<Cb>(callback), this, state);
 }
 
 template <typename Cb>
@@ -192,15 +187,7 @@ template <typename Cb>
 inline void AsyncEventDispatcher::setSteamModeState(bool state, Cb&& callback)
 {
   m_executor.executeWithCallback(
-    [this, state] {
-      m_stateManager->setSteamModeState(state);
-      SteamModeState stateChange;
-      stateChange.set_isactive(state);
-      for (auto&& sink : m_eventsSinks) {
-        sink->notifyChanged(stateChange);
-      }
-    },
-    std::forward<Cb>(callback));
+    &AsyncEventDispatcher::doSetSteamModeState, std::forward<Cb>(callback), this, state);
 }
 
 template <typename Cb>

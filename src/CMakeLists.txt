@@ -42,5 +42,6 @@ add_subdirectory(async_events_dispatcher)
 add_subdirectory(signals_handler)
 add_subdirectory(leds)
 add_subdirectory(service)
+add_subdirectory(utils)
 
 install(TARGETS openpressod RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
