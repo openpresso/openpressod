@@ -53,44 +53,45 @@ void AsyncEventDispatcher::toggleBrew()
 {
   m_executor.executeDiscardResult([this] {
     if (m_stateManager->getBrewState()) {
-      m_stateManager->stopBrew();
+      doStopBrew();
     }
     else {
-      m_stateManager->startBrew();
+      doStartBrew();
     }
   });
 }
 
 void AsyncEventDispatcher::startBrew()
 {
-  m_executor.executeDiscardResult(&StateManager::startBrew, m_stateManager.get());
+  m_executor.executeDiscardResult(&AsyncEventDispatcher::doStartBrew, this);
 }
 
-void openpressod::AsyncEventDispatcher::stopBrew()
+void AsyncEventDispatcher::stopBrew()
 {
-  m_executor.executeDiscardResult(&StateManager::stopBrew, m_stateManager.get());
+  m_executor.executeDiscardResult(&AsyncEventDispatcher::doStopBrew, this);
 }
 
-void openpressod::AsyncEventDispatcher::toggleSteamModeState()
+void AsyncEventDispatcher::toggleSteamModeState()
 {
   m_executor.executeDiscardResult([this] {
     doSetSteamModeState(!m_stateManager->getSteamModeState());
   });
 }
 
-void openpressod::AsyncEventDispatcher::setSteamModeState(bool state)
+void AsyncEventDispatcher::setSteamModeState(bool state)
 {
   m_executor.executeDiscardResult(&AsyncEventDispatcher::doSetSteamModeState, this, state);
 }
 
-void openpressod::AsyncEventDispatcher::addEventsStreamReactor(std::unique_ptr<EventsStreamReactor> reactor)
+void AsyncEventDispatcher::addEventsStreamReactor(std::unique_ptr<EventsStreamReactor> reactor)
 {
   m_executor.executeDiscardResult([this, reactor = std::move(reactor)] mutable {
+    sendInitialState(reactor);
     m_eventsSinks.push_back(std::move(reactor));
   });
 }
 
-void openpressod::AsyncEventDispatcher::doSetPowerState(bool state)
+void AsyncEventDispatcher::doSetPowerState(bool state)
 {
   m_stateManager->setPowerState(state);
   PowerState stateChange;
@@ -100,7 +101,32 @@ void openpressod::AsyncEventDispatcher::doSetPowerState(bool state)
   }
 }
 
-void openpressod::AsyncEventDispatcher::doSetSteamModeState(bool state)
+void openpressod::AsyncEventDispatcher::doStartBrew()
+{
+  m_stateManager->startBrew();
+  BrewState stateChange;
+  stateChange.set_value(true);
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(stateChange);
+  }
+}
+
+void openpressod::AsyncEventDispatcher::doStopBrew()
+{
+  if (!m_stateManager->getBrewState()) {
+    return;
+  }
+
+  m_stateManager->stopBrew();
+
+  BrewState state;
+  state.set_value(false);
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(state);
+  }
+}
+
+void AsyncEventDispatcher::doSetSteamModeState(bool state)
 {
   m_stateManager->setSteamModeState(state);
   SteamModeState stateChange;
@@ -110,14 +136,28 @@ void openpressod::AsyncEventDispatcher::doSetSteamModeState(bool state)
   }
 }
 
-void AsyncEventDispatcher::doProcessBrewProfilerStop()
+void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamReactor>& sink)
 {
-  spdlog::debug("Brew profiler stoppped");
-  m_stateManager->stopBrew();
-  BrewProgress noProgress;
-  for (auto&& sink : m_eventsSinks) {
-    sink->notifyChanged(noProgress);
+  {
+    PowerState state;
+    state.set_value(m_stateManager->getPowerState());
+    sink->notifyChanged(state);
   }
+
+  {
+    BrewState state;
+    state.set_value(m_stateManager->getBrewState());
+    sink->notifyChanged(state);
+  }
+
+  {
+    SteamModeState state;
+    state.set_isactive(m_stateManager->getSteamModeState());
+    sink->notifyChanged(state);
+  }
+
+  sink->notifyChanged(m_brewProfileManager->getProfile());
+  sink->notifyChanged(m_userSettings->getSettings());
 }
 
 void AsyncEventDispatcher::doNotifyBrewStepChange(step_index_t step)
@@ -145,7 +185,7 @@ void AsyncEventDispatcher::brewCallback(std::variant<step_index_t, stopped_flag_
       m_executor.executeDiscardResult(&AsyncEventDispatcher::doNotifyBrewStepChange, this, step);
     },
     [this](stopped_flag_t) {
-      m_executor.executeDiscardResult(&AsyncEventDispatcher::doProcessBrewProfilerStop, this);
+      m_executor.executeDiscardResult(&AsyncEventDispatcher::doStopBrew, this);
     },
   };
 

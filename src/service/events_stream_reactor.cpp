@@ -42,10 +42,10 @@ void EventsStreamReactor::notifyChanged(const PowerState& powerState)
   pushEvent(std::move(event));
 }
 
-void EventsStreamReactor::notifyChanged(const BrewProgress& brewProgress)
+void EventsStreamReactor::notifyChanged(const BrewState& brewState)
 {
   Event event;
-  event.mutable_brewprogress()->CopyFrom(brewProgress);
+  event.mutable_brewstate()->CopyFrom(brewState);
   pushEvent(std::move(event));
 }
 
@@ -60,6 +60,20 @@ void EventsStreamReactor::notifyChanged(const BrewProfile& brewProfile)
 {
   Event event;
   event.mutable_brewprofile()->CopyFrom(brewProfile);
+  pushEvent(std::move(event));
+}
+
+void EventsStreamReactor::notifyChanged(const UserSettings& userSettings)
+{
+  Event event;
+  event.mutable_usersettings()->CopyFrom(userSettings);
+  pushEvent(std::move(event));
+}
+
+void EventsStreamReactor::notifyChanged(const BrewProgress& brewProgress)
+{
+  Event event;
+  event.mutable_brewprogress()->CopyFrom(brewProgress);
   pushEvent(std::move(event));
 }
 

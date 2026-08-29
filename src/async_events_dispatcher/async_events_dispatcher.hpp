@@ -88,8 +88,10 @@ public:
 private:
   void doSetPowerState(bool state);
   void doSetSteamModeState(bool state);
+  void doStartBrew();
+  void doStopBrew();
   void doNotifyBrewStepChange(step_index_t step);
-  void doProcessBrewProfilerStop();
+  void sendInitialState(const std::unique_ptr<EventsStreamReactor>& sink);
   void brewCallback(std::variant<step_index_t, stopped_flag_t> step);
 
 private:

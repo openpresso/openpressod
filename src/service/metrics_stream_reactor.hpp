@@ -42,7 +42,7 @@ public:
   void OnDone() override;
 
 private:
-  void worker(std::future<void> stop, std::chrono::steady_clock::duration timeout);
+  void worker(std::future<void> cancel, std::chrono::steady_clock::duration timeout);
   static PidStatePtr getPidControllerState(const libopenpresso::CorePtr& core,
                                            const std::optional<libopenpresso::component_label_t>& label);
   static std::optional<libopenpresso::component_label_t> pidSourceToControllerLabel(PidSource pidSource);

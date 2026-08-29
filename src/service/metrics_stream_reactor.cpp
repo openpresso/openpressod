@@ -51,14 +51,14 @@ void MetricsStreamReactor::OnDone()
   delete this;
 }
 
-void MetricsStreamReactor::worker(std::future<void> stop, std::chrono::steady_clock::duration timeout)
+void MetricsStreamReactor::worker(std::future<void> cancel, std::chrono::steady_clock::duration timeout)
 {
   Metrics metrics;
   while (true) {
     metrics.set_pressure(m_pressureSensor->getPressure());
-    metrics.set_temperature(m_temperatureSensor->getTemperature());
     metrics.set_weight(m_weightSensor->getWeight());
     metrics.set_flowrate(m_weightSensor->getFlowRate());
+    metrics.set_temperature(m_temperatureSensor->getTemperature());
 
     if (m_pidControllerState) {
       metrics.mutable_pidmetrics()->set_p(m_pidControllerState->pTerm());
@@ -76,7 +76,7 @@ void MetricsStreamReactor::worker(std::future<void> stop, std::chrono::steady_cl
       break;
     }
 
-    if (stop.wait_for(timeout) != std::future_status::timeout) {
+    if (cancel.wait_for(timeout) != std::future_status::timeout) {
       break;
     }
   }

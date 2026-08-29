@@ -51,6 +51,34 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::resetScales(
   return reactor;
 }
 
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::getUserSettings(
+  grpc::CallbackServerContext* context,
+  [[maybe_unused]] const google::protobuf::Empty* request,
+  UserSettings* response)
+{
+  auto* reactor = context->DefaultReactor();
+  auto callback = [reactor, response](std::future<const UserSettings&> result) {
+    try {
+      response->CopyFrom(result.get());
+      reactor->Finish(grpc::Status::OK);
+    }
+    catch (const std::exception& e) {
+      reactor->Finish(grpc::Status{grpc::StatusCode::UNKNOWN, e.what()});
+    }
+  };
+  m_dispatcher->getUserSettings(std::move(callback));
+  return reactor;
+}
+
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::setUserSettings(grpc::CallbackServerContext* context,
+                                                                  const UserSettings* request,
+                                                                  [[maybe_unused]] google::protobuf::Empty* response)
+{
+  auto* reactor = context->DefaultReactor();
+  m_dispatcher->setUserSettings(request, makeVoidCallback(reactor));
+  return reactor;
+}
+
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::getBrewProfile(
   grpc::CallbackServerContext* context,
   [[maybe_unused]] const google::protobuf::Empty* request,
@@ -197,32 +225,4 @@ grpc::ServerWriteReactor<Metrics>* OpenpressodServiceImpl::metrics(
     spdlog::error(e.what());
     return nullptr;
   }
-}
-
-grpc::ServerUnaryReactor* OpenpressodServiceImpl::getUserSettings(
-  grpc::CallbackServerContext* context,
-  [[maybe_unused]] const google::protobuf::Empty* request,
-  UserSettings* response)
-{
-  auto* reactor = context->DefaultReactor();
-  auto callback = [reactor, response](std::future<const UserSettings&> result) {
-    try {
-      response->CopyFrom(result.get());
-      reactor->Finish(grpc::Status::OK);
-    }
-    catch (const std::exception& e) {
-      reactor->Finish(grpc::Status{grpc::StatusCode::UNKNOWN, e.what()});
-    }
-  };
-  m_dispatcher->getUserSettings(std::move(callback));
-  return reactor;
-}
-
-grpc::ServerUnaryReactor* OpenpressodServiceImpl::setUserSettings(grpc::CallbackServerContext* context,
-                                                                  const UserSettings* request,
-                                                                  [[maybe_unused]] google::protobuf::Empty* response)
-{
-  auto* reactor = context->DefaultReactor();
-  m_dispatcher->setUserSettings(request, makeVoidCallback(reactor));
-  return reactor;
 }

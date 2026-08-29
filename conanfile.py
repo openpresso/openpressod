@@ -56,7 +56,7 @@ class openpressod(ConanFile):
         self.requires("cli11/[>=2.3.0]")
             
         self.requires("libopenpresso/0.0.0-10-gee8235e", options = { "min_log_level": "trace" })
-        self.requires("openpresso_proto/0.0.0-16-g82b176f")
+        self.requires("openpresso_proto/0.0.0-18-g7b1cfe9")
         
     def generate(self):
         major, minor, patch = self.__version_components()
