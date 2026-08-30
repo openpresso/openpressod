@@ -4,9 +4,12 @@
 #include "leds_handler_mock.hpp"
 #include "libopenpresso_core_mock.hpp"
 #include "logical_input_mock.hpp"
+#include "state_manager/brew_timer.hpp"
 #include "state_manager/state_manager.hpp"
 #include "temperature_controller_mock.hpp"
 #include "weight_sensor_mock.hpp"
+
+#include <thread>
 
 #include <gtest/gtest.h>
 #include <openpresso_proto/openpresso.pb.h>
@@ -296,4 +299,24 @@ TEST_F(StateManagerTest, SetAutoStopCondition)
 
   EXPECT_CALL(*brewProfiler, isActive()).WillRepeatedly(Return(true));
   EXPECT_THROW(manager->setAutoStopCondition(cond), std::runtime_error);
+}
+
+TEST_F(StateManagerTest, BrewTimer)
+{
+  BrewTimer timer;
+
+  EXPECT_EQ(timer.elapsedTime(), 0s);
+
+  timer.start();
+  std::this_thread::sleep_for(1500ms);
+  auto time = timer.elapsedTime();
+  timer.stop();
+
+  EXPECT_GE(time, 1490ms);
+  EXPECT_LE(time, 1510ms);
+
+  time = timer.elapsedTime();
+
+  EXPECT_GE(time, 1490ms);
+  EXPECT_LE(time, 1510ms);
 }

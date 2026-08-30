@@ -9,6 +9,7 @@
 #include <optional>
 #include <thread>
 
+#include <google/protobuf/duration.pb.h>
 #include <grpcpp/support/server_callback.h>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/interfaces/pid_controller_state.hpp>
@@ -22,6 +23,7 @@ namespace openpressod
 {
 
 class OpenpressodServiceImpl;
+class BrewTimer;
 
 class MetricsStreamReactor final : public grpc::ServerWriteReactor<Metrics> {
   enum class WriteStatus : uint8_t {
@@ -34,6 +36,7 @@ class MetricsStreamReactor final : public grpc::ServerWriteReactor<Metrics> {
 
 public:
   MetricsStreamReactor(const libopenpresso::CorePtr& core,
+                       std::shared_ptr<const BrewTimer> brewTimer,
                        const std::chrono::steady_clock::duration& updateRate,
                        PidSource pidSource);
 
@@ -46,11 +49,14 @@ private:
   static PidStatePtr getPidControllerState(const libopenpresso::CorePtr& core,
                                            const std::optional<libopenpresso::component_label_t>& label);
   static std::optional<libopenpresso::component_label_t> pidSourceToControllerLabel(PidSource pidSource);
+  static void toProtoDuration(std::chrono::steady_clock::duration duration,
+                              google::protobuf::Duration& result);
 
 private:
   libopenpresso::PressureSensorPtr m_pressureSensor;
   libopenpresso::TemperatureSensorPtr m_temperatureSensor;
   libopenpresso::WeightSensorPtr m_weightSensor;
+  std::shared_ptr<const BrewTimer> m_brewTimer;
   PidStatePtr m_pidControllerState;
   std::promise<void> m_cancel;
   std::atomic<WriteStatus> m_writeStatus = WriteStatus::Idle;

@@ -22,9 +22,11 @@
 using namespace openpressod;
 
 OpenpressodServiceImpl::OpenpressodServiceImpl(const std::shared_ptr<AsyncEventDispatcher>& dispatcher,
-                                               libopenpresso::CorePtr core)
+                                               libopenpresso::CorePtr core,
+                                               std::shared_ptr<const BrewTimer> brewTimer)
 : m_dispatcher{dispatcher}
 , m_core{std::move(core)}
+, m_brewTimer(std::move(brewTimer))
 {
 }
 
@@ -218,7 +220,8 @@ grpc::ServerWriteReactor<Metrics>* OpenpressodServiceImpl::metrics(
                     std::chrono::nanoseconds{request->updaterate().nanos()};
 
   try {
-    auto reactor = std::make_unique<MetricsStreamReactor>(m_core, updateRate, request->pidsource());
+    auto reactor =
+      std::make_unique<MetricsStreamReactor>(m_core, m_brewTimer, updateRate, request->pidsource());
     return reactor.release();
   }
   catch (const std::runtime_error& e) {

@@ -1,15 +1,19 @@
 #include "metrics_stream_reactor.hpp"
 
 #include "config/libopenpresso_config_labels.hpp"
+#include "state_manager/brew_timer.hpp"
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <format>
 #include <future>
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <utility>
 
+#include <google/protobuf/duration.pb.h>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/interfaces/pid_controller_state.hpp>
 #include <openpresso_proto/openpresso.pb.h>
@@ -17,11 +21,13 @@
 using namespace openpressod;
 
 MetricsStreamReactor::MetricsStreamReactor(const libopenpresso::CorePtr& core,
+                                           std::shared_ptr<const BrewTimer> brewTimer,
                                            const std::chrono::steady_clock::duration& updateRate,
                                            PidSource pidSource)
 : m_pressureSensor{core->getPressureSensor(libopenpresso_config_labels::PRESSURE_SENSOR_LABEL)}
 , m_temperatureSensor{core->getTemperatureSensor(libopenpresso_config_labels::TEMPERATURE_SENSOR_LABEL)}
 , m_weightSensor{core->getWeightSensor(libopenpresso_config_labels::WEIGHT_SENSOR_LABEL)}
+, m_brewTimer(std::move(brewTimer))
 , m_pidControllerState{getPidControllerState(core, pidSourceToControllerLabel(pidSource))}
 , m_worker{&MetricsStreamReactor::worker, this, m_cancel.get_future(), updateRate}
 {
@@ -59,6 +65,7 @@ void MetricsStreamReactor::worker(std::future<void> cancel, std::chrono::steady_
     metrics.set_weight(m_weightSensor->getWeight());
     metrics.set_flowrate(m_weightSensor->getFlowRate());
     metrics.set_temperature(m_temperatureSensor->getTemperature());
+    toProtoDuration(m_brewTimer->elapsedTime(), *metrics.mutable_brewtimer());
 
     if (m_pidControllerState) {
       metrics.mutable_pidmetrics()->set_p(m_pidControllerState->pTerm());
@@ -115,4 +122,16 @@ std::optional<libopenpresso::component_label_t> MetricsStreamReactor::pidSourceT
   default:
     return std::nullopt;
   }
+}
+
+void MetricsStreamReactor::toProtoDuration(std::chrono::steady_clock::duration duration,
+                                           google::protobuf::Duration& result)
+{
+  using namespace std::chrono;
+
+  const auto seconds = duration_cast<std::chrono::seconds>(duration);
+  const auto nanos = duration_cast<std::chrono::nanoseconds>(duration - seconds);
+
+  result.set_seconds(seconds.count());
+  result.set_nanos(static_cast<int32_t>(nanos.count()));
 }
