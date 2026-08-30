@@ -3,6 +3,7 @@
 
 #include "async_events_dispatcher/async_events_dispatcher.hpp"
 #include "openppressod_service_impl.hpp"
+#include "state_manager/brew_timer.hpp"
 
 #include <memory>
 
@@ -14,11 +15,13 @@ namespace openpressod
 
 class OpenpressodConfig;
 class AsyncEventDispatcher;
+class BrewTimer;
 
 class ServiceManager {
 public:
   ServiceManager(const std::shared_ptr<AsyncEventDispatcher>& dispatcher,
                  const libopenpresso::CorePtr& core,
+                 const std::shared_ptr<const BrewTimer>& brewTimer,
                  const OpenpressodConfig& config);
   ServiceManager(const ServiceManager&) = delete;
   ServiceManager(ServiceManager&&) = delete;

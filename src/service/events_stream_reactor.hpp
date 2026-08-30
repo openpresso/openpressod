@@ -31,9 +31,11 @@ public:
   void OnDone() override;
 
   void notifyChanged(const PowerState& powerState);
-  void notifyChanged(const BrewProgress& brewProgress);
+  void notifyChanged(const BrewState& brewState);
   void notifyChanged(const SteamModeState& steamModeState);
   void notifyChanged(const BrewProfile& brewProfile);
+  void notifyChanged(const UserSettings& userSettings);
+  void notifyChanged(const BrewProgress& brewProgress);
 
 private:
   void pushEvent(Event&& event);

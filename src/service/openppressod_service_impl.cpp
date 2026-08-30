@@ -22,9 +22,11 @@
 using namespace openpressod;
 
 OpenpressodServiceImpl::OpenpressodServiceImpl(const std::shared_ptr<AsyncEventDispatcher>& dispatcher,
-                                               libopenpresso::CorePtr core)
+                                               libopenpresso::CorePtr core,
+                                               std::shared_ptr<const BrewTimer> brewTimer)
 : m_dispatcher{dispatcher}
 , m_core{std::move(core)}
+, m_brewTimer(std::move(brewTimer))
 {
 }
 
@@ -48,6 +50,34 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::resetScales(
 {
   auto* reactor = context->DefaultReactor();
   m_dispatcher->resetWeight(makeVoidCallback(reactor));
+  return reactor;
+}
+
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::getUserSettings(
+  grpc::CallbackServerContext* context,
+  [[maybe_unused]] const google::protobuf::Empty* request,
+  UserSettings* response)
+{
+  auto* reactor = context->DefaultReactor();
+  auto callback = [reactor, response](std::future<const UserSettings&> result) {
+    try {
+      response->CopyFrom(result.get());
+      reactor->Finish(grpc::Status::OK);
+    }
+    catch (const std::exception& e) {
+      reactor->Finish(grpc::Status{grpc::StatusCode::UNKNOWN, e.what()});
+    }
+  };
+  m_dispatcher->getUserSettings(std::move(callback));
+  return reactor;
+}
+
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::setUserSettings(grpc::CallbackServerContext* context,
+                                                                  const UserSettings* request,
+                                                                  [[maybe_unused]] google::protobuf::Empty* response)
+{
+  auto* reactor = context->DefaultReactor();
+  m_dispatcher->setUserSettings(request, makeVoidCallback(reactor));
   return reactor;
 }
 
@@ -190,39 +220,12 @@ grpc::ServerWriteReactor<Metrics>* OpenpressodServiceImpl::metrics(
                     std::chrono::nanoseconds{request->updaterate().nanos()};
 
   try {
-    auto reactor = std::make_unique<MetricsStreamReactor>(m_core, updateRate, request->pidsource());
+    auto reactor =
+      std::make_unique<MetricsStreamReactor>(m_core, m_brewTimer, updateRate, request->pidsource());
     return reactor.release();
   }
   catch (const std::runtime_error& e) {
     spdlog::error(e.what());
     return nullptr;
   }
-}
-
-grpc::ServerUnaryReactor* OpenpressodServiceImpl::getUserSettings(
-  grpc::CallbackServerContext* context,
-  [[maybe_unused]] const google::protobuf::Empty* request,
-  UserSettings* response)
-{
-  auto* reactor = context->DefaultReactor();
-  auto callback = [reactor, response](std::future<const UserSettings&> result) {
-    try {
-      response->CopyFrom(result.get());
-      reactor->Finish(grpc::Status::OK);
-    }
-    catch (const std::exception& e) {
-      reactor->Finish(grpc::Status{grpc::StatusCode::UNKNOWN, e.what()});
-    }
-  };
-  m_dispatcher->getUserSettings(std::move(callback));
-  return reactor;
-}
-
-grpc::ServerUnaryReactor* OpenpressodServiceImpl::setUserSettings(grpc::CallbackServerContext* context,
-                                                                  const UserSettings* request,
-                                                                  [[maybe_unused]] google::protobuf::Empty* response)
-{
-  auto* reactor = context->DefaultReactor();
-  m_dispatcher->setUserSettings(request, makeVoidCallback(reactor));
-  return reactor;
 }
