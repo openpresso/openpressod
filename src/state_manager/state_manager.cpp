@@ -1,5 +1,6 @@
 #include "state_manager.hpp"
 
+#include "brew_timer.hpp"
 #include "config/libopenpresso_config_labels.hpp"
 #include "leds/leds_handler_interface.hpp"
 
@@ -18,6 +19,7 @@ using namespace openpressod;
 
 StateManager::StateManager(const core_ptr_t& core, std::unique_ptr<LedsHandlerInterface>&& leds)
 : m_steam{core->getLogicalInput(libopenpresso_config_labels::STEAM_BUTTON_LABEL)->getState()}
+, m_brewTimer{std::make_shared<BrewTimer>()}
 , m_brewProfiler{core->getBrewProfiler(libopenpresso_config_labels::BREW_PROFILER_LABEL)}
 , m_brewTemperatureController{core->getTemperatureController(
     libopenpresso_config_labels::BREW_TEMPERATURE_CONTROLLER_LABEL)}
@@ -47,6 +49,7 @@ void StateManager::setPowerState(bool state)
     m_steamController->deactivate();
     m_brewTemperatureController->deactivate();
     m_leds->indicatePowerOff();
+    m_brewTimer->reset();
   }
   else if (m_steam) {
     m_steamController->activate();
@@ -83,6 +86,7 @@ void StateManager::startBrew()
   }
 
   m_brewProfiler->activate();
+  m_brewTimer->start();
 
   spdlog::debug("Brew process started");
 }
@@ -96,6 +100,7 @@ void StateManager::stopBrew()
 
   spdlog::debug("Stopping brew process");
 
+  m_brewTimer->stop();
   m_brewProfiler->deactivate();
 
   spdlog::debug("Brew process stopped");
@@ -165,4 +170,9 @@ void StateManager::resetScales()
 void StateManager::unregisterBrewProfileCallback(libopenpresso::callback_descriptor_t descr)
 {
   m_brewProfiler->unregisterStepChangeCallback(descr);
+}
+
+std::shared_ptr<const BrewTimer> StateManager::brewTimer() const noexcept
+{
+  return m_brewTimer;
 }

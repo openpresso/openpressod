@@ -33,6 +33,7 @@ Daemon::Daemon(const std::string& configPath)
   auto stateManager = std::make_unique<StateManager>(core, std::move(leds));
   auto profileManager = setupBrewProfileManager(config);
   auto settingsManager = setupUserSettingsManager(config);
+  auto brewTimer = stateManager->brewTimer();
 
   profileManager->applyBrewProfile(*stateManager);
   settingsManager->applySettings(*stateManager);
@@ -42,7 +43,7 @@ Daemon::Daemon(const std::string& configPath)
                                                            std::move(settingsManager));
 
   m_buttonsHandler = std::make_unique<ButtonsCallbackRegistrator>(dispatcher, core, config);
-  m_service = std::make_unique<ServiceManager>(dispatcher, core, config);
+  m_service = std::make_unique<ServiceManager>(dispatcher, core, std::move(brewTimer), config);
 }
 
 std::unique_ptr<BrewProfileManager> Daemon::setupBrewProfileManager(const OpenpressodConfig& config)

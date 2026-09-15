@@ -15,8 +15,9 @@ using namespace openpressod;
 
 ServiceManager::ServiceManager(const std::shared_ptr<AsyncEventDispatcher>& dispatcher,
                                const libopenpresso::CorePtr& core,
+                               const std::shared_ptr<const BrewTimer>& brewTimer,
                                const OpenpressodConfig& config)
-: m_impl{dispatcher, core}
+: m_impl{dispatcher, core, brewTimer}
 , m_server{buildServer(config)}
 {
   spdlog::debug("Openpresso service created");

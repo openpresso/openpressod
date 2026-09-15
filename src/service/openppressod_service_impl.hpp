@@ -14,11 +14,13 @@ namespace openpressod
 {
 
 class AsyncEventDispatcher;
+class BrewTimer;
 
 class OpenpressodServiceImpl : public OpenpressoDaemon::CallbackService {
 public:
   OpenpressodServiceImpl(const std::shared_ptr<AsyncEventDispatcher>& dispatcher,
-                         libopenpresso::CorePtr core);
+                         libopenpresso::CorePtr core,
+                         std::shared_ptr<const BrewTimer> brewTimer);
 
   grpc::ServerUnaryReactor* resetScales(grpc::CallbackServerContext* context,
                                         const google::protobuf::Empty* request,
@@ -80,6 +82,7 @@ private:
 private:
   std::shared_ptr<AsyncEventDispatcher> m_dispatcher;
   libopenpresso::CorePtr m_core;
+  std::shared_ptr<const BrewTimer> m_brewTimer;
 };
 
 } // namespace openpressod

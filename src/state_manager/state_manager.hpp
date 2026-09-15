@@ -21,6 +21,8 @@ class WeightSensor;
 namespace openpressod
 {
 
+class BrewTimer;
+
 class StateManager {
   using core_ptr_t = std::shared_ptr<libopenpresso::interfaces::LibopenpressoCore>;
   using brew_profiler_ptr_t = std::shared_ptr<libopenpresso::interfaces::BrewProfiler>;
@@ -44,6 +46,8 @@ public:
 
   void setBrewTemperature(libopenpresso::millidegrees_t temperature);
   void setSteamTemperature(libopenpresso::millidegrees_t temperature);
+
+  std::shared_ptr<const BrewTimer> brewTimer() const noexcept;
 
   template <std::ranges::range Steps>
   void setBrewSteps(const Steps& steps)
@@ -74,6 +78,7 @@ public:
 private:
   bool m_power = false;
   bool m_steam = false;
+  std::shared_ptr<BrewTimer> m_brewTimer;
   brew_profiler_ptr_t m_brewProfiler;
   temperature_controller_ptr_t m_brewTemperatureController;
   temperature_controller_ptr_t m_steamController;
