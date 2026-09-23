@@ -8,6 +8,7 @@
 #include "service/service_manager.hpp"
 #include "state_manager/brew_profile_manager.hpp"
 #include "state_manager/state_manager.hpp"
+#include "state_manager/status_manager.hpp"
 #include "state_manager/user_settings_manager.hpp"
 
 #include <exception>
@@ -29,8 +30,9 @@ Daemon::Daemon(const std::string& configPath)
   spdlog::debug("Device config created");
 
   auto core = libopenpresso::getCore(deviceConfig);
-  auto leds = std::make_unique<LedsHandler>(core, config);
-  auto stateManager = std::make_unique<StateManager>(core, std::move(leds));
+  auto leds = std::make_unique<LedsHandler>(core);
+  auto statusManager = std::make_unique<StatusManager>(core, config, std::move(leds));
+  auto stateManager = std::make_unique<StateManager>(core, std::move(statusManager));
   auto profileManager = setupBrewProfileManager(config);
   auto settingsManager = setupUserSettingsManager(config);
   auto brewTimer = stateManager->brewTimer();

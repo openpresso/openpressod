@@ -1,5 +1,0 @@
-add_executable(state_manager_test state_manager_test.cpp)
-target_link_libraries(state_manager_test PRIVATE openpressod_objects GTest::gtest_main libopenpresso_mock openpressod_mock)
-gtest_add_tests(TARGET state_manager_test)
-
-append_targets_to_clang_format_list(state_manager_test)

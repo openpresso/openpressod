@@ -2,8 +2,9 @@
 
 #include "brew_timer.hpp"
 #include "config/libopenpresso_config_labels.hpp"
-#include "leds/leds_handler_interface.hpp"
+#include "state_manager/status_manager.hpp"
 
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <utility>
@@ -13,11 +14,12 @@
 #include <libopenpresso/interfaces/libopenpresso_core.hpp> // IWYU pragma: keep
 #include <libopenpresso/interfaces/logical_input.hpp>      // IWYU pragma: keep
 #include <libopenpresso/types.hpp>
+#include <openpresso_proto/openpresso.pb.h>
 #include <spdlog/spdlog.h>
 
 using namespace openpressod;
 
-StateManager::StateManager(const core_ptr_t& core, std::unique_ptr<LedsHandlerInterface>&& leds)
+StateManager::StateManager(const core_ptr_t& core, std::unique_ptr<StatusManager>&& statusManager)
 : m_steam{core->getLogicalInput(libopenpresso_config_labels::STEAM_BUTTON_LABEL)->getState()}
 , m_brewTimer{std::make_shared<BrewTimer>()}
 , m_brewProfiler{core->getBrewProfiler(libopenpresso_config_labels::BREW_PROFILER_LABEL)}
@@ -25,7 +27,7 @@ StateManager::StateManager(const core_ptr_t& core, std::unique_ptr<LedsHandlerIn
     libopenpresso_config_labels::BREW_TEMPERATURE_CONTROLLER_LABEL)}
 , m_steamController{core->getTemperatureController(libopenpresso_config_labels::STEAM_CONTROLLER_LABEL)}
 , m_weightSensor{core->getWeightSensor(libopenpresso_config_labels::WEIGHT_SENSOR_LABEL)}
-, m_leds{std::move(leds)}
+, m_statusManager{std::move(statusManager)}
 {
   spdlog::debug("State manager created");
 }
@@ -48,16 +50,16 @@ void StateManager::setPowerState(bool state)
     m_brewProfiler->deactivate();
     m_steamController->deactivate();
     m_brewTemperatureController->deactivate();
-    m_leds->indicatePowerOff();
+    m_statusManager->disable();
     m_brewTimer->reset();
   }
   else if (m_steam) {
     m_steamController->activate();
-    m_leds->indicateSteamState(m_steamController->getTargetTemperature());
+    m_statusManager->indicateSteamState(m_steamController->getTargetTemperature());
   }
   else {
     m_brewTemperatureController->activate();
-    m_leds->indicateBrewState(m_brewTemperatureController->getTargetTemperature());
+    m_statusManager->indicateBrewState(m_brewTemperatureController->getTargetTemperature());
   }
 
   m_power = state;
@@ -110,7 +112,7 @@ void StateManager::setBrewTemperature(libopenpresso::millidegrees_t temperature)
 {
   m_brewTemperatureController->setTargetTemperature(temperature);
   if (!m_steam && m_power) {
-    m_leds->indicateBrewState(temperature);
+    m_statusManager->indicateBrewState(temperature);
   }
   spdlog::debug("Brew temperature changed, new value: {}", temperature);
 }
@@ -119,7 +121,7 @@ void StateManager::setSteamTemperature(libopenpresso::millidegrees_t temperature
 {
   m_steamController->setTargetTemperature(temperature);
   if (m_steam && m_power) {
-    m_leds->indicateSteamState(temperature);
+    m_statusManager->indicateSteamState(temperature);
   }
   spdlog::debug("Steam temperature changed, new value: {}", temperature);
 }
@@ -147,12 +149,12 @@ void StateManager::setSteamModeState(bool state)
     if (m_steam) {
       m_steamController->deactivate();
       m_brewTemperatureController->activate();
-      m_leds->indicateBrewState(m_brewTemperatureController->getTargetTemperature());
+      m_statusManager->indicateBrewState(m_brewTemperatureController->getTargetTemperature());
     }
     else {
       m_brewTemperatureController->deactivate();
       m_steamController->activate();
-      m_leds->indicateSteamState(m_steamController->getTargetTemperature());
+      m_statusManager->indicateSteamState(m_steamController->getTargetTemperature());
     }
   }
 
@@ -175,4 +177,14 @@ void StateManager::unregisterBrewProfileCallback(libopenpresso::callback_descrip
 std::shared_ptr<const BrewTimer> StateManager::brewTimer() const noexcept
 {
   return m_brewTimer;
+}
+
+HeatingStatus StateManager::heatingStatus() const noexcept
+{
+  return m_statusManager->getCurrentStatus();
+}
+
+void StateManager::setHeatingStatusChangeCallback(std::function<void(HeatingStatus)> callback)
+{
+  m_statusManager->setCallback(std::move(callback));
 }

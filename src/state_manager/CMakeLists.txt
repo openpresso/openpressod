@@ -7,4 +7,6 @@ target_sources(openpressod_objects PRIVATE
     user_settings_manager.cpp
     brew_timer.hpp
     brew_timer.cpp
+    status_manager.hpp
+    status_manager.cpp
 )
