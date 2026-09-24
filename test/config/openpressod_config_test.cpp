@@ -63,6 +63,9 @@ TEST(OpenpressodConfig, DefaultValues)
   EXPECT_EQ(500, config.brewTemperatureWindow());
   EXPECT_EQ(1'000, config.steamTemperatureWindow());
 
+  // [heater] defaults
+  EXPECT_EQ(5s, config.heaterReadyHysteresisPeriod());
+
   // [pressure_sensor] defaults
   EXPECT_EQ(0x48, config.pressureSensorI2cAddr());
 
@@ -277,6 +280,7 @@ TEST(OpenpressodConfig, FullConfig)
 
   // [heater]
   EXPECT_EQ(15, config.heaterOutputPin());
+  EXPECT_EQ(3s, config.heaterReadyHysteresisPeriod());
 
   // [valve]
   EXPECT_EQ(6, config.valveOutputPin());
@@ -327,4 +331,14 @@ TEST(OpenpressodConfig, FullConfig)
   EXPECT_FLOAT_EQ(0.0f, steamActivePid.f);
   EXPECT_FLOAT_EQ(0.0f, steamActivePid.w);
   EXPECT_FLOAT_EQ(0.0f, steamActivePid.wDecay);
+}
+
+TEST(OpenpressodConfig, NegativeHeaterReadyHysteresisPeriodIsRejected)
+{
+  EXPECT_THROW(OpenpressodConfig::fromString(R"(
+[heater]
+ready_hysteresis_period = -00:00:01
+)")
+                 .heaterReadyHysteresisPeriod(),
+               std::exception);
 }
