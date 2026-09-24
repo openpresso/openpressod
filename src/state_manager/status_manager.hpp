@@ -40,13 +40,39 @@ public:
   void indicateSteamState(libopenpresso::millidegrees_t targetTemp);
 
 private:
+  void unregisterTemperatureCallback();
+  void publishStatus(HeatingStatus status);
+  template <bool steamMode>
+  void applyStatus(HeatingStatus status);
+  static HeatingStatus makeStatus(libopenpresso::millidegrees_t temperature,
+                                  libopenpresso::millidegrees_t targetTemp,
+                                  libopenpresso::millidegrees_t temperatureWindow);
+
+  template <bool steamMode>
+  libopenpresso::interfaces::TemperatureSensor::callback_t makeFixedRateCallback(
+    libopenpresso::millidegrees_t targetTemp,
+    libopenpresso::millidegrees_t temperatureWindow,
+    libopenpresso::time_delta_t updateRate);
+
+  template <bool steamMode>
+  libopenpresso::interfaces::TemperatureSensor::callback_t makeVariableRateCallback(
+    libopenpresso::millidegrees_t targetTemp, libopenpresso::millidegrees_t temperatureWindow);
+
+  template <bool steamMode>
+  libopenpresso::interfaces::TemperatureSensor::callback_t makeTemperatureCallback(
+    libopenpresso::millidegrees_t targetTemp,
+    libopenpresso::millidegrees_t temperatureWindow,
+    std::optional<libopenpresso::time_delta_t> updateRate);
+
+private:
   std::function<void(HeatingStatus)> m_callback = [](auto) {};
 
   std::atomic<HeatingStatus> m_heatingStatus = HeatingStatus::HeatingStatus_DISABLED;
   HeatingStatus m_heatingStatusCached = HeatingStatus::HeatingStatus_DISABLED;
 
-  libopenpresso::millidegrees_t m_brewTempretureWindow;
-  libopenpresso::millidegrees_t m_steamTempretureWindow;
+  libopenpresso::millidegrees_t m_brewTemperatureWindow;
+  libopenpresso::millidegrees_t m_steamTemperatureWindow;
+  libopenpresso::time_delta_t m_readyHysteresisPeriod;
   std::unique_ptr<LedsHandler> m_leds;
   libopenpresso::TemperatureSensorPtr m_temperatureSensor;
   std::optional<libopenpresso::callback_descriptor_t> m_temperatureCallback;
