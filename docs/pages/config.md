@@ -183,6 +183,7 @@ Boiler heating element control via a solid-state relay (SSR).
 | Key | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
 | `control_pin` | Integer | **Yes** | — | GPIO pin connected to the boiler SSR. |
+| `ready_hysteresis_period` | Duration | No | `5s` | Time the temperature must continuously remain inside the active mode's temperature window before the heater status changes to ready. |
 
 ---
 
