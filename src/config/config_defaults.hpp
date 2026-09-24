@@ -37,7 +37,8 @@ static constexpr bool DEFAULT_BUTTONS_LOGIC_INVERTED = true;
 static constexpr bool DEFAULT_LEDS_LOGIC_INVERTED = false;
 static constexpr auto DEFAULT_BUTTONS_PULL_MODE = libopenpresso::PinPull::PullUp;
 
-static constexpr auto DEFAULT_BUTTON_DEBOUNCE_PERIOD = 10ms; // NOLINT(misc-include-cleaner)
+static constexpr auto DEFAULT_BUTTON_DEBOUNCE_PERIOD = 10ms;       // NOLINT(misc-include-cleaner)
+static constexpr auto DEFAULT_HEATER_READY_HYSTERESIS_PERIOD = 5s; // NOLINT(misc-include-cleaner)
 static constexpr auto DEFAULT_TEMPERATURE_D_FILTER_SMOOTHING_PERIOD = 750ms; // NOLINT(misc-include-cleaner)
 static constexpr auto DEFAULT_WEIGHT_D_FILTER_SMOOTHING_PERIOD = 600ms; // NOLINT(misc-include-cleaner)
 static constexpr auto DEFAULT_WATCHDOG_TIMEOUT = 1s; // NOLINT(misc-include-cleaner)

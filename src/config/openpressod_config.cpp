@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <stdexcept>
 #include <string>
 #include <toml.hpp>
 #include <utility>
@@ -264,6 +265,18 @@ libopenpresso::millibars_t OpenpressodConfig::pumpStallPressure() const
 libopenpresso::pin_number_t OpenpressodConfig::heaterOutputPin() const
 {
   return toml::find<libopenpresso::pin_number_t>(m_config, "heater", "control_pin");
+}
+
+libopenpresso::time_delta_t OpenpressodConfig::heaterReadyHysteresisPeriod() const
+{
+  const auto period = toml::find_or(m_config,
+                                    "heater",
+                                    "ready_hysteresis_period",
+                                    libopenpresso::time_delta_t{DEFAULT_HEATER_READY_HYSTERESIS_PERIOD});
+  if (period < libopenpresso::time_delta_t::zero()) {
+    throw std::invalid_argument{"Heater ready hysteresis period cannot be negative"};
+  }
+  return period;
 }
 
 libopenpresso::millidegrees_t openpressod::OpenpressodConfig::brewTemperature() const

@@ -90,6 +90,7 @@ public:
 
   // [heater]
   libopenpresso::pin_number_t heaterOutputPin() const;
+  libopenpresso::time_delta_t heaterReadyHysteresisPeriod() const;
 
   // [brew]
   libopenpresso::millidegrees_t brewTemperature() const;
