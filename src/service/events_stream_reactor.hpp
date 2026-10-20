@@ -36,6 +36,7 @@ public:
   void notifyChanged(const BrewProfile& brewProfile);
   void notifyChanged(const UserSettings& userSettings);
   void notifyChanged(const BrewProgress& brewProgress);
+  void notifyChanged(const HeaterState& heaterState);
 
 private:
   void pushEvent(Event&& event);

@@ -93,6 +93,7 @@ private:
   void doNotifyBrewStepChange(step_index_t step);
   void sendInitialState(const std::unique_ptr<EventsStreamReactor>& sink);
   void brewCallback(std::variant<step_index_t, stopped_flag_t> step);
+  void notifyHeatingStatusChange(HeatingStatus status);
 
 private:
   std::unique_ptr<StateManager> m_stateManager;
@@ -207,6 +208,9 @@ inline void AsyncEventDispatcher::setUserSettings(const UserSettings* settings, 
     [this, settings] {
       m_userSettings->saveSettings(*settings);
       m_userSettings->applySettings(*m_stateManager);
+      for (auto&& sink : m_eventsSinks) {
+        sink->notifyChanged(*settings);
+      }
     },
     std::forward<Cb>(callback));
 }

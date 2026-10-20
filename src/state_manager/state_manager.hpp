@@ -1,14 +1,16 @@
 #ifndef STATE_MANAGER_HPP
 #define STATE_MANAGER_HPP
 
-#include "leds/leds_handler_interface.hpp"
+#include "status_manager.hpp"
 
+#include <functional>
 #include <memory>
 #include <ranges>
 #include <utility>
 
 #include <libopenpresso/interfaces/brew_profiler.hpp>
 #include <libopenpresso/types.hpp>
+#include <openpresso_proto/openpresso.pb.h>
 
 namespace libopenpresso::interfaces
 {
@@ -30,7 +32,7 @@ class StateManager {
   using weight_sensor_ptr_t = std::shared_ptr<libopenpresso::interfaces::WeightSensor>;
 
 public:
-  StateManager(const core_ptr_t& core, std::unique_ptr<LedsHandlerInterface>&& leds);
+  StateManager(const core_ptr_t& core, std::unique_ptr<StatusManager>&& statusManager);
 
   bool getPowerState() const noexcept;
   void setPowerState(bool state);
@@ -48,6 +50,8 @@ public:
   void setSteamTemperature(libopenpresso::millidegrees_t temperature);
 
   std::shared_ptr<const BrewTimer> brewTimer() const noexcept;
+
+  HeatingStatus heatingStatus() const noexcept;
 
   template <std::ranges::range Steps>
   void setBrewSteps(const Steps& steps)
@@ -75,6 +79,8 @@ public:
 
   void unregisterBrewProfileCallback(libopenpresso::callback_descriptor_t descr);
 
+  void setHeatingStatusChangeCallback(std::function<void(HeatingStatus)> callback);
+
 private:
   bool m_power = false;
   bool m_steam = false;
@@ -83,7 +89,7 @@ private:
   temperature_controller_ptr_t m_brewTemperatureController;
   temperature_controller_ptr_t m_steamController;
   weight_sensor_ptr_t m_weightSensor;
-  std::unique_ptr<LedsHandlerInterface> m_leds;
+  std::unique_ptr<StatusManager> m_statusManager;
 };
 
 } // namespace openpressod

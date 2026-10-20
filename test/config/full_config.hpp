@@ -67,6 +67,7 @@ stall_pressure = 20000
 
 [heater]
 control_pin = 15
+ready_hysteresis_period = 00:00:03
 
 [valve]
 control_pin = 6

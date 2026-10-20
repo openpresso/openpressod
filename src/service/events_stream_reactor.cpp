@@ -77,6 +77,13 @@ void EventsStreamReactor::notifyChanged(const BrewProgress& brewProgress)
   pushEvent(std::move(event));
 }
 
+void EventsStreamReactor::notifyChanged(const HeaterState& heaterState)
+{
+  Event event;
+  event.mutable_heaterstate()->CopyFrom(heaterState);
+  pushEvent(std::move(event));
+}
+
 void EventsStreamReactor::pushEvent(Event&& event)
 {
   {

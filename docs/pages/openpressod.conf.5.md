@@ -212,6 +212,9 @@ Boiler heating element control.
 `control_pin`
 : Integer, required. GPIO pin connected to the boiler heating element SSR.
 
+`ready_hysteresis_period`
+: Duration, optional. Time the temperature must continuously remain inside the active brew or steam temperature window before the heater status changes to ready. Default: `5s`.
+
 ## `[brew]`
 
 Brew mode control parameters.

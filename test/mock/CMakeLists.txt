@@ -22,7 +22,6 @@ add_library(openpressod_mock INTERFACE)
 target_sources(openpressod_mock PUBLIC FILE_SET HEADERS
     FILES 
         buttons_event_sink_mock.hpp
-        leds_handler_mock.hpp
 )
 
 target_link_libraries(openpressod_mock INTERFACE GTest::gmock openpressod_objects)

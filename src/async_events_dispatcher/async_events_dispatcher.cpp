@@ -24,6 +24,9 @@ AsyncEventDispatcher::AsyncEventDispatcher(std::unique_ptr<StateManager> stateMa
 , m_brewCallback{
     m_stateManager->registerBrewProfilerCallback([this](auto cbData) { brewCallback(cbData); })}
 {
+  m_stateManager->setHeatingStatusChangeCallback([this](auto status) {
+    m_executor.executeDiscardResult(&AsyncEventDispatcher::notifyHeatingStatusChange, this, status);
+  });
   spdlog::debug("Events dispatcher created");
 }
 
@@ -35,6 +38,9 @@ AsyncEventDispatcher::~AsyncEventDispatcher()
         m_stateManager->stopBrew();
       }
       m_stateManager->unregisterBrewProfileCallback(m_brewCallback);
+      if (m_stateManager->getPowerState()) {
+        m_stateManager->setPowerState(false);
+      }
     })
     .get();
 }
@@ -126,6 +132,15 @@ void openpressod::AsyncEventDispatcher::doStopBrew()
   }
 }
 
+void AsyncEventDispatcher::notifyHeatingStatusChange(HeatingStatus status)
+{
+  HeaterState state;
+  state.set_value(status);
+  for (auto&& sink : m_eventsSinks) {
+    sink->notifyChanged(state);
+  }
+}
+
 void AsyncEventDispatcher::doSetSteamModeState(bool state)
 {
   m_stateManager->setSteamModeState(state);
@@ -153,6 +168,12 @@ void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamRe
   {
     SteamModeState state;
     state.set_isactive(m_stateManager->getSteamModeState());
+    sink->notifyChanged(state);
+  }
+
+  {
+    HeaterState state;
+    state.set_value(m_stateManager->heatingStatus());
     sink->notifyChanged(state);
   }
 
