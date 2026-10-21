@@ -2,11 +2,11 @@
 #define ASYNC_EVENTS_DISPATCHER_HPP
 
 #include "buttons/buttons_event_sink.hpp"
-#include "procedures_serial_executor.hpp"
 #include "service/events_stream_reactor.hpp"
 #include "state_manager/brew_profile_manager.hpp"
 #include "state_manager/state_manager.hpp"
 #include "state_manager/user_settings_manager.hpp"
+#include "utils/procedures_serial_executor.hpp"
 
 #include <list>
 #include <memory>
