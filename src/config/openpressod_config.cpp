@@ -44,6 +44,11 @@ std::filesystem::path openpressod::OpenpressodConfig::userSettingsPath() const
                        (daemonBaseDirectory() / DEFAULT_USER_SETTINGS_FILE_NAME).c_str());
 }
 
+std::chrono::steady_clock::duration OpenpressodConfig::brewLogSamplingInterval() const
+{
+  return toml::find_or(m_config, "global", "brew_log_sampling_interval", DEFAULT_BREW_LOG_SAMPLING_PERIOD);
+}
+
 bool OpenpressodConfig::pidStateMonitoringEnabled() const
 {
   return toml::find_or(m_config, "global", "pid_state_monitoring_enabled", DEFAULT_PID_STATE_MONITORING_ENABLE);

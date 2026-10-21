@@ -41,7 +41,8 @@ static constexpr auto DEFAULT_BUTTON_DEBOUNCE_PERIOD = 10ms;       // NOLINT(mis
 static constexpr auto DEFAULT_HEATER_READY_HYSTERESIS_PERIOD = 5s; // NOLINT(misc-include-cleaner)
 static constexpr auto DEFAULT_TEMPERATURE_D_FILTER_SMOOTHING_PERIOD = 750ms; // NOLINT(misc-include-cleaner)
 static constexpr auto DEFAULT_WEIGHT_D_FILTER_SMOOTHING_PERIOD = 600ms; // NOLINT(misc-include-cleaner)
-static constexpr auto DEFAULT_WATCHDOG_TIMEOUT = 1s; // NOLINT(misc-include-cleaner)
+static constexpr auto DEFAULT_WATCHDOG_TIMEOUT = 1s;            // NOLINT(misc-include-cleaner)
+static constexpr auto DEFAULT_BREW_LOG_SAMPLING_PERIOD = 100ms; // NOLINT(misc-include-cleaner)
 
 static constexpr libopenpresso::i2c_dev_addr_t DEFAULT_ADS1115_ADDR = 0x48;
 static constexpr libopenpresso::i2c_dev_addr_t DEFAULT_NAU7802_ADDR = 0x2a;
