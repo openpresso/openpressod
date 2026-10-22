@@ -1,11 +1,11 @@
 #include "metrics_stream_reactor.hpp"
+#include "protobuf_helpers.hpp"
 
 #include "config/libopenpresso_config_labels.hpp"
 #include "state_manager/brew_timer.hpp"
 
 #include <atomic>
 #include <chrono>
-#include <cstdint>
 #include <format>
 #include <future>
 #include <memory>
@@ -13,7 +13,6 @@
 #include <stdexcept>
 #include <utility>
 
-#include <google/protobuf/duration.pb.h>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/interfaces/pid_controller_state.hpp>
 #include <openpresso_proto/openpresso.pb.h>
@@ -65,7 +64,7 @@ void MetricsStreamReactor::worker(std::future<void> cancel, std::chrono::steady_
     metrics.set_weight(m_weightSensor->getWeight());
     metrics.set_flowrate(m_weightSensor->getFlowRate());
     metrics.set_temperature(m_temperatureSensor->getTemperature());
-    toProtoDuration(m_brewTimer->elapsedTime(), *metrics.mutable_brewtimer());
+    protobuf_helpers::toProtoDuration(m_brewTimer->elapsedTime(), *metrics.mutable_brewtimer());
 
     if (m_pidControllerState) {
       metrics.mutable_pidmetrics()->set_p(m_pidControllerState->pTerm());
@@ -122,16 +121,4 @@ std::optional<libopenpresso::component_label_t> MetricsStreamReactor::pidSourceT
   default:
     return std::nullopt;
   }
-}
-
-void MetricsStreamReactor::toProtoDuration(std::chrono::steady_clock::duration duration,
-                                           google::protobuf::Duration& result)
-{
-  using namespace std::chrono;
-
-  const auto seconds = duration_cast<std::chrono::seconds>(duration);
-  const auto nanos = duration_cast<std::chrono::nanoseconds>(duration - seconds);
-
-  result.set_seconds(seconds.count());
-  result.set_nanos(static_cast<int32_t>(nanos.count()));
 }
