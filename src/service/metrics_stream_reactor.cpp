@@ -59,6 +59,7 @@ void MetricsStreamReactor::OnDone()
 void MetricsStreamReactor::worker(std::future<void> cancel, std::chrono::steady_clock::duration timeout)
 {
   Metrics metrics;
+  auto nextSample = std::chrono::steady_clock::now();
   while (true) {
     metrics.set_pressure(m_pressureSensor->getPressure());
     metrics.set_weight(m_weightSensor->getWeight());
@@ -82,7 +83,8 @@ void MetricsStreamReactor::worker(std::future<void> cancel, std::chrono::steady_
       break;
     }
 
-    if (cancel.wait_for(timeout) != std::future_status::timeout) {
+    nextSample += timeout;
+    if (cancel.wait_until(nextSample) != std::future_status::timeout) {
       break;
     }
   }

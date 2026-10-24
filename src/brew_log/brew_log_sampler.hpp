@@ -23,6 +23,7 @@ public:
   void startSampling(T&& callback)
   {
     auto task = [stop = m_samplingStopFlag.get_future(), callback = std::forward<T>(callback), this] {
+      auto nextSample = std::chrono::steady_clock::now();
       // NOLINTBEGIN(cppcoreguidelines-avoid-do-while)
       do {
         std::invoke(callback,
@@ -30,7 +31,8 @@ public:
                     m_pressureSensor->getPressure(),
                     m_weightSensor->getWeight(),
                     m_weightSensor->getFlowRate());
-      } while (stop.wait_for(m_samplingInterval) == std::future_status::timeout);
+        nextSample += m_samplingInterval;
+      } while (stop.wait_until(nextSample) == std::future_status::timeout);
       // NOLINTEND(cppcoreguidelines-avoid-do-while)
     };
 
