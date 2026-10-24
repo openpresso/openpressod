@@ -14,11 +14,13 @@ namespace openpressod
 {
 
 class AsyncEventDispatcher;
+class BrewLogManager;
 class BrewTimer;
 
 class OpenpressodServiceImpl : public OpenpressoDaemon::CallbackService {
 public:
-  OpenpressodServiceImpl(const std::shared_ptr<AsyncEventDispatcher>& dispatcher,
+  OpenpressodServiceImpl(std::shared_ptr<AsyncEventDispatcher> dispatcher,
+                         std::shared_ptr<BrewLogManager> brewLogManager,
                          libopenpresso::CorePtr core,
                          std::shared_ptr<const BrewTimer> brewTimer);
 
@@ -76,11 +78,15 @@ public:
   grpc::ServerWriteReactor<Metrics>* metrics(grpc::CallbackServerContext* context,
                                              const MetricsRequest* request) override;
 
+  grpc::ServerWriteReactor<BrewLogRecord>* brewLog(grpc::CallbackServerContext* context,
+                                                   const google::protobuf::Empty* request) override;
+
 private:
   static auto makeVoidCallback(grpc::ServerUnaryReactor* reactor);
 
 private:
   std::shared_ptr<AsyncEventDispatcher> m_dispatcher;
+  std::shared_ptr<BrewLogManager> m_brewLogManager;
   libopenpresso::CorePtr m_core;
   std::shared_ptr<const BrewTimer> m_brewTimer;
 };

@@ -1,7 +1,7 @@
 #include "metrics_stream_reactor.hpp"
-#include "protobuf_helpers.hpp"
 
 #include "config/libopenpresso_config_labels.hpp"
+#include "protobuf_helpers.hpp"
 #include "state_manager/brew_timer.hpp"
 
 #include <atomic>
