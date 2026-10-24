@@ -2,6 +2,7 @@ find_package(spdlog REQUIRED)
 find_package(toml11 REQUIRED)
 find_package(CLI11 REQUIRED)
 find_package(magic_enum REQUIRED)
+find_package(Boost REQUIRED)
 find_package(openpresso_proto REQUIRED)
 find_package(libopenpresso REQUIRED)
 
@@ -9,10 +10,11 @@ add_library(openpressod_objects OBJECT)
 target_link_libraries(openpressod_objects PUBLIC
     spdlog::spdlog
     CLI11::CLI11
-    openpresso_proto::openpresso_proto  
-    libopenpresso::libopenpresso
     toml11::toml11
     magic_enum::magic_enum
+    boost::boost
+    openpresso_proto::openpresso_proto  
+    libopenpresso::libopenpresso
 )
 
 add_executable(openpressod)
