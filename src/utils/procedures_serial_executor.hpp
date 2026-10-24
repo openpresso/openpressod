@@ -1,8 +1,7 @@
 #ifndef PROCEDURES_SERIAL_EXECUTOR_HPP
 #define PROCEDURES_SERIAL_EXECUTOR_HPP
 
-#include <atomic>
-#include <cstddef>
+#include <condition_variable>
 #include <functional>
 #include <future>
 #include <list>
@@ -28,8 +27,11 @@ public:
   auto operator=(ProceduresSerialExecutor&&) = delete;
   ~ProceduresSerialExecutor()
   {
-    m_queueSize.fetch_add(1, std::memory_order_release);
-    m_queueSize.notify_one();
+    {
+      std::scoped_lock lock(m_queueLock);
+      m_stopping = true;
+    }
+    m_queueCv.notify_one();
   }
 
   template <typename F, typename... Args>
@@ -47,9 +49,8 @@ public:
     {
       std::scoped_lock lock{m_queueLock};
       m_queue.emplace_back(std::move(capture));
-      m_queueSize.fetch_add(1, std::memory_order_relaxed);
     }
-    m_queueSize.notify_one();
+    m_queueCv.notify_one();
 
     return ret;
   }
@@ -72,9 +73,8 @@ public:
     {
       std::scoped_lock lock{m_queueLock};
       m_queue.emplace_back(std::move(capture));
-      m_queueSize.fetch_add(1, std::memory_order_relaxed);
     }
-    m_queueSize.notify_one();
+    m_queueCv.notify_one();
   }
 
   template <typename F, typename... Args>
@@ -88,9 +88,8 @@ public:
     {
       std::scoped_lock lock{m_queueLock};
       m_queue.emplace_back(std::move(capture));
-      m_queueSize.fetch_add(1, std::memory_order_relaxed);
     }
-    m_queueSize.notify_one();
+    m_queueCv.notify_one();
   }
 
 private:
@@ -99,15 +98,12 @@ private:
     queue_t queue;
     while (true) {
       if (queue.empty()) {
-        m_queueSize.wait(0, std::memory_order_relaxed);
-        {
-          std::scoped_lock lock(m_queueLock);
-          queue.splice(queue.begin(), m_queue);
-          m_queueSize.fetch_sub(queue.size(), std::memory_order_relaxed);
-        }
-        if (queue.empty()) {
+        std::unique_lock lock(m_queueLock);
+        m_queueCv.wait(lock, [this] { return m_stopping || !m_queue.empty(); });
+        if (m_queue.empty()) {
           break;
         }
+        queue.splice(queue.begin(), m_queue);
       }
 
       std::invoke(std::move(queue.front()));
@@ -118,7 +114,8 @@ private:
 private:
   std::mutex m_queueLock;
   queue_t m_queue;
-  std::atomic<size_t> m_queueSize = 0;
+  std::condition_variable m_queueCv;
+  bool m_stopping = false;
   std::jthread m_worker;
 };
 

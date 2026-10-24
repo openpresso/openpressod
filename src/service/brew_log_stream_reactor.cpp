@@ -28,8 +28,11 @@ void BrewLogStreamReactor::OnWriteDone(bool ok)
 
 void BrewLogStreamReactor::OnCancel()
 {
-  m_queueSize.fetch_add(1, std::memory_order_release);
-  m_queueSize.notify_one();
+  {
+    std::scoped_lock lock(m_queueLock);
+    m_cancelled = true;
+  }
+  m_queueCv.notify_one();
 }
 
 void BrewLogStreamReactor::OnDone()
@@ -67,8 +70,7 @@ void BrewLogStreamReactor::pushRecord(BrewLogRecord&& record)
     m_recordsQueue.push_back(std::move(record));
   }
 
-  m_queueSize.fetch_add(1, std::memory_order_release);
-  m_queueSize.notify_one();
+  m_queueCv.notify_one();
 }
 
 void BrewLogStreamReactor::pushRecords(std::list<BrewLogRecord>&& recordsQueue)
@@ -78,8 +80,7 @@ void BrewLogStreamReactor::pushRecords(std::list<BrewLogRecord>&& recordsQueue)
     m_recordsQueue.splice(m_recordsQueue.end(), std::move(recordsQueue));
   }
 
-  m_queueSize.fetch_add(1, std::memory_order_release);
-  m_queueSize.notify_one();
+  m_queueCv.notify_one();
 }
 
 void BrewLogStreamReactor::worker()
@@ -87,15 +88,12 @@ void BrewLogStreamReactor::worker()
   std::list<BrewLogRecord> queue;
   while (true) {
     if (queue.empty()) {
-      m_queueSize.wait(0, std::memory_order_acquire);
-      {
-        std::scoped_lock lock(m_queueLock);
-        queue.splice(queue.begin(), m_recordsQueue);
-      }
-      m_queueSize.fetch_sub(queue.size(), std::memory_order_relaxed);
-      if (queue.empty()) {
+      std::unique_lock lock(m_queueLock);
+      m_queueCv.wait(lock, [this] { return m_cancelled || !m_recordsQueue.empty(); });
+      if (m_cancelled) {
         break;
       }
+      queue.splice(queue.begin(), m_recordsQueue);
     }
 
     m_writeStatus.store(WriteStatus::InProgress, std::memory_order_relaxed);

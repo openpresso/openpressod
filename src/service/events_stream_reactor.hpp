@@ -2,7 +2,7 @@
 #define EVENTS_STREAM_REACTOR_HPP
 
 #include <atomic>
-#include <cstddef>
+#include <condition_variable>
 #include <cstdint>
 #include <list>
 #include <mutex>
@@ -45,8 +45,9 @@ private:
 private:
   std::atomic<WriteStatus> m_writeStatus = WriteStatus::Idle;
   AsyncEventDispatcher* m_owner;
-  std::atomic<size_t> m_queueSize = 0;
   std::mutex m_queueLock;
+  std::condition_variable m_queueCv;
+  bool m_cancelled = false;
   std::list<Event> m_eventsQueue;
   std::thread m_worker;
 };

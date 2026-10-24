@@ -22,7 +22,8 @@ BrewLogManager::BrewLogManager(const libopenpresso::CorePtr& core, const Openpre
 , m_brewProfiler{core->getBrewProfiler(libopenpresso_config_labels::BREW_PROFILER_LABEL)}
 , m_sampler{core, m_samplingInterval}
 , m_profilerCallback{
-    m_brewProfiler->registerStepChangeCallback([this](auto step) { brewProfilerCallback(step); })}
+    m_brewProfiler->registerStepChangeCallback([this](auto step) { brewProfilerCallback(step); }),
+  }
 {
 }
 

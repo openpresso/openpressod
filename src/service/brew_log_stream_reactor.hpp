@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <list>
@@ -66,8 +67,9 @@ private:
   size_t m_currentStep = 0;
   std::atomic<WriteStatus> m_writeStatus = WriteStatus::Idle;
   BrewLogManager* m_owner;
-  std::atomic<size_t> m_queueSize = 0;
   std::mutex m_queueLock;
+  std::condition_variable m_queueCv;
+  bool m_cancelled = false;
   std::list<BrewLogRecord> m_recordsQueue;
   std::thread m_worker;
 };
