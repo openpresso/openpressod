@@ -24,7 +24,7 @@ class EventsStreamReactor final : public grpc::ServerWriteReactor<Event> {
   };
 
 public:
-  EventsStreamReactor(AsyncEventDispatcher* owner);
+  explicit EventsStreamReactor(AsyncEventDispatcher* owner);
 
   void OnWriteDone(bool ok) override;
   void OnCancel() override;

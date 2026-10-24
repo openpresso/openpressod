@@ -24,7 +24,8 @@ StateManager::StateManager(const core_ptr_t& core, std::unique_ptr<StatusManager
 , m_brewTimer{std::make_shared<BrewTimer>()}
 , m_brewProfiler{core->getBrewProfiler(libopenpresso_config_labels::BREW_PROFILER_LABEL)}
 , m_brewTemperatureController{core->getTemperatureController(
-    libopenpresso_config_labels::BREW_TEMPERATURE_CONTROLLER_LABEL)}
+    libopenpresso_config_labels::BREW_TEMPERATURE_CONTROLLER_LABEL),
+  }
 , m_steamController{core->getTemperatureController(libopenpresso_config_labels::STEAM_CONTROLLER_LABEL)}
 , m_weightSensor{core->getWeightSensor(libopenpresso_config_labels::WEIGHT_SENSOR_LABEL)}
 , m_statusManager{std::move(statusManager)}

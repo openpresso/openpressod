@@ -3,6 +3,9 @@
 #include <chrono>
 #include <cstdint>
 
+#include <google/protobuf/duration.pb.h>
+#include <google/protobuf/timestamp.pb.h>
+
 namespace openpressod::protobuf_helpers
 {
 

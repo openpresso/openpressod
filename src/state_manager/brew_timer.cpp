@@ -24,7 +24,8 @@ void BrewTimer::stop() noexcept
 uint32_t BrewTimer::now() noexcept
 {
   auto currentTime = std::chrono::steady_clock::now();
-  return std::chrono::duration_cast<std::chrono::milliseconds>(currentTime.time_since_epoch()).count() &
+  return static_cast<uint32_t>(
+           std::chrono::duration_cast<std::chrono::milliseconds>(currentTime.time_since_epoch()).count()) &
          VALUE_MASK;
 }
 

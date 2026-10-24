@@ -5,8 +5,10 @@
 #include "utils/procedures_serial_executor.hpp"
 
 #include <chrono>
+#include <cstddef>
 #include <list>
 #include <memory>
+#include <variant>
 #include <vector>
 
 #include <boost/scope/unique_resource.hpp>

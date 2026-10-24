@@ -22,7 +22,8 @@ AsyncEventDispatcher::AsyncEventDispatcher(std::unique_ptr<StateManager> stateMa
 , m_brewProfileManager{std::move(brewProfileManager)}
 , m_userSettings{std::move(userSettingsManager)}
 , m_brewCallback{
-    m_stateManager->registerBrewProfilerCallback([this](auto cbData) { brewCallback(cbData); })}
+    m_stateManager->registerBrewProfilerCallback([this](auto cbData) { brewCallback(cbData); }),
+  }
 {
   m_stateManager->setHeatingStatusChangeCallback([this](auto status) {
     m_executor.executeDiscardResult(&AsyncEventDispatcher::notifyHeatingStatusChange, this, status);

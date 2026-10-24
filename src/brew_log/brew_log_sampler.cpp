@@ -2,6 +2,10 @@
 
 #include "config/libopenpresso_config_labels.hpp"
 
+#include <chrono>
+
+#include <libopenpresso/interfaces/libopenpresso_core.hpp>
+
 using namespace openpressod;
 
 BrewLogSampler::BrewLogSampler(const libopenpresso::CorePtr& core,

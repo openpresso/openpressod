@@ -9,7 +9,7 @@ namespace openpressod
 
 class LedsHandler {
 public:
-  LedsHandler(const libopenpresso::CorePtr& core);
+  explicit LedsHandler(const libopenpresso::CorePtr& core);
   LedsHandler(const LedsHandler&) = delete;
   LedsHandler(LedsHandler&&) = delete;
   auto operator=(const LedsHandler&) = delete;

@@ -9,6 +9,7 @@
 #include <mutex>
 #include <ranges>
 #include <thread>
+#include <utility>
 
 #include <grpcpp/support/server_callback.h>
 #include <openpresso_proto/openpresso.pb.h>
@@ -26,7 +27,7 @@ class BrewLogStreamReactor final : public grpc::ServerWriteReactor<BrewLogRecord
   };
 
 public:
-  BrewLogStreamReactor(BrewLogManager* owner);
+  explicit BrewLogStreamReactor(BrewLogManager* owner);
 
   void OnWriteDone(bool ok) override;
   void OnCancel() override;

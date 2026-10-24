@@ -6,9 +6,15 @@
 #include "utils/lambda_overload.hpp"
 
 #include <chrono>
+#include <cstddef>
 #include <functional>
+#include <memory>
 #include <ranges>
+#include <utility>
 #include <variant>
+
+#include <libopenpresso/interfaces/libopenpresso_core.hpp>
+#include <libopenpresso/types.hpp>
 
 using namespace openpressod;
 

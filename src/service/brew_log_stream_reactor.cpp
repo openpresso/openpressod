@@ -3,6 +3,15 @@
 #include "brew_log/brew_log_manager.hpp"
 #include "protobuf_helpers.hpp"
 
+#include <atomic>
+#include <chrono>
+#include <cstddef>
+#include <list>
+#include <mutex>
+#include <utility>
+
+#include <openpresso_proto/openpresso.pb.h>
+
 using namespace openpressod;
 
 BrewLogStreamReactor::BrewLogStreamReactor(BrewLogManager* owner)
