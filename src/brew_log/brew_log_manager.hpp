@@ -57,11 +57,6 @@ public:
   void addStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void removeStreamReactor(const BrewLogStreamReactor* reactor);
 
-  void pushData(libopenpresso::millidegrees_t temperature,
-                libopenpresso::millibars_t pressure,
-                libopenpresso::milligrams_t weight,
-                libopenpresso::milligrams_p_second_t flowRate);
-
 private:
   void brewProfilerCallback(std::variant<step_index_t, stopped_flag_t> step);
   void doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
@@ -78,12 +73,13 @@ private:
 private:
   std::chrono::system_clock::time_point m_brewStartTime;
   std::chrono::steady_clock::duration m_samplingInterval;
+  libopenpresso::BrewProfilerPtr m_brewProfiler;
   size_t m_currentStep = 0;
   std::vector<BrewLogRecord> m_records;
   std::list<std::unique_ptr<BrewLogStreamReactor>> m_eventsSinks;
   ProceduresSerialExecutor m_executor;
   BrewLogSampler m_sampler;
-  BrewProfilerCallbackResource m_profilerCallback;
+  libopenpresso::callback_descriptor_t m_profilerCallback;
 };
 
 } // namespace openpressod

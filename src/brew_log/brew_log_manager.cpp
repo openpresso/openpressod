@@ -7,7 +7,6 @@
 
 #include <chrono>
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <ranges>
 #include <utility>
@@ -20,15 +19,16 @@ using namespace openpressod;
 
 BrewLogManager::BrewLogManager(const libopenpresso::CorePtr& core, const OpenpressodConfig& config)
 : m_samplingInterval{config.brewLogSamplingInterval()}
+, m_brewProfiler{core->getBrewProfiler(libopenpresso_config_labels::BREW_PROFILER_LABEL)}
 , m_sampler{core, m_samplingInterval}
-, m_profilerCallback{core->getBrewProfiler(libopenpresso_config_labels::BREW_PROFILER_LABEL)
-                       ->registerStepChangeCallback([this](auto step) { brewProfilerCallback(step); })}
+, m_profilerCallback{
+    m_brewProfiler->registerStepChangeCallback([this](auto step) { brewProfilerCallback(step); })}
 {
 }
 
 BrewLogManager::~BrewLogManager()
 {
-  m_profilerCallback.reset();
+  m_brewProfiler->unregisterStepChangeCallback(m_profilerCallback);
   m_sampler.stopSampling();
 }
 
@@ -40,14 +40,6 @@ void BrewLogManager::addStreamReactor(std::unique_ptr<BrewLogStreamReactor> reac
 void BrewLogManager::removeStreamReactor(const BrewLogStreamReactor* reactor)
 {
   m_executor.executeDiscardResult(&BrewLogManager::doRemoveStreamReactor, this, reactor);
-}
-
-void BrewLogManager::pushData(libopenpresso::millidegrees_t temperature,
-                              libopenpresso::millibars_t pressure,
-                              libopenpresso::milligrams_t weight,
-                              libopenpresso::milligrams_p_second_t flowRate)
-{
-  m_executor.executeDiscardResult(&BrewLogManager::doPushData, this, temperature, pressure, weight, flowRate);
 }
 
 void BrewLogManager::doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor)
@@ -106,7 +98,9 @@ void BrewLogManager::brewProfilerCallback(std::variant<step_index_t, stopped_fla
   auto stepVisitor = [this](step_index_t step) {
     if (step == 0) {
       m_executor.executeDiscardResult(&BrewLogManager::doStartBrew, this);
-      m_sampler.startSampling(std::bind_front(&BrewLogManager::doPushData, this));
+      m_sampler.startSampling([this](auto... metrics) {
+        m_executor.executeDiscardResult(&BrewLogManager::doPushData, this, metrics...);
+      });
     }
     else {
       m_executor.executeDiscardResult(&BrewLogManager::doAdvanceStep, this, step);
