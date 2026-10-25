@@ -57,6 +57,9 @@ public:
     pushRecords(std::move(recordsQueue));
   }
 
+  void sendBrewStop();
+  void sendLogCleanUp();
+
 private:
   void pushRecord(BrewLogRecord&& record);
   void pushRecords(std::list<BrewLogRecord>&& recordsQueue);

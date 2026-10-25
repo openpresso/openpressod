@@ -17,10 +17,12 @@ using namespace openpressod;
 
 AsyncEventDispatcher::AsyncEventDispatcher(std::unique_ptr<StateManager> stateManager,
                                            std::unique_ptr<BrewProfileManager> brewProfileManager,
-                                           std::unique_ptr<UserSettingsManager> userSettingsManager)
+                                           std::unique_ptr<UserSettingsManager> userSettingsManager,
+                                           std::shared_ptr<BrewLogManager> brewLogManager)
 : m_stateManager{std::move(stateManager)}
 , m_brewProfileManager{std::move(brewProfileManager)}
 , m_userSettings{std::move(userSettingsManager)}
+, m_brewLogManager(std::move(brewLogManager))
 , m_brewCallback{
     m_stateManager->registerBrewProfilerCallback([this](auto cbData) { brewCallback(cbData); }),
   }
@@ -108,9 +110,15 @@ void AsyncEventDispatcher::doSetPowerState(bool state)
   }
 }
 
-void openpressod::AsyncEventDispatcher::doStartBrew()
+void AsyncEventDispatcher::doStartBrew()
 {
+  if (m_stateManager->getBrewState()) {
+    return;
+  }
+
   m_stateManager->startBrew();
+  m_brewLogManager->startBrew();
+
   BrewState stateChange;
   stateChange.set_value(true);
   for (auto&& sink : m_eventsSinks) {
@@ -118,12 +126,13 @@ void openpressod::AsyncEventDispatcher::doStartBrew()
   }
 }
 
-void openpressod::AsyncEventDispatcher::doStopBrew()
+void AsyncEventDispatcher::doStopBrew()
 {
+  m_brewLogManager->stopBrew();
+
   if (!m_stateManager->getBrewState()) {
     return;
   }
-
   m_stateManager->stopBrew();
 
   BrewState state;
@@ -185,6 +194,8 @@ void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamRe
 void AsyncEventDispatcher::doNotifyBrewStepChange(step_index_t step)
 {
   spdlog::debug("Proceed to brew step {}", step);
+
+  m_brewLogManager->setCurrentStep(step);
 
   BrewProgress progress;
   progress.set_brewstepindex(step);

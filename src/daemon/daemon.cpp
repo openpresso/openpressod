@@ -42,15 +42,14 @@ Daemon::Daemon(const std::string& configPath)
   profileManager->applyBrewProfile(*stateManager);
   settingsManager->applySettings(*stateManager);
 
-  auto dispatcher = std::make_shared<AsyncEventDispatcher>(std::move(stateManager),
-                                                           std::move(profileManager),
-                                                           std::move(settingsManager));
-
   auto brewLogManager = std::make_shared<BrewLogManager>(core, config);
 
+  auto dispatcher = std::make_shared<AsyncEventDispatcher>(
+    std::move(stateManager), std::move(profileManager), std::move(settingsManager), brewLogManager);
+
   m_buttonsHandler = std::make_unique<ButtonsCallbackRegistrator>(dispatcher, core, config);
-  m_service = std::make_unique<ServiceManager>(
-    dispatcher, std::move(brewLogManager), core, std::move(brewTimer), config);
+  m_service =
+    std::make_unique<ServiceManager>(dispatcher, brewLogManager, core, std::move(brewTimer), config);
 }
 
 std::unique_ptr<BrewProfileManager> Daemon::setupBrewProfileManager(const OpenpressodConfig& config)

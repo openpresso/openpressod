@@ -8,10 +8,8 @@
 #include <cstddef>
 #include <list>
 #include <memory>
-#include <variant>
 #include <vector>
 
-#include <boost/scope/unique_resource.hpp>
 #include <libopenpresso/interfaces/brew_profiler.hpp>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/types.hpp>
@@ -21,18 +19,6 @@ namespace openpressod
 
 class BrewLogStreamReactor;
 class OpenpressodConfig;
-
-struct BrewProfilerCallbackResourceDeleter {
-  libopenpresso::BrewProfilerPtr brewProfiler;
-
-  void operator()(libopenpresso::callback_descriptor_t descr)
-  {
-    brewProfiler->unregisterStepChangeCallback(descr);
-  }
-};
-
-using BrewProfilerCallbackResource =
-  boost::scope::unique_resource<libopenpresso::callback_descriptor_t, BrewProfilerCallbackResourceDeleter>;
 
 class BrewLogManager {
   using step_index_t = libopenpresso::interfaces::BrewProfiler::step_index_t;
@@ -57,13 +43,18 @@ public:
   void addStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void removeStreamReactor(const BrewLogStreamReactor* reactor);
 
+  void startBrew();
+  void setCurrentStep(size_t step);
+  void stopBrew();
+  void resetLog();
+
 private:
-  void brewProfilerCallback(std::variant<step_index_t, stopped_flag_t> step);
   void doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void doRemoveStreamReactor(const BrewLogStreamReactor* reactor);
 
   void doStartBrew();
-  void doAdvanceStep(size_t index);
+  void doStopBrew();
+  void doResetLog();
 
   void doPushData(libopenpresso::millidegrees_t temperature,
                   libopenpresso::millibars_t pressure,
@@ -73,13 +64,12 @@ private:
 private:
   std::chrono::system_clock::time_point m_brewStartTime;
   std::chrono::steady_clock::duration m_samplingInterval;
-  libopenpresso::BrewProfilerPtr m_brewProfiler;
-  size_t m_currentStep = 0;
+  bool m_isBrewing = false;
+  std::atomic<size_t> m_currentStep = 0;
   std::vector<BrewLogRecord> m_records;
   std::list<std::unique_ptr<BrewLogStreamReactor>> m_eventsSinks;
   ProceduresSerialExecutor m_executor;
   BrewLogSampler m_sampler;
-  libopenpresso::callback_descriptor_t m_profilerCallback;
 };
 
 } // namespace openpressod
