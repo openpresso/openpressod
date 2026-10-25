@@ -16,7 +16,7 @@ class OpenpressodConfig;
 
 class Daemon {
 public:
-  Daemon(const std::string& configPath);
+  explicit Daemon(const std::string& configPath);
 
 private:
   static void setupLogger(const OpenpressodConfig& config);

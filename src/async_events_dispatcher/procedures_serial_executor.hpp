@@ -37,7 +37,8 @@ public:
   {
     using ret_t = decltype(std::invoke(std::forward<F>(proc), std::forward<Args>(args)...));
     std::packaged_task<ret_t(std::add_rvalue_reference_t<std::decay_t<Args>>...)> task{
-      std::forward<F>(proc)};
+      std::forward<F>(proc),
+    };
     auto ret = task.get_future();
     auto capture = [task = std::move(task), ... args = std::forward<Args>(args)] mutable {
       std::invoke(std::move(task), std::move(args)...);
@@ -58,7 +59,8 @@ public:
   {
     using ret_t = decltype(std::invoke(std::forward<F>(proc), std::forward<Args>(args)...));
     std::packaged_task<ret_t(std::add_rvalue_reference_t<std::decay_t<Args>>...)> task{
-      std::forward<F>(proc)};
+      std::forward<F>(proc),
+    };
     auto capture = [task = std::move(task),
                     cbk = std::forward<C>(callback),
                     ... args = std::forward<Args>(args)] mutable {

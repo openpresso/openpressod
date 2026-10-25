@@ -28,12 +28,12 @@ OpenpressodConfig::OpenpressodConfig(toml::value config)
 
 OpenpressodConfig OpenpressodConfig::fromFile(const std::filesystem::path& configPath)
 {
-  return {toml::parse(configPath)};
+  return OpenpressodConfig{toml::parse(configPath)};
 }
 
 OpenpressodConfig openpressod::OpenpressodConfig::fromString(const std::string& conf)
 {
-  return {toml::parse_str(conf)};
+  return OpenpressodConfig{toml::parse_str(conf)};
 }
 
 std::filesystem::path openpressod::OpenpressodConfig::userSettingsPath() const

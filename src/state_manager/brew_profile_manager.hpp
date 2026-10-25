@@ -15,7 +15,7 @@ class StateManager;
 
 class BrewProfileManager {
 public:
-  BrewProfileManager(const OpenpressodConfig& config);
+  explicit BrewProfileManager(const OpenpressodConfig& config);
   void loadSavedProfile();
   void loadDefaultProfile();
   void saveProfile(const BrewProfile& profile);

@@ -9,8 +9,8 @@ namespace openpressod
 {
 
 class BrewTimer {
-  static constexpr uint32_t RUNNING_FLAG = 1 << 31;
-  static constexpr uint32_t VALUE_MASK = ~(1 << 31);
+  static constexpr uint32_t RUNNING_FLAG = 1U << 31U;
+  static constexpr uint32_t VALUE_MASK = ~RUNNING_FLAG;
 
 public:
   void start() noexcept;

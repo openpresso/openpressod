@@ -13,7 +13,7 @@ class StateManager;
 
 class UserSettingsManager {
 public:
-  UserSettingsManager(const OpenpressodConfig& config);
+  explicit UserSettingsManager(const OpenpressodConfig& config);
   void loadSavedSettings();
   void loadDefaultSettings();
   void saveSettings(const UserSettings& settings);

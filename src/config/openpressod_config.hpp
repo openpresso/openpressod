@@ -110,7 +110,7 @@ public:
   libopenpresso::PidSettings steamActiveTemperatureControllerPidSettings() const;
 
 private:
-  OpenpressodConfig(toml::value config);
+  explicit OpenpressodConfig(toml::value config);
 
 private:
   toml::value m_config;
