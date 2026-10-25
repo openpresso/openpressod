@@ -53,11 +53,20 @@ void BrewLogStreamReactor::sendBrewStart(std::chrono::steady_clock::duration sam
   m_currentStep = 0;
 }
 
-void BrewLogStreamReactor::sendBrewStop()
+void BrewLogStreamReactor::sendBrewStop(size_t finalStep)
 {
+  std::list<BrewLogRecord> queue;
+  processStepChange(finalStep, queue);
+
   BrewLogRecord brewRecord;
   brewRecord.mutable_stopflag();
-  pushRecord(std::move(brewRecord));
+  if (queue.empty()) {
+    pushRecord(std::move(brewRecord));
+  }
+  else {
+    queue.push_back(std::move(brewRecord));
+    pushRecords(std::move(queue));
+  }
 }
 
 void BrewLogStreamReactor::sendLogCleanUp()

@@ -57,7 +57,7 @@ public:
     pushRecords(std::move(recordsQueue));
   }
 
-  void sendBrewStop();
+  void sendBrewStop(size_t finalStep);
   void sendLogCleanUp();
 
 private:

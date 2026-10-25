@@ -34,6 +34,7 @@ TEST(OpenpressodConfig, DefaultValues)
   EXPECT_EQ("/dev/i2c-0", config.i2cBus());
   EXPECT_EQ("/dev/gpiochip0", config.gpioChip());
   EXPECT_FALSE(config.pidStateMonitoringEnabled());
+  EXPECT_EQ(100ms, config.brewLogSamplingInterval());
 
   // [service] defaults
   EXPECT_EQ("/run/openpresso/openpresso.sock", config.socketPath());
@@ -224,6 +225,7 @@ TEST(OpenpressodConfig, FullConfig)
   EXPECT_EQ("/dev/i2c-1", config.i2cBus());
   EXPECT_EQ("/dev/gpiochip4", config.gpioChip());
   EXPECT_TRUE(config.pidStateMonitoringEnabled());
+  EXPECT_EQ(25ms, config.brewLogSamplingInterval());
 
   // [service]
   EXPECT_EQ("/tmp/custom.sock", config.socketPath());

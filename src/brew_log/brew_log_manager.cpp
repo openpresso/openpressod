@@ -67,7 +67,7 @@ void BrewLogManager::doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> re
     m_eventsSinks.back()->sendBrewStart(m_samplingInterval, m_brewStartTime);
     m_eventsSinks.back()->sendRecords(m_records);
     if (!m_isBrewing) {
-      m_eventsSinks.back()->sendBrewStop();
+      m_eventsSinks.back()->sendBrewStop(m_currentStep.load(std::memory_order_relaxed));
     }
   }
 }
@@ -95,7 +95,7 @@ void BrewLogManager::doStopBrew()
   }
 
   for (auto&& sink : m_eventsSinks) {
-    sink->sendBrewStop();
+    sink->sendBrewStop(m_currentStep.load(std::memory_order_relaxed));
   }
   m_isBrewing = false;
 }
