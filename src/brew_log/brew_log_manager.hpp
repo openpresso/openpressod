@@ -4,6 +4,7 @@
 #include "brew_log_sampler.hpp"
 #include "utils/procedures_serial_executor.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <list>

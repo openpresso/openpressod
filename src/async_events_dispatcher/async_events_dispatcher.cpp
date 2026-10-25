@@ -1,5 +1,6 @@
 #include "async_events_dispatcher.hpp"
 
+#include "brew_log/brew_log_manager.hpp"
 #include "service/events_stream_reactor.hpp"
 #include "state_manager/brew_profile_manager.hpp"
 #include "state_manager/state_manager.hpp"
