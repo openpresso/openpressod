@@ -49,6 +49,8 @@ public:
   void setBrewTemperature(libopenpresso::millidegrees_t temperature);
   void setSteamTemperature(libopenpresso::millidegrees_t temperature);
 
+  uint32_t brewGeneration() const noexcept;
+
   std::shared_ptr<const BrewTimer> brewTimer() const noexcept;
 
   HeatingStatus heatingStatus() const noexcept;
@@ -57,7 +59,7 @@ public:
   void setBrewSteps(const Steps& steps)
   {
     if (m_brewProfiler->isActive()) {
-      throw std::runtime_error{"Cannot set brew steps sequence brewing"};
+      throw std::runtime_error{"Cannot set brew steps sequence while brewing"};
     }
     m_brewProfiler->setSteps({steps.begin(), steps.end()});
   }
@@ -84,6 +86,7 @@ public:
 private:
   bool m_power = false;
   bool m_steam = false;
+  uint32_t m_brewGeneration = 0;
   std::shared_ptr<BrewTimer> m_brewTimer;
   brew_profiler_ptr_t m_brewProfiler;
   temperature_controller_ptr_t m_brewTemperatureController;

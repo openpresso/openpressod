@@ -11,6 +11,7 @@
 
 #include <list>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 #include <variant>
 
@@ -98,6 +99,7 @@ private:
   void notifyHeatingStatusChange(HeatingStatus status);
 
 private:
+  size_t m_brewProfileGeneration = 0;
   std::unique_ptr<StateManager> m_stateManager;
   std::unique_ptr<BrewProfileManager> m_brewProfileManager;
   std::unique_ptr<UserSettingsManager> m_userSettings;
@@ -118,9 +120,14 @@ inline void AsyncEventDispatcher::resetWeight(Cb&& callback)
 template <typename Cb>
 inline void AsyncEventDispatcher::getBrewProfile(Cb&& callback)
 {
-  m_executor.executeWithCallback(&BrewProfileManager::getProfile,
-                                 std::forward<Cb>(callback),
-                                 m_brewProfileManager.get());
+  m_executor.executeWithCallback(
+    [this] {
+      BrewProfileInfo profileInfo;
+      profileInfo.mutable_profile()->CopyFrom(m_brewProfileManager->getProfile());
+      profileInfo.set_generation(m_brewProfileGeneration);
+      return profileInfo;
+    },
+    std::forward<Cb>(callback));
 }
 
 template <typename Cb>
@@ -128,11 +135,18 @@ inline void AsyncEventDispatcher::setBrewProfile(const BrewProfile* profile, Cb&
 {
   m_executor.executeWithCallback(
     [this, profile] {
+      if (m_stateManager->getBrewState()) {
+        throw std::runtime_error{"Cannot change profile while brewing"};
+      }
       m_brewProfileManager->saveProfile(*profile);
       m_brewProfileManager->applyBrewProfile(*m_stateManager);
-      m_brewLogManager->resetLog();
+
+      BrewProfileInfo profileUpdate;
+      profileUpdate.mutable_profile()->CopyFrom(*profile);
+      profileUpdate.set_generation(++m_brewProfileGeneration);
+
       for (auto&& sink : m_eventsSinks) {
-        sink->notifyChanged(*profile);
+        sink->notifyChanged(profileUpdate);
       }
     },
     std::forward<Cb>(callback));
@@ -155,9 +169,15 @@ inline void AsyncEventDispatcher::setPowerState(bool state, Cb&& callback)
 template <typename Cb>
 inline void AsyncEventDispatcher::getBrewState(Cb&& callback)
 {
-  m_executor.executeWithCallback(&StateManager::getBrewState,
-                                 std::forward<Cb>(callback),
-                                 m_stateManager.get());
+  m_executor.executeWithCallback(
+    [this] {
+      BrewState state;
+      state.set_isactive(m_stateManager->getBrewState());
+      state.set_brewid(m_stateManager->brewGeneration());
+      state.set_profilegeneration(m_brewProfileGeneration);
+      return state;
+    },
+    std::forward<Cb>(callback));
 }
 
 template <typename Cb>

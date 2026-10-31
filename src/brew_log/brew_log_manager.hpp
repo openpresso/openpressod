@@ -4,7 +4,6 @@
 #include "brew_log_sampler.hpp"
 #include "utils/procedures_serial_executor.hpp"
 
-#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <list>
@@ -33,6 +32,12 @@ class BrewLogManager {
     size_t step;
   };
 
+  struct CompletedBrewLog {
+    std::chrono::system_clock::time_point brewStartTime;
+    std::chrono::steady_clock::duration samplingInterval;
+    std::vector<BrewLogRecord> records;
+  };
+
 public:
   BrewLogManager(const libopenpresso::CorePtr& core, const OpenpressodConfig& config);
   BrewLogManager(const BrewLogManager&) = delete;
@@ -44,31 +49,34 @@ public:
   void addStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void removeStreamReactor(const BrewLogStreamReactor* reactor);
 
-  void startBrew();
+  void startBrew(uint32_t brewId);
   void setCurrentStep(size_t step);
   void stopBrew();
-  void resetLog();
 
 private:
   void doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void doRemoveStreamReactor(const BrewLogStreamReactor* reactor);
 
-  void doStartBrew();
+  void doStartBrew(uint32_t brewId);
   void doStopBrew();
-  void doResetLog();
 
   void doPushData(libopenpresso::millidegrees_t temperature,
                   libopenpresso::millibars_t pressure,
                   libopenpresso::milligrams_t weight,
-                  libopenpresso::milligrams_p_second_t flowRate);
+                  libopenpresso::milligrams_p_second_t flowRate,
+                  size_t stepIndex);
 
 private:
+  size_t m_maxBrewLogsCount;
+  std::list<std::pair<uint32_t, CompletedBrewLog>> m_completedLogs;
+
   std::chrono::system_clock::time_point m_brewStartTime;
   std::chrono::steady_clock::duration m_samplingInterval;
-  bool m_isBrewing = false;
-  std::atomic<size_t> m_currentStep = 0;
+  std::optional<uint32_t> m_brewId;
   std::vector<BrewLogRecord> m_records;
+
   std::list<std::unique_ptr<BrewLogStreamReactor>> m_eventsSinks;
+  std::list<std::unique_ptr<BrewLogStreamReactor>> m_activeEventSinks;
   ProceduresSerialExecutor m_executor;
   BrewLogSampler m_sampler;
 };

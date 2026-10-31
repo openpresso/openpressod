@@ -38,7 +38,7 @@ public:
 
   grpc::ServerUnaryReactor* getBrewProfile(grpc::CallbackServerContext* context,
                                            const google::protobuf::Empty* request,
-                                           BrewProfile* response) override;
+                                           BrewProfileInfo* response) override;
 
   grpc::ServerUnaryReactor* setBrewProfile(grpc::CallbackServerContext* context,
                                            const BrewProfile* request,
@@ -78,8 +78,8 @@ public:
   grpc::ServerWriteReactor<Metrics>* metrics(grpc::CallbackServerContext* context,
                                              const MetricsRequest* request) override;
 
-  grpc::ServerWriteReactor<BrewLogRecord>* brewLog(grpc::CallbackServerContext* context,
-                                                   const google::protobuf::Empty* request) override;
+  grpc::ServerWriteReactor<BrewLog>* brewLog(grpc::CallbackServerContext* context,
+                                             const BrewLogRequest* request) override;
 
 private:
   static auto makeVoidCallback(grpc::ServerUnaryReactor* reactor);

@@ -1,6 +1,7 @@
 #ifndef BREW_LOG_SAMPLER_HPP
 #define BREW_LOG_SAMPLER_HPP
 
+#include <atomic>
 #include <chrono>
 #include <future>
 #include <utility>
@@ -22,6 +23,7 @@ public:
   template <typename T>
   void startSampling(T&& callback)
   {
+    setCurrentStep(0);
     auto task = [stop = m_samplingStopFlag.get_future(), callback = std::forward<T>(callback), this] {
       auto nextSample = std::chrono::steady_clock::now();
       // NOLINTBEGIN(cppcoreguidelines-avoid-do-while)
@@ -30,7 +32,8 @@ public:
                     m_temperatureSensor->getTemperature(),
                     m_pressureSensor->getPressure(),
                     m_weightSensor->getWeight(),
-                    m_weightSensor->getFlowRate());
+                    m_weightSensor->getFlowRate(),
+                    m_currentStep.load(std::memory_order_relaxed));
         nextSample += m_samplingInterval;
       } while (stop.wait_until(nextSample) == std::future_status::timeout);
       // NOLINTEND(cppcoreguidelines-avoid-do-while)
@@ -40,6 +43,7 @@ public:
     m_isRunning = true;
   }
   void stopSampling();
+  void setCurrentStep(size_t step);
 
 private:
   bool m_isRunning = false;
@@ -47,6 +51,7 @@ private:
   libopenpresso::TemperatureSensorPtr m_temperatureSensor;
   libopenpresso::WeightSensorPtr m_weightSensor;
   std::chrono::steady_clock::duration m_samplingInterval;
+  std::atomic<size_t> m_currentStep = 0;
   std::future<void> m_sampligTask;
   std::promise<void> m_samplingStopFlag;
 };

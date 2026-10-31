@@ -3,11 +3,9 @@
 #include "config/openpressod_config.hpp"
 #include "service/brew_log_stream_reactor.hpp"
 
-#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <memory>
-#include <ranges>
 #include <utility>
 
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
@@ -16,7 +14,8 @@
 using namespace openpressod;
 
 BrewLogManager::BrewLogManager(const libopenpresso::CorePtr& core, const OpenpressodConfig& config)
-: m_samplingInterval{config.brewLogSamplingInterval()}
+: m_maxBrewLogsCount{config.brewLogsRetantionCount()}
+, m_samplingInterval{config.brewLogSamplingInterval()}
 , m_sampler{core, m_samplingInterval}
 {
 }
@@ -36,9 +35,9 @@ void BrewLogManager::removeStreamReactor(const BrewLogStreamReactor* reactor)
   m_executor.executeDiscardResult(&BrewLogManager::doRemoveStreamReactor, this, reactor);
 }
 
-void BrewLogManager::startBrew()
+void BrewLogManager::startBrew(uint32_t brewId)
 {
-  m_executor.executeDiscardResult(&BrewLogManager::doStartBrew, this);
+  m_executor.executeDiscardResult(&BrewLogManager::doStartBrew, this, brewId);
   m_sampler.startSampling([this](auto... metrics) {
     m_executor.executeDiscardResult(&BrewLogManager::doPushData, this, metrics...);
   });
@@ -46,7 +45,7 @@ void BrewLogManager::startBrew()
 
 void BrewLogManager::setCurrentStep(size_t step)
 {
-  m_currentStep.store(step, std::memory_order_relaxed);
+  m_sampler.setCurrentStep(step);
 }
 
 void BrewLogManager::stopBrew()
@@ -55,74 +54,83 @@ void BrewLogManager::stopBrew()
   m_executor.executeDiscardResult(&BrewLogManager::doStopBrew, this);
 }
 
-void BrewLogManager::resetLog()
-{
-  m_executor.executeDiscardResult(&BrewLogManager::doResetLog, this);
-}
-
 void BrewLogManager::doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor)
 {
-  m_eventsSinks.push_back(std::move(reactor));
-  if (!m_records.empty() || m_isBrewing) {
-    m_eventsSinks.back()->sendBrewStart(m_samplingInterval, m_brewStartTime);
-    m_eventsSinks.back()->sendRecords(m_records);
-    if (!m_isBrewing) {
-      m_eventsSinks.back()->sendBrewStop(m_currentStep.load(std::memory_order_relaxed));
-    }
+  if (m_brewId.has_value() && reactor->brewId() == m_brewId.value()) {
+    reactor->sendBrewStart(m_samplingInterval, m_brewStartTime, m_records);
+    m_activeEventSinks.push_back(std::move(reactor));
+    return;
   }
+
+  auto logIt =
+    std::ranges::find(m_completedLogs, reactor->brewId(), &decltype(m_completedLogs)::value_type::first);
+  if (logIt == m_completedLogs.end()) {
+    reactor->sendLogNotFound();
+  }
+  else {
+    reactor->sendCompletedBrew(logIt->second.samplingInterval,
+                               logIt->second.brewStartTime,
+                               logIt->second.records);
+  }
+  m_eventsSinks.push_back(std::move(reactor));
 }
 
 void BrewLogManager::doRemoveStreamReactor(const BrewLogStreamReactor* reactor)
 {
-  m_eventsSinks.remove_if([reactor](auto&& val) { return val.get() == reactor; });
+  if (m_brewId.has_value() && reactor->brewId() == m_brewId.value()) {
+    m_activeEventSinks.remove_if([reactor](auto&& val) { return val.get() == reactor; });
+  }
+  else {
+    m_eventsSinks.remove_if([reactor](auto&& val) { return val.get() == reactor; });
+  }
 }
 
-void BrewLogManager::doStartBrew()
+void BrewLogManager::doStartBrew(uint32_t brewId)
 {
   m_records.clear();
-  m_currentStep.store(0, std::memory_order_relaxed);
-  m_isBrewing = true;
   m_brewStartTime = std::chrono::system_clock::now();
-  for (auto&& sink : m_eventsSinks) {
-    sink->sendBrewStart(m_samplingInterval, m_brewStartTime);
-  }
+  m_brewId = brewId;
 }
 
 void BrewLogManager::doStopBrew()
 {
-  if (!m_isBrewing) {
+  if (!m_brewId.has_value()) {
     return;
   }
 
-  for (auto&& sink : m_eventsSinks) {
-    sink->sendBrewStop(m_currentStep.load(std::memory_order_relaxed));
+  for (auto&& sink : m_activeEventSinks) {
+    sink->sendBrewStop();
   }
-  m_isBrewing = false;
-}
+  m_eventsSinks.splice(m_eventsSinks.end(), m_activeEventSinks);
 
-void BrewLogManager::doResetLog()
-{
-  m_records.clear();
-  for (auto&& sink : m_eventsSinks) {
-    sink->sendLogCleanUp();
+  m_completedLogs.emplace_back(std::exchange(m_brewId, {}).value(),
+                               CompletedBrewLog{
+                                 .brewStartTime = m_brewStartTime,
+                                 .samplingInterval = m_samplingInterval,
+                                 .records = std::move(m_records),
+                               });
+
+  if (m_completedLogs.size() > m_maxBrewLogsCount) {
+    m_completedLogs.pop_front();
   }
 }
 
 void BrewLogManager::doPushData(libopenpresso::millidegrees_t temperature,
                                 libopenpresso::millibars_t pressure,
                                 libopenpresso::milligrams_t weight,
-                                libopenpresso::milligrams_p_second_t flowRate)
+                                libopenpresso::milligrams_p_second_t flowRate,
+                                size_t stepIndex)
 {
   BrewLogRecord record{
     .temperature = temperature,
     .pressure = pressure,
     .weight = weight,
     .flowRate = flowRate,
-    .step = m_currentStep.load(std::memory_order_relaxed),
+    .step = stepIndex,
   };
 
-  for (auto&& sink : m_eventsSinks) {
-    sink->sendRecords(std::ranges::single_view{record});
+  for (auto&& sink : m_activeEventSinks) {
+    sink->sendRecord(record);
   }
 
   m_records.push_back(record);

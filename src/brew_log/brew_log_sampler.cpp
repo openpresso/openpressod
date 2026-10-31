@@ -2,6 +2,7 @@
 
 #include "config/libopenpresso_config_labels.hpp"
 
+#include <atomic>
 #include <chrono>
 
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
@@ -28,4 +29,9 @@ void BrewLogSampler::stopSampling()
 
   m_isRunning = false;
   m_samplingStopFlag = {};
+}
+
+void BrewLogSampler::setCurrentStep(size_t step)
+{
+  m_currentStep.store(step, std::memory_order_relaxed);
 }

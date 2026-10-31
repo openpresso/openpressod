@@ -20,7 +20,7 @@ namespace openpressod
 
 class BrewLogManager;
 
-class BrewLogStreamReactor final : public grpc::ServerWriteReactor<BrewLogRecord> {
+class BrewLogStreamReactor final : public grpc::ServerWriteReactor<BrewLog> {
   enum class WriteStatus : uint8_t {
     Idle,
     InProgress,
@@ -28,52 +28,84 @@ class BrewLogStreamReactor final : public grpc::ServerWriteReactor<BrewLogRecord
   };
 
 public:
-  explicit BrewLogStreamReactor(BrewLogManager* owner);
+  explicit BrewLogStreamReactor(BrewLogManager* owner, uint32_t brewId);
 
   void OnWriteDone(bool ok) override;
   void OnCancel() override;
   void OnDone() override;
 
-  void sendBrewStart(std::chrono::steady_clock::duration samplingInterval,
-                     std::chrono::system_clock::time_point startPoint);
+  uint32_t brewId() const noexcept;
 
   template <std::ranges::input_range R>
-  void sendRecords(const R& records)
+  void sendBrewStart(std::chrono::steady_clock::duration samplingInterval,
+                     std::chrono::system_clock::time_point startPoint,
+                     const R& records)
   {
-    std::list<BrewLogRecord> recordsQueue;
-
-    for (auto&& record : records) {
-      processStepChange(record.step, recordsQueue);
-
-      BrewLogRecord brewRecord;
-      brewRecord.mutable_metrics()->set_temperature(record.temperature);
-      brewRecord.mutable_metrics()->set_pressure(record.pressure);
-      brewRecord.mutable_metrics()->set_weight(record.weight);
-      brewRecord.mutable_metrics()->set_flowrate(record.flowRate);
-
-      recordsQueue.push_back(std::move(brewRecord));
-    }
-
-    pushRecords(std::move(recordsQueue));
+    std::list<BrewLog> queue = {makeBrewStart(samplingInterval, startPoint)};
+    queue.splice(queue.end(), makeRecords(records));
+    pushRecords(std::move(queue));
   }
 
-  void sendBrewStop(size_t finalStep);
-  void sendLogCleanUp();
+  template <typename T>
+  void sendRecord(const T& recordData)
+  {
+    pushRecord(makeRecord(recordData));
+  }
+
+  void sendBrewStop();
+  void sendLogNotFound();
+
+  template <std::ranges::input_range R>
+  void sendCompletedBrew(std::chrono::steady_clock::duration samplingInterval,
+                         std::chrono::system_clock::time_point startPoint,
+                         const R& records)
+  {
+    std::list<BrewLog> queue = {makeBrewStart(samplingInterval, startPoint)};
+    queue.splice(queue.end(), makeRecords(records));
+    queue.push_back(makeBrewStop());
+    pushRecords(std::move(queue));
+  }
 
 private:
-  void pushRecord(BrewLogRecord&& record);
-  void pushRecords(std::list<BrewLogRecord>&& recordsQueue);
-  void processStepChange(size_t stepIndex, std::list<BrewLogRecord>& queue);
+  void pushRecords(std::list<BrewLog>&& recordsQueue);
+  void pushRecord(BrewLog record);
   void worker();
 
+  static BrewLog makeBrewStart(std::chrono::steady_clock::duration samplingInterval,
+                               std::chrono::system_clock::time_point startPoint);
+
+  static BrewLog makeBrewStop();
+
+  template <typename T>
+  static BrewLog makeRecord(const T& recordData)
+  {
+    BrewLog brewRecord;
+    brewRecord.mutable_record()->set_temperature(recordData.temperature);
+    brewRecord.mutable_record()->set_pressure(recordData.pressure);
+    brewRecord.mutable_record()->set_weight(recordData.weight);
+    brewRecord.mutable_record()->set_flowrate(recordData.flowRate);
+    brewRecord.mutable_record()->set_stepindex(recordData.step);
+    return brewRecord;
+  }
+
+  template <std::ranges::input_range R>
+  std::list<BrewLog> makeRecords(const R& records)
+  {
+    auto recordsView =
+      records | std::views::transform([](auto&& record) { return makeRecord(record); });
+
+    return {recordsView.begin(), recordsView.end()};
+  }
+
 private:
+  uint32_t m_brewId;
   size_t m_currentStep = 0;
   std::atomic<WriteStatus> m_writeStatus = WriteStatus::Idle;
   BrewLogManager* m_owner;
   std::mutex m_queueLock;
   std::condition_variable m_queueCv;
   bool m_cancelled = false;
-  std::list<BrewLogRecord> m_recordsQueue;
+  std::list<BrewLog> m_recordsQueue;
   std::thread m_worker;
 };
 

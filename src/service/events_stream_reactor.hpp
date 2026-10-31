@@ -33,7 +33,7 @@ public:
   void notifyChanged(const PowerState& powerState);
   void notifyChanged(const BrewState& brewState);
   void notifyChanged(const SteamModeState& steamModeState);
-  void notifyChanged(const BrewProfile& brewProfile);
+  void notifyChanged(const BrewProfileInfo& brewProfile);
   void notifyChanged(const UserSettings& userSettings);
   void notifyChanged(const BrewProgress& brewProgress);
   void notifyChanged(const HeaterState& heaterState);

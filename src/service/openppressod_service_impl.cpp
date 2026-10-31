@@ -88,10 +88,10 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::setUserSettings(grpc::Callback
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::getBrewProfile(
   grpc::CallbackServerContext* context,
   [[maybe_unused]] const google::protobuf::Empty* request,
-  BrewProfile* response)
+  BrewProfileInfo* response)
 {
   auto* reactor = context->DefaultReactor();
-  auto callback = [reactor, response](std::future<const BrewProfile&> result) {
+  auto callback = [reactor, response](std::future<BrewProfileInfo> result) {
     try {
       response->CopyFrom(result.get());
       reactor->Finish(grpc::Status::OK);
@@ -165,9 +165,9 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::getBrewState(
   grpc::CallbackServerContext* context, [[maybe_unused]] const google::protobuf::Empty* request, BrewState* response)
 {
   auto* reactor = context->DefaultReactor();
-  auto callback = [reactor, response](std::future<bool> result) {
+  auto callback = [reactor, response](std::future<BrewState> result) {
     try {
-      response->set_value(result.get());
+      response->CopyFrom(result.get());
       reactor->Finish(grpc::Status::OK);
     }
     catch (const std::exception& e) {
@@ -234,11 +234,10 @@ grpc::ServerWriteReactor<Metrics>* OpenpressodServiceImpl::metrics(
   }
 }
 
-grpc::ServerWriteReactor<BrewLogRecord>* OpenpressodServiceImpl::brewLog(
-  [[maybe_unused]] grpc::CallbackServerContext* context,
-  [[maybe_unused]] const google::protobuf::Empty* request)
+grpc::ServerWriteReactor<BrewLog>* OpenpressodServiceImpl::brewLog(
+  [[maybe_unused]] grpc::CallbackServerContext* context, const BrewLogRequest* request)
 {
-  auto reactor = std::make_unique<BrewLogStreamReactor>(m_brewLogManager.get());
+  auto reactor = std::make_unique<BrewLogStreamReactor>(m_brewLogManager.get(), request->brewid());
   auto* raw = reactor.get();
   m_brewLogManager->addStreamReactor(std::move(reactor));
   return raw;

@@ -21,7 +21,7 @@ public:
   void saveProfile(const BrewProfile& profile);
   const BrewProfile& getProfile() const noexcept;
 
-  void applyBrewProfile(StateManager& stateManager) const;
+  void applyBrewProfile(StateManager& stateManager);
 
 private:
   static BrewProfile makeDefaultProfile(const OpenpressodConfig& config);

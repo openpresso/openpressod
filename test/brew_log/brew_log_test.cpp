@@ -20,6 +20,9 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
+#include <exception>
 #include <filesystem>
 #include <future>
 #include <memory>
@@ -62,12 +65,12 @@ TEST(BrewLogSampler, SamplesAllMetricsAndCanStopAndRestart)
   BrewLogSampler sampler(core, 10ms);
   std::mutex mutex;
   std::condition_variable sampled;
-  using Sample = std::tuple<int, int, int, int>;
+  using Sample = std::tuple<int, int, int, int, size_t>;
   std::vector<Sample> samples;
-  auto capture = [&](auto t, auto p, auto w, auto f) {
+  auto capture = [&](auto t, auto p, auto w, auto f, auto step) {
     {
       std::scoped_lock lock(mutex);
-      samples.emplace_back(t, p, w, f);
+      samples.emplace_back(t, p, w, f, step);
     }
     sampled.notify_one();
   };
@@ -83,7 +86,7 @@ TEST(BrewLogSampler, SamplesAllMetricsAndCanStopAndRestart)
   {
     std::scoped_lock lock(mutex);
     stoppedCount = samples.size();
-    EXPECT_THAT(samples, Each(Sample{93'000, 8'500, 17'000, 2'100}));
+    EXPECT_THAT(samples, Each(Sample{93'000, 8'500, 17'000, 2'100, 0}));
   }
   std::this_thread::sleep_for(30ms);
   {
@@ -91,37 +94,50 @@ TEST(BrewLogSampler, SamplesAllMetricsAndCanStopAndRestart)
     EXPECT_EQ(stoppedCount, samples.size());
   }
 
+  sampler.setCurrentStep(2);
   sampler.startSampling(capture);
   EXPECT_TRUE(waitFor(stoppedCount + 1));
   sampler.stopSampling();
   sampler.stopSampling();
+  EXPECT_EQ((Sample{93'000, 8'500, 17'000, 2'100, 0}), samples.back());
 }
 
 class BrewLogRpcTest : public Test {
 protected:
   struct Stream {
     grpc::ClientContext context;
-    std::unique_ptr<grpc::ClientReader<BrewLogRecord>> reader;
+    std::unique_ptr<grpc::ClientReader<BrewLog>> reader;
+    bool finished = false;
 
-    Stream(OpenpressoDaemon::Stub& stub, std::chrono::milliseconds deadline = 2s)
+    Stream(OpenpressoDaemon::Stub& stub, uint32_t brewId, std::chrono::milliseconds deadline = 2s)
     {
       context.set_deadline(std::chrono::system_clock::now() + deadline);
-      reader = stub.brewLog(&context, google::protobuf::Empty{});
+      BrewLogRequest request;
+      request.set_brewid(brewId);
+      reader = stub.brewLog(&context, request);
     }
 
     ~Stream()
     {
-      context.TryCancel();
-      reader->Finish();
+      if (!finished) {
+        context.TryCancel();
+        reader->Finish();
+      }
     }
 
-    bool next(BrewLogRecord& record)
+    bool next(BrewLog& record)
     {
       return reader->Read(&record);
     }
+
+    grpc::Status finish()
+    {
+      finished = true;
+      return reader->Finish();
+    }
   };
 
-  void startServer(const std::string& interval = "00:00:01")
+  void startServer(const std::string& interval = "00:00:05", size_t retainedLogs = 10)
   {
     ON_CALL(*core, getTemperatureSensor(libopenpresso_config_labels::TEMPERATURE_SENSOR_LABEL))
       .WillByDefault(Return(temperature));
@@ -133,7 +149,9 @@ protected:
     ON_CALL(*weight, getWeight()).WillByDefault(Return(17'000));
     ON_CALL(*weight, getFlowRate()).WillByDefault(Return(2'100));
 
-    auto config = OpenpressodConfig::fromString("[global]\nbrew_log_sampling_interval = " + interval);
+    auto config =
+      OpenpressodConfig::fromString("[global]\nbrew_log_sampling_interval = " + interval +
+                                    "\nbrew_logs_retantion_count = " + std::to_string(retainedLogs));
     manager = std::make_shared<BrewLogManager>(core, config);
     service = std::make_unique<OpenpressodServiceImpl>(nullptr, manager, nullptr, nullptr);
     grpc::ServerBuilder builder;
@@ -157,9 +175,9 @@ protected:
     manager.reset();
   }
 
-  Stream& subscribe(std::chrono::milliseconds deadline = 2s)
+  Stream& subscribe(uint32_t brewId, std::chrono::milliseconds deadline = 2s)
   {
-    streams.push_back(std::make_unique<Stream>(*stub, deadline));
+    streams.push_back(std::make_unique<Stream>(*stub, brewId, deadline));
     return *streams.back();
   }
 
@@ -177,13 +195,13 @@ protected:
   std::vector<std::unique_ptr<Stream>> streams;
 };
 
-TEST_F(BrewLogRpcTest, StartMetricsStepChangesAndStopAreStreamedInOrder)
+TEST_F(BrewLogRpcTest, StartRecordsWithStepIdsAndStopAreStreamedInOrder)
 {
   startServer("00:00:00.050");
-  auto& stream = subscribe();
   const auto before = std::chrono::system_clock::now();
-  manager->startBrew();
-  BrewLogRecord record;
+  manager->startBrew(1);
+  auto& stream = subscribe(1);
+  BrewLog record;
   ASSERT_TRUE(stream.next(record));
   ASSERT_TRUE(record.has_brewlogstart());
   EXPECT_EQ(0, record.brewlogstart().samplinginterval().seconds());
@@ -194,121 +212,200 @@ TEST_F(BrewLogRpcTest, StartMetricsStepChangesAndStopAreStreamedInOrder)
   EXPECT_LE(started, std::chrono::system_clock::now().time_since_epoch());
 
   ASSERT_TRUE(stream.next(record));
-  ASSERT_TRUE(record.has_metrics());
-  EXPECT_EQ(93'000, record.metrics().temperature());
-  EXPECT_EQ(8'500U, record.metrics().pressure());
-  EXPECT_EQ(17'000, record.metrics().weight());
-  EXPECT_EQ(2'100, record.metrics().flowrate());
+  ASSERT_TRUE(record.has_record());
+  EXPECT_EQ(93'000, record.record().temperature());
+  EXPECT_EQ(8'500U, record.record().pressure());
+  EXPECT_EQ(17'000, record.record().weight());
+  EXPECT_EQ(2'100, record.record().flowrate());
+  EXPECT_EQ(0U, record.record().stepindex());
 
   manager->setCurrentStep(2);
-  ASSERT_TRUE(stream.next(record));
-  ASSERT_TRUE(record.has_stepchange());
-  EXPECT_EQ(1U, record.stepchange().brewstepindex());
-  ASSERT_TRUE(stream.next(record));
-  ASSERT_TRUE(record.has_stepchange());
-  EXPECT_EQ(2U, record.stepchange().brewstepindex());
-  ASSERT_TRUE(stream.next(record));
-  EXPECT_TRUE(record.has_metrics());
+  do {
+    ASSERT_TRUE(stream.next(record));
+    ASSERT_TRUE(record.has_record());
+  } while (record.record().stepindex() != 2);
+  EXPECT_EQ(93'000, record.record().temperature());
+  EXPECT_EQ(2U, record.record().stepindex());
   manager->stopBrew();
-  ASSERT_TRUE(stream.next(record));
-  EXPECT_TRUE(record.has_stopflag());
+  do {
+    ASSERT_TRUE(stream.next(record));
+  } while (record.has_record());
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
+  EXPECT_FALSE(stream.next(record));
+  EXPECT_TRUE(stream.finish().ok());
+
+  auto& replay = subscribe(1);
+  ASSERT_TRUE(replay.next(record));
+  ASSERT_TRUE(record.has_brewlogstart());
+  bool replayedStepTwo = false;
+  while (replay.next(record) && record.has_record()) {
+    EXPECT_THAT(record.record().stepindex(), AnyOf(0U, 2U));
+    replayedStepTwo |= record.record().stepindex() == 2;
+  }
+  EXPECT_TRUE(replayedStepTwo);
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
+  EXPECT_FALSE(replay.next(record));
+  EXPECT_TRUE(replay.finish().ok());
 }
 
 TEST_F(BrewLogRpcTest, LateSubscribersGetCurrentAndCompletedLog)
 {
   startServer();
-  auto& first = subscribe();
-  manager->startBrew();
-  BrewLogRecord record;
+  manager->startBrew(1);
+  auto& first = subscribe(1);
+  BrewLog record;
   ASSERT_TRUE(first.next(record));
   ASSERT_TRUE(first.next(record));
-  ASSERT_TRUE(record.has_metrics());
+  ASSERT_TRUE(record.has_record());
 
-  auto& during = subscribe();
+  auto& during = subscribe(1);
   ASSERT_TRUE(during.next(record));
   EXPECT_TRUE(record.has_brewlogstart());
   ASSERT_TRUE(during.next(record));
-  EXPECT_TRUE(record.has_metrics());
+  EXPECT_TRUE(record.has_record());
 
   manager->stopBrew();
   ASSERT_TRUE(during.next(record));
-  EXPECT_TRUE(record.has_stopflag());
-  auto& after = subscribe();
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
+  EXPECT_FALSE(during.next(record));
+  EXPECT_TRUE(during.finish().ok());
+  ASSERT_TRUE(first.next(record));
+  EXPECT_TRUE(record.has_brewlogstop());
+  EXPECT_FALSE(first.next(record));
+  EXPECT_TRUE(first.finish().ok());
+
+  auto& after = subscribe(1);
   ASSERT_TRUE(after.next(record));
   EXPECT_TRUE(record.has_brewlogstart());
   ASSERT_TRUE(after.next(record));
-  EXPECT_TRUE(record.has_metrics());
+  EXPECT_TRUE(record.has_record());
   ASSERT_TRUE(after.next(record));
-  EXPECT_TRUE(record.has_stopflag());
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
+  EXPECT_FALSE(after.next(record));
+  EXPECT_TRUE(after.finish().ok());
 }
 
-TEST_F(BrewLogRpcTest, NewBrewReplacesPreviouslyRetainedLog)
+TEST_F(BrewLogRpcTest, RetainsConfiguredNumberOfCompletedLogs)
 {
-  startServer();
-  manager->startBrew();
-  manager->stopBrew();
-  ON_CALL(*temperature, getTemperature()).WillByDefault(Return(94'000));
-  manager->startBrew();
-  manager->stopBrew();
+  startServer("00:00:05", 2);
+  for (uint32_t brewId = 1; brewId <= 3; ++brewId) {
+    manager->startBrew(brewId);
+    manager->stopBrew();
+  }
 
-  auto& replay = subscribe();
-  BrewLogRecord record;
-  ASSERT_TRUE(replay.next(record));
+  BrewLog record;
+  auto& evicted = subscribe(1);
+  ASSERT_TRUE(evicted.next(record));
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_IdNotFound, record.brewlogstop().result());
+  EXPECT_FALSE(evicted.next(record));
+  EXPECT_TRUE(evicted.finish().ok());
+
+  for (uint32_t brewId = 2; brewId <= 3; ++brewId) {
+    auto& retained = subscribe(brewId);
+    ASSERT_TRUE(retained.next(record));
+    EXPECT_TRUE(record.has_brewlogstart());
+    ASSERT_TRUE(retained.next(record));
+    EXPECT_TRUE(record.has_record());
+    ASSERT_TRUE(retained.next(record));
+    ASSERT_TRUE(record.has_brewlogstop());
+    EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
+    EXPECT_FALSE(retained.next(record));
+    EXPECT_TRUE(retained.finish().ok());
+  }
+}
+
+TEST_F(BrewLogRpcTest, ActiveBrewDoesNotConsumeCompletedRetentionSlot)
+{
+  startServer("00:00:05", 1);
+  manager->startBrew(1);
+  manager->stopBrew();
+  manager->startBrew(2);
+
+  BrewLog record;
+  auto& completed = subscribe(1);
+  ASSERT_TRUE(completed.next(record));
   EXPECT_TRUE(record.has_brewlogstart());
-  ASSERT_TRUE(replay.next(record));
-  ASSERT_TRUE(record.has_metrics());
-  EXPECT_EQ(94'000, record.metrics().temperature());
-  ASSERT_TRUE(replay.next(record));
-  EXPECT_TRUE(record.has_stopflag());
+  ASSERT_TRUE(completed.next(record));
+  EXPECT_TRUE(record.has_record());
+  ASSERT_TRUE(completed.next(record));
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
+  EXPECT_FALSE(completed.next(record));
+  EXPECT_TRUE(completed.finish().ok());
+
+  auto& active = subscribe(2);
+  ASSERT_TRUE(active.next(record));
+  EXPECT_TRUE(record.has_brewlogstart());
+  ASSERT_TRUE(active.next(record));
+  EXPECT_TRUE(record.has_record());
+
+  manager->stopBrew();
+  ASSERT_TRUE(active.next(record));
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
+  EXPECT_FALSE(active.next(record));
+  EXPECT_TRUE(active.finish().ok());
+
+  auto& evicted = subscribe(1);
+  ASSERT_TRUE(evicted.next(record));
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_IdNotFound, record.brewlogstop().result());
+  EXPECT_FALSE(evicted.next(record));
+  EXPECT_TRUE(evicted.finish().ok());
 }
 
 TEST_F(BrewLogRpcTest, CancellingOneSubscriberDoesNotStopAnother)
 {
   startServer();
-  auto& cancelled = subscribe();
-  auto& live = subscribe();
+  manager->startBrew(1);
+  auto& cancelled = subscribe(1);
+  auto& live = subscribe(1);
   cancelled.context.TryCancel();
-  manager->startBrew();
-  BrewLogRecord record;
+  BrewLog record;
   ASSERT_TRUE(live.next(record));
   EXPECT_TRUE(record.has_brewlogstart());
   ASSERT_TRUE(live.next(record));
-  EXPECT_TRUE(record.has_metrics());
+  EXPECT_TRUE(record.has_record());
   manager->stopBrew();
   ASSERT_TRUE(live.next(record));
-  EXPECT_TRUE(record.has_stopflag());
+  EXPECT_TRUE(record.has_brewlogstop());
+  EXPECT_FALSE(live.next(record));
+  EXPECT_TRUE(live.finish().ok());
 }
 
-TEST_F(BrewLogRpcTest, ResetNotifiesSubscribersAndClearsReplay)
+TEST_F(BrewLogRpcTest, UnknownBrewIdClosesStreamWithNotFoundResult)
 {
   startServer();
-  auto& live = subscribe();
-  manager->startBrew();
-  BrewLogRecord record;
-  ASSERT_TRUE(live.next(record));
-  ASSERT_TRUE(live.next(record));
+  manager->startBrew(1);
+  auto& stream = subscribe(42);
+  BrewLog record;
+  ASSERT_TRUE(stream.next(record));
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_IdNotFound, record.brewlogstop().result());
+  EXPECT_FALSE(stream.next(record));
+  EXPECT_TRUE(stream.finish().ok());
   manager->stopBrew();
-  ASSERT_TRUE(live.next(record));
-  EXPECT_TRUE(record.has_stopflag());
-  manager->resetLog();
-  ASSERT_TRUE(live.next(record));
-  EXPECT_TRUE(record.has_logcleanedup());
-
-  auto& after = subscribe(250ms);
-  EXPECT_FALSE(after.next(record));
 }
 
-TEST_F(BrewLogRpcTest, ChangingProfileAfterBrewClearsOutdatedLog)
+TEST_F(BrewLogRpcTest, ChangingProfileAfterBrewKeepsCompletedLogById)
 {
   startServer();
-  auto& live = subscribe();
-  manager->startBrew();
-  BrewLogRecord record;
+  manager->startBrew(1);
+  auto& live = subscribe(1);
+  BrewLog record;
   ASSERT_TRUE(live.next(record));
   ASSERT_TRUE(live.next(record));
   manager->stopBrew();
   ASSERT_TRUE(live.next(record));
-  ASSERT_TRUE(record.has_stopflag());
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
+  EXPECT_FALSE(live.next(record));
+  EXPECT_TRUE(live.finish().ok());
 
   struct TempProfileFile {
     std::filesystem::path path =
@@ -344,6 +441,7 @@ TEST_F(BrewLogRpcTest, ChangingProfileAfterBrewClearsOutdatedLog)
   auto status = std::make_unique<StatusManager>(core, config, std::move(leds));
   auto state = std::make_unique<StateManager>(core, std::move(status));
   auto profiles = std::make_unique<BrewProfileManager>(config);
+  auto* profilesPtr = profiles.get();
   auto settings = std::make_unique<UserSettingsManager>(config);
   AsyncEventDispatcher dispatcher(std::move(state), std::move(profiles), std::move(settings), manager);
 
@@ -366,51 +464,120 @@ TEST_F(BrewLogRpcTest, ChangingProfileAfterBrewClearsOutdatedLog)
   });
   ASSERT_EQ(std::future_status::ready, future.wait_for(2s));
   EXPECT_NO_THROW(future.get());
-  ASSERT_TRUE(live.next(record));
-  EXPECT_TRUE(record.has_logcleanedup());
-  auto& after = subscribe(250ms);
+  EXPECT_EQ("new profile", profilesPtr->getProfile().name());
+
+  ON_CALL(*profiler, isActive()).WillByDefault(Return(true));
+  BrewProfile rejectedProfile = profile;
+  rejectedProfile.set_name("rejected profile");
+  std::promise<void> rejected;
+  auto rejectedFuture = rejected.get_future();
+  dispatcher.setBrewProfile(&rejectedProfile, [&](std::future<void> result) {
+    try {
+      result.get();
+      rejected.set_value();
+    }
+    catch (...) {
+      rejected.set_exception(std::current_exception());
+    }
+  });
+  ASSERT_EQ(std::future_status::ready, rejectedFuture.wait_for(2s));
+  EXPECT_THROW(rejectedFuture.get(), std::runtime_error);
+  EXPECT_EQ("new profile", profilesPtr->getProfile().name());
+  ON_CALL(*profiler, isActive()).WillByDefault(Return(false));
+
+  std::promise<BrewProfileInfo> profileInfoResult;
+  auto profileInfoFuture = profileInfoResult.get_future();
+  dispatcher.getBrewProfile([&](std::future<BrewProfileInfo> result) {
+    try {
+      profileInfoResult.set_value(result.get());
+    }
+    catch (...) {
+      profileInfoResult.set_exception(std::current_exception());
+    }
+  });
+  ASSERT_EQ(std::future_status::ready, profileInfoFuture.wait_for(2s));
+  const auto profileInfo = profileInfoFuture.get();
+  EXPECT_EQ(1U, profileInfo.generation());
+  EXPECT_EQ("new profile", profileInfo.profile().name());
+  EXPECT_EQ(94'000, profileInfo.profile().temperature());
+  ASSERT_EQ(1, profileInfo.profile().steps_size());
+  EXPECT_EQ(9'000, profileInfo.profile().steps(0).targetvalue());
+
+  std::promise<BrewState> brewStateResult;
+  auto brewStateFuture = brewStateResult.get_future();
+  dispatcher.getBrewState([&](std::future<BrewState> result) {
+    try {
+      brewStateResult.set_value(result.get());
+    }
+    catch (...) {
+      brewStateResult.set_exception(std::current_exception());
+    }
+  });
+  ASSERT_EQ(std::future_status::ready, brewStateFuture.wait_for(2s));
+  const auto brewState = brewStateFuture.get();
+  EXPECT_FALSE(brewState.isactive());
+  EXPECT_EQ(0U, brewState.brewid());
+  EXPECT_EQ(profileInfo.generation(), brewState.profilegeneration());
+
+  auto& after = subscribe(1);
+  ASSERT_TRUE(after.next(record));
+  EXPECT_TRUE(record.has_brewlogstart());
+  ASSERT_TRUE(after.next(record));
+  EXPECT_TRUE(record.has_record());
+  ASSERT_TRUE(after.next(record));
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
   EXPECT_FALSE(after.next(record));
+  EXPECT_TRUE(after.finish().ok());
 }
 
-TEST_F(BrewLogRpcTest, StepEventWithoutFollowingSampleStillNeedsMarker)
+TEST_F(BrewLogRpcTest, StepWithoutMetricsSnapshotIsNotRecorded)
 {
   startServer();
-  auto& stream = subscribe();
-  manager->startBrew();
-  BrewLogRecord record;
+  manager->startBrew(1);
+  auto& stream = subscribe(1);
+  BrewLog record;
   ASSERT_TRUE(stream.next(record));
   ASSERT_TRUE(stream.next(record));
+  ASSERT_TRUE(record.has_record());
+  EXPECT_EQ(0U, record.record().stepindex());
   manager->setCurrentStep(1);
   manager->stopBrew();
   ASSERT_TRUE(stream.next(record));
-  ASSERT_TRUE(record.has_stepchange()) << "step event was lost before the next metrics sample";
-  EXPECT_EQ(1U, record.stepchange().brewstepindex());
-  ASSERT_TRUE(stream.next(record));
-  EXPECT_TRUE(record.has_stopflag());
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
+  EXPECT_FALSE(stream.next(record));
+  EXPECT_TRUE(stream.finish().ok());
 }
 
-TEST_F(BrewLogRpcTest, LateSubscriberGetsFinalStepWithoutFollowingSample)
+TEST_F(BrewLogRpcTest, RetainedLogOmitsStepWithoutMetricsSnapshot)
 {
   startServer();
-  auto& live = subscribe();
-  manager->startBrew();
-  BrewLogRecord record;
+  manager->startBrew(1);
+  auto& live = subscribe(1);
+  BrewLog record;
   ASSERT_TRUE(live.next(record));
   ASSERT_TRUE(live.next(record));
-  ASSERT_TRUE(record.has_metrics());
+  ASSERT_TRUE(record.has_record());
+  EXPECT_EQ(0U, record.record().stepindex());
   manager->setCurrentStep(1);
   manager->stopBrew();
+  ASSERT_TRUE(live.next(record));
+  EXPECT_TRUE(record.has_brewlogstop());
+  EXPECT_FALSE(live.next(record));
+  EXPECT_TRUE(live.finish().ok());
 
-  auto& replay = subscribe();
+  auto& replay = subscribe(1);
   ASSERT_TRUE(replay.next(record));
   EXPECT_TRUE(record.has_brewlogstart());
   ASSERT_TRUE(replay.next(record));
-  EXPECT_TRUE(record.has_metrics());
+  EXPECT_TRUE(record.has_record());
+  EXPECT_EQ(0U, record.record().stepindex());
   ASSERT_TRUE(replay.next(record));
-  ASSERT_TRUE(record.has_stepchange()) << "retained log lost the final step event";
-  EXPECT_EQ(1U, record.stepchange().brewstepindex());
-  ASSERT_TRUE(replay.next(record));
-  EXPECT_TRUE(record.has_stopflag());
+  ASSERT_TRUE(record.has_brewlogstop());
+  EXPECT_EQ(BrewLogResult_Ok, record.brewlogstop().result());
+  EXPECT_FALSE(replay.next(record));
+  EXPECT_TRUE(replay.finish().ok());
 }
 
 } // namespace

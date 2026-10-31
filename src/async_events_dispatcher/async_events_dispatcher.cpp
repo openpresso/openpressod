@@ -118,10 +118,13 @@ void AsyncEventDispatcher::doStartBrew()
   }
 
   m_stateManager->startBrew();
-  m_brewLogManager->startBrew();
+  m_brewLogManager->startBrew(m_stateManager->brewGeneration());
 
   BrewState stateChange;
-  stateChange.set_value(true);
+  stateChange.set_isactive(true);
+  stateChange.set_brewid(m_stateManager->brewGeneration());
+  stateChange.set_profilegeneration(m_brewProfileGeneration);
+
   for (auto&& sink : m_eventsSinks) {
     sink->notifyChanged(stateChange);
   }
@@ -137,7 +140,10 @@ void AsyncEventDispatcher::doStopBrew()
   m_stateManager->stopBrew();
 
   BrewState state;
-  state.set_value(false);
+  state.set_isactive(false);
+  state.set_brewid(m_stateManager->brewGeneration());
+  state.set_profilegeneration(m_brewProfileGeneration);
+
   for (auto&& sink : m_eventsSinks) {
     sink->notifyChanged(state);
   }
@@ -172,7 +178,9 @@ void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamRe
 
   {
     BrewState state;
-    state.set_value(m_stateManager->getBrewState());
+    state.set_isactive(m_stateManager->getBrewState());
+    state.set_brewid(m_stateManager->brewGeneration());
+    state.set_profilegeneration(m_brewProfileGeneration);
     sink->notifyChanged(state);
   }
 
@@ -188,15 +196,19 @@ void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamRe
     sink->notifyChanged(state);
   }
 
-  sink->notifyChanged(m_brewProfileManager->getProfile());
+  {
+    BrewProfileInfo profileInfo;
+    profileInfo.mutable_profile()->CopyFrom(m_brewProfileManager->getProfile());
+    profileInfo.set_generation(m_brewProfileGeneration);
+    sink->notifyChanged(profileInfo);
+  }
+
   sink->notifyChanged(m_userSettings->getSettings());
 }
 
 void AsyncEventDispatcher::doNotifyBrewStepChange(step_index_t step)
 {
   spdlog::debug("Proceed to brew step {}", step);
-
-  m_brewLogManager->setCurrentStep(step);
 
   BrewProgress progress;
   progress.set_brewstepindex(step);
@@ -216,6 +228,7 @@ void AsyncEventDispatcher::brewCallback(std::variant<step_index_t, stopped_flag_
 {
   auto visitor = overload{
     [this](step_index_t step) {
+      m_brewLogManager->setCurrentStep(step);
       m_executor.executeDiscardResult(&AsyncEventDispatcher::doNotifyBrewStepChange, this, step);
     },
     [this](stopped_flag_t) {

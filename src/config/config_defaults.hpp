@@ -43,6 +43,7 @@ static constexpr auto DEFAULT_TEMPERATURE_D_FILTER_SMOOTHING_PERIOD = 750ms; // 
 static constexpr auto DEFAULT_WEIGHT_D_FILTER_SMOOTHING_PERIOD = 600ms; // NOLINT(misc-include-cleaner)
 static constexpr auto DEFAULT_WATCHDOG_TIMEOUT = 1s;            // NOLINT(misc-include-cleaner)
 static constexpr auto DEFAULT_BREW_LOG_SAMPLING_PERIOD = 100ms; // NOLINT(misc-include-cleaner)
+static constexpr size_t DEFAULT_BREW_LOGS_RETANTION_COUNT = 10z;
 
 static constexpr libopenpresso::i2c_dev_addr_t DEFAULT_ADS1115_ADDR = 0x48;
 static constexpr libopenpresso::i2c_dev_addr_t DEFAULT_NAU7802_ADDR = 0x2a;

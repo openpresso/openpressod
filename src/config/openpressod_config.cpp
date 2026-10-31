@@ -50,6 +50,11 @@ std::chrono::steady_clock::duration OpenpressodConfig::brewLogSamplingInterval()
   return toml::find_or(m_config, "global", "brew_log_sampling_interval", DEFAULT_BREW_LOG_SAMPLING_PERIOD);
 }
 
+size_t OpenpressodConfig::brewLogsRetantionCount() const
+{
+  return toml::find_or(m_config, "global", "brew_logs_retantion_count", DEFAULT_BREW_LOGS_RETANTION_COUNT);
+}
+
 bool OpenpressodConfig::pidStateMonitoringEnabled() const
 {
   return toml::find_or(m_config, "global", "pid_state_monitoring_enabled", DEFAULT_PID_STATE_MONITORING_ENABLE);
@@ -88,7 +93,7 @@ std::filesystem::path OpenpressodConfig::socketPath() const
   return toml::find_or(m_config, "service", "socket_path", OPENPRESSOD_SOCKET_PATH);
 }
 
-bool openpressod::OpenpressodConfig::tcpEnable() const
+bool OpenpressodConfig::tcpEnable() const
 {
   return toml::find_or(m_config, "service", "tcp_enable", DEFAULT_SERVICE_TCP_ENABLE);
 }
