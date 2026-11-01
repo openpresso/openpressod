@@ -1,5 +1,6 @@
 #include "async_events_dispatcher.hpp"
 
+#include "brew_log/brew_log_manager.hpp"
 #include "service/events_stream_reactor.hpp"
 #include "state_manager/brew_profile_manager.hpp"
 #include "state_manager/state_manager.hpp"
@@ -17,10 +18,12 @@ using namespace openpressod;
 
 AsyncEventDispatcher::AsyncEventDispatcher(std::unique_ptr<StateManager> stateManager,
                                            std::unique_ptr<BrewProfileManager> brewProfileManager,
-                                           std::unique_ptr<UserSettingsManager> userSettingsManager)
+                                           std::unique_ptr<UserSettingsManager> userSettingsManager,
+                                           std::shared_ptr<BrewLogManager> brewLogManager)
 : m_stateManager{std::move(stateManager)}
 , m_brewProfileManager{std::move(brewProfileManager)}
 , m_userSettings{std::move(userSettingsManager)}
+, m_brewLogManager(std::move(brewLogManager))
 , m_brewCallback{
     m_stateManager->registerBrewProfilerCallback([this](auto cbData) { brewCallback(cbData); }),
   }
@@ -108,26 +111,39 @@ void AsyncEventDispatcher::doSetPowerState(bool state)
   }
 }
 
-void openpressod::AsyncEventDispatcher::doStartBrew()
+void AsyncEventDispatcher::doStartBrew()
 {
+  if (m_stateManager->getBrewState()) {
+    return;
+  }
+
   m_stateManager->startBrew();
+  m_brewLogManager->startBrew(m_stateManager->brewGeneration());
+
   BrewState stateChange;
-  stateChange.set_value(true);
+  stateChange.set_isactive(true);
+  stateChange.set_brewid(m_stateManager->brewGeneration());
+  stateChange.set_profilegeneration(m_brewProfileGeneration);
+
   for (auto&& sink : m_eventsSinks) {
     sink->notifyChanged(stateChange);
   }
 }
 
-void openpressod::AsyncEventDispatcher::doStopBrew()
+void AsyncEventDispatcher::doStopBrew()
 {
+  m_brewLogManager->stopBrew();
+
   if (!m_stateManager->getBrewState()) {
     return;
   }
-
   m_stateManager->stopBrew();
 
   BrewState state;
-  state.set_value(false);
+  state.set_isactive(false);
+  state.set_brewid(m_stateManager->brewGeneration());
+  state.set_profilegeneration(m_brewProfileGeneration);
+
   for (auto&& sink : m_eventsSinks) {
     sink->notifyChanged(state);
   }
@@ -162,7 +178,9 @@ void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamRe
 
   {
     BrewState state;
-    state.set_value(m_stateManager->getBrewState());
+    state.set_isactive(m_stateManager->getBrewState());
+    state.set_brewid(m_stateManager->brewGeneration());
+    state.set_profilegeneration(m_brewProfileGeneration);
     sink->notifyChanged(state);
   }
 
@@ -178,7 +196,13 @@ void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamRe
     sink->notifyChanged(state);
   }
 
-  sink->notifyChanged(m_brewProfileManager->getProfile());
+  {
+    BrewProfileInfo profileInfo;
+    profileInfo.mutable_profile()->CopyFrom(m_brewProfileManager->getProfile());
+    profileInfo.set_generation(m_brewProfileGeneration);
+    sink->notifyChanged(profileInfo);
+  }
+
   sink->notifyChanged(m_userSettings->getSettings());
 }
 
@@ -204,6 +228,7 @@ void AsyncEventDispatcher::brewCallback(std::variant<step_index_t, stopped_flag_
 {
   auto visitor = overload{
     [this](step_index_t step) {
+      m_brewLogManager->setCurrentStep(step);
       m_executor.executeDiscardResult(&AsyncEventDispatcher::doNotifyBrewStepChange, this, step);
     },
     [this](stopped_flag_t) {

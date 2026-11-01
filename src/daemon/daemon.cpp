@@ -1,10 +1,12 @@
 #include "daemon.hpp"
 
 #include "async_events_dispatcher/async_events_dispatcher.hpp"
+#include "brew_log/brew_log_manager.hpp"
 #include "buttons/buttons_callback_registrator.hpp"
 #include "config/libopenpresso_config_maker.hpp"
 #include "config/openpressod_config.hpp"
 #include "leds/leds_handler.hpp"
+#include "service/brew_log_stream_reactor.hpp"
 #include "service/service_manager.hpp"
 #include "state_manager/brew_profile_manager.hpp"
 #include "state_manager/state_manager.hpp"
@@ -40,12 +42,14 @@ Daemon::Daemon(const std::string& configPath)
   profileManager->applyBrewProfile(*stateManager);
   settingsManager->applySettings(*stateManager);
 
-  auto dispatcher = std::make_shared<AsyncEventDispatcher>(std::move(stateManager),
-                                                           std::move(profileManager),
-                                                           std::move(settingsManager));
+  auto brewLogManager = std::make_shared<BrewLogManager>(core, config);
+
+  auto dispatcher = std::make_shared<AsyncEventDispatcher>(
+    std::move(stateManager), std::move(profileManager), std::move(settingsManager), brewLogManager);
 
   m_buttonsHandler = std::make_unique<ButtonsCallbackRegistrator>(dispatcher, core, config);
-  m_service = std::make_unique<ServiceManager>(dispatcher, core, std::move(brewTimer), config);
+  m_service =
+    std::make_unique<ServiceManager>(dispatcher, brewLogManager, core, std::move(brewTimer), config);
 }
 
 std::unique_ptr<BrewProfileManager> Daemon::setupBrewProfileManager(const OpenpressodConfig& config)

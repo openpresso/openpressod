@@ -1,0 +1,139 @@
+#include "brew_log_manager.hpp"
+
+#include "config/openpressod_config.hpp"
+#include "service/brew_log_stream_reactor.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <utility>
+
+#include <libopenpresso/interfaces/libopenpresso_core.hpp>
+#include <libopenpresso/types.hpp>
+
+using namespace openpressod;
+
+BrewLogManager::BrewLogManager(const libopenpresso::CorePtr& core, const OpenpressodConfig& config)
+: m_maxBrewLogsCount{config.brewLogsRetantionCount()}
+, m_samplingInterval{config.brewLogSamplingInterval()}
+, m_sampler{core, m_samplingInterval}
+{
+}
+
+BrewLogManager::~BrewLogManager()
+{
+  m_sampler.stopSampling();
+}
+
+void BrewLogManager::addStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor)
+{
+  m_executor.executeDiscardResult(&BrewLogManager::doAddStreamReactor, this, std::move(reactor));
+}
+
+void BrewLogManager::removeStreamReactor(const BrewLogStreamReactor* reactor)
+{
+  m_executor.executeDiscardResult(&BrewLogManager::doRemoveStreamReactor, this, reactor);
+}
+
+void BrewLogManager::startBrew(uint32_t brewId)
+{
+  m_executor.executeDiscardResult(&BrewLogManager::doStartBrew, this, brewId);
+  m_sampler.startSampling([this](auto... metrics) {
+    m_executor.executeDiscardResult(&BrewLogManager::doPushData, this, metrics...);
+  });
+}
+
+void BrewLogManager::setCurrentStep(size_t step)
+{
+  m_sampler.setCurrentStep(step);
+}
+
+void BrewLogManager::stopBrew()
+{
+  m_sampler.stopSampling();
+  m_executor.executeDiscardResult(&BrewLogManager::doStopBrew, this);
+}
+
+void BrewLogManager::doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor)
+{
+  if (m_brewId.has_value() && reactor->brewId() == m_brewId.value()) {
+    reactor->sendBrewStart(m_samplingInterval, m_brewStartTime, m_records);
+    m_activeEventSinks.push_back(std::move(reactor));
+    return;
+  }
+
+  auto logIt =
+    std::ranges::find(m_completedLogs, reactor->brewId(), &decltype(m_completedLogs)::value_type::first);
+  if (logIt == m_completedLogs.end()) {
+    reactor->sendLogNotFound();
+  }
+  else {
+    reactor->sendCompletedBrew(logIt->second.samplingInterval,
+                               logIt->second.brewStartTime,
+                               logIt->second.records);
+  }
+  m_eventsSinks.push_back(std::move(reactor));
+}
+
+void BrewLogManager::doRemoveStreamReactor(const BrewLogStreamReactor* reactor)
+{
+  if (m_brewId.has_value() && reactor->brewId() == m_brewId.value()) {
+    m_activeEventSinks.remove_if([reactor](auto&& val) { return val.get() == reactor; });
+  }
+  else {
+    m_eventsSinks.remove_if([reactor](auto&& val) { return val.get() == reactor; });
+  }
+}
+
+void BrewLogManager::doStartBrew(uint32_t brewId)
+{
+  m_records.clear();
+  m_brewStartTime = std::chrono::system_clock::now();
+  m_brewId = brewId;
+}
+
+void BrewLogManager::doStopBrew()
+{
+  if (!m_brewId.has_value()) {
+    return;
+  }
+
+  for (auto&& sink : m_activeEventSinks) {
+    sink->sendBrewStop();
+  }
+  m_eventsSinks.splice(m_eventsSinks.end(), m_activeEventSinks);
+
+  m_completedLogs.emplace_back(std::exchange(m_brewId, {}).value(),
+                               CompletedBrewLog{
+                                 .brewStartTime = m_brewStartTime,
+                                 .samplingInterval = m_samplingInterval,
+                                 .records = std::move(m_records),
+                               });
+
+  if (m_completedLogs.size() > m_maxBrewLogsCount) {
+    m_completedLogs.pop_front();
+  }
+}
+
+void BrewLogManager::doPushData(libopenpresso::millidegrees_t temperature,
+                                libopenpresso::millibars_t pressure,
+                                libopenpresso::milligrams_t weight,
+                                libopenpresso::milligrams_p_second_t flowRate,
+                                size_t stepIndex)
+{
+  BrewLogRecord record{
+    .temperature = temperature,
+    .pressure = pressure,
+    .weight = weight,
+    .flowRate = flowRate,
+    .step = stepIndex,
+  };
+
+  for (auto&& sink : m_activeEventSinks) {
+    sink->sendRecord(record);
+  }
+
+  m_records.push_back(record);
+}

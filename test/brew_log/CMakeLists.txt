@@ -1,0 +1,5 @@
+add_executable(brew_log_test brew_log_test.cpp)
+target_link_libraries(brew_log_test PRIVATE openpressod_objects libopenpresso_mock GTest::gtest_main)
+gtest_add_tests(TARGET brew_log_test)
+
+append_targets_to_clang_format_list(brew_log_test)

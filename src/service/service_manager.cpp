@@ -5,6 +5,7 @@
 #include <chrono>
 #include <filesystem>
 #include <memory>
+#include <utility>
 
 #include <grpcpp/security/server_credentials.h>
 #include <grpcpp/server_builder.h>
@@ -13,11 +14,12 @@
 
 using namespace openpressod;
 
-ServiceManager::ServiceManager(const std::shared_ptr<AsyncEventDispatcher>& dispatcher,
-                               const libopenpresso::CorePtr& core,
-                               const std::shared_ptr<const BrewTimer>& brewTimer,
+ServiceManager::ServiceManager(std::shared_ptr<AsyncEventDispatcher> dispatcher,
+                               std::shared_ptr<BrewLogManager> brewLogManager,
+                               libopenpresso::CorePtr core,
+                               std::shared_ptr<const BrewTimer> brewTimer,
                                const OpenpressodConfig& config)
-: m_impl{dispatcher, core, brewTimer}
+: m_impl{std::move(dispatcher), std::move(brewLogManager), std::move(core), std::move(brewTimer)}
 , m_server{buildServer(config)}
 {
   spdlog::debug("Openpresso service created");

@@ -106,7 +106,7 @@ const BrewProfile& BrewProfileManager::getProfile() const noexcept
   return m_currentProfile;
 }
 
-void BrewProfileManager::applyBrewProfile(StateManager& stateManager) const
+void BrewProfileManager::applyBrewProfile(StateManager& stateManager)
 {
   stateManager.setBrewTemperature(m_currentProfile.temperature());
 
@@ -181,13 +181,13 @@ void BrewProfileManager::setAutoStopCondition(StateManager& stateManager) const
   }
 }
 
-libopenpresso::time_delta_t openpressod::BrewProfileManager::ToDuration(float value)
+libopenpresso::time_delta_t BrewProfileManager::ToDuration(float value)
 {
   using fp_seconds = std::chrono::duration<float>;
   return std::chrono::duration_cast<libopenpresso::time_delta_t>(fp_seconds{value});
 }
 
-libopenpresso::milligrams_t openpressod::BrewProfileManager::ToWeight(float value)
+libopenpresso::milligrams_t BrewProfileManager::ToWeight(float value)
 {
   return static_cast<libopenpresso::milligrams_t>(value);
 }

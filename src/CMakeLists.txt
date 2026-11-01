@@ -9,10 +9,10 @@ add_library(openpressod_objects OBJECT)
 target_link_libraries(openpressod_objects PUBLIC
     spdlog::spdlog
     CLI11::CLI11
-    openpresso_proto::openpresso_proto  
-    libopenpresso::libopenpresso
     toml11::toml11
     magic_enum::magic_enum
+    openpresso_proto::openpresso_proto  
+    libopenpresso::libopenpresso
 )
 
 add_executable(openpressod)
@@ -43,5 +43,6 @@ add_subdirectory(signals_handler)
 add_subdirectory(leds)
 add_subdirectory(service)
 add_subdirectory(utils)
+add_subdirectory(brew_log)
 
 install(TARGETS openpressod RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
