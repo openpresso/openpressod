@@ -3,6 +3,7 @@
 
 #include "status_manager.hpp"
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <ranges>

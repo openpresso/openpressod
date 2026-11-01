@@ -6,8 +6,11 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <list>
 #include <memory>
+#include <optional>
+#include <utility>
 #include <vector>
 
 #include <libopenpresso/interfaces/brew_profiler.hpp>

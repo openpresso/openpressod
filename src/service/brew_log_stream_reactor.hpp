@@ -4,7 +4,6 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
-#include <cstddef>
 #include <cstdint>
 #include <list>
 #include <mutex>
@@ -99,7 +98,6 @@ private:
 
 private:
   uint32_t m_brewId;
-  size_t m_currentStep = 0;
   std::atomic<WriteStatus> m_writeStatus = WriteStatus::Idle;
   BrewLogManager* m_owner;
   std::mutex m_queueLock;

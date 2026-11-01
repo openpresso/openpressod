@@ -9,6 +9,7 @@
 #include "state_manager/user_settings_manager.hpp"
 #include "utils/procedures_serial_executor.hpp"
 
+#include <cstddef>
 #include <list>
 #include <memory>
 #include <stdexcept>

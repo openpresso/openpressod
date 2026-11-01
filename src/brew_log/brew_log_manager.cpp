@@ -3,8 +3,10 @@
 #include "config/openpressod_config.hpp"
 #include "service/brew_log_stream_reactor.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <utility>
 

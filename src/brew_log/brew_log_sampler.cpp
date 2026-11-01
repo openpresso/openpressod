@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 

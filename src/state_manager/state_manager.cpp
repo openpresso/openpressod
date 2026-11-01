@@ -4,6 +4,7 @@
 #include "config/libopenpresso_config_labels.hpp"
 #include "state_manager/status_manager.hpp"
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <stdexcept>
