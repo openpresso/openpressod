@@ -16,6 +16,7 @@
 #include <libopenpresso/interfaces/brew_profiler.hpp>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/types.hpp>
+#include <openpresso_proto/brew_profile.pb.h>
 
 namespace openpressod
 {
@@ -38,6 +39,7 @@ class BrewLogManager {
   struct CompletedBrewLog {
     std::chrono::system_clock::time_point brewStartTime;
     std::chrono::steady_clock::duration samplingInterval;
+    uint32_t brewProfileId;
     std::vector<BrewLogRecord> records;
   };
 
@@ -52,7 +54,7 @@ public:
   void addStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void removeStreamReactor(const BrewLogStreamReactor* reactor);
 
-  void startBrew(uint32_t brewId);
+  void startBrew(uint32_t brewId, const BrewProfile& profile);
   void setCurrentStep(size_t step);
   void stopBrew();
 
@@ -60,7 +62,7 @@ private:
   void doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void doRemoveStreamReactor(const BrewLogStreamReactor* reactor);
 
-  void doStartBrew(uint32_t brewId);
+  void doStartBrew(uint32_t brewId, const BrewProfile& profile);
   void doStopBrew();
 
   void doPushData(libopenpresso::millidegrees_t temperature,
@@ -76,6 +78,7 @@ private:
   std::chrono::system_clock::time_point m_brewStartTime;
   std::chrono::steady_clock::duration m_samplingInterval;
   std::optional<uint32_t> m_brewId;
+  std::optional<uint32_t> m_profileId;
   std::vector<BrewLogRecord> m_records;
 
   std::list<std::unique_ptr<BrewLogStreamReactor>> m_eventsSinks;

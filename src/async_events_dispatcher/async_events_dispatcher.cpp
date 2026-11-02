@@ -118,7 +118,7 @@ void AsyncEventDispatcher::doStartBrew()
   }
 
   m_stateManager->startBrew();
-  m_brewLogManager->startBrew(m_stateManager->brewGeneration());
+  m_brewLogManager->startBrew(m_stateManager->brewGeneration(), m_brewProfileManager->getProfile());
 
   BrewState stateChange;
   stateChange.set_isactive(true);

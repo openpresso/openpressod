@@ -199,7 +199,7 @@ TEST_F(BrewLogRpcTest, StartRecordsWithStepIdsAndStopAreStreamedInOrder)
 {
   startServer("00:00:00.050");
   const auto before = std::chrono::system_clock::now();
-  manager->startBrew(1);
+  manager->startBrew(1, {});
   auto& stream = subscribe(1);
   BrewLog record;
   ASSERT_TRUE(stream.next(record));
@@ -253,7 +253,7 @@ TEST_F(BrewLogRpcTest, StartRecordsWithStepIdsAndStopAreStreamedInOrder)
 TEST_F(BrewLogRpcTest, LateSubscribersGetCurrentAndCompletedLog)
 {
   startServer();
-  manager->startBrew(1);
+  manager->startBrew(1, {});
   auto& first = subscribe(1);
   BrewLog record;
   ASSERT_TRUE(first.next(record));
@@ -293,7 +293,7 @@ TEST_F(BrewLogRpcTest, RetainsConfiguredNumberOfCompletedLogs)
 {
   startServer("00:00:05", 2);
   for (uint32_t brewId = 1; brewId <= 3; ++brewId) {
-    manager->startBrew(brewId);
+    manager->startBrew(brewId, {});
     manager->stopBrew();
   }
 
@@ -322,9 +322,9 @@ TEST_F(BrewLogRpcTest, RetainsConfiguredNumberOfCompletedLogs)
 TEST_F(BrewLogRpcTest, ActiveBrewDoesNotConsumeCompletedRetentionSlot)
 {
   startServer("00:00:05", 1);
-  manager->startBrew(1);
+  manager->startBrew(1, {});
   manager->stopBrew();
-  manager->startBrew(2);
+  manager->startBrew(2, {});
 
   BrewLog record;
   auto& completed = subscribe(1);
@@ -362,7 +362,7 @@ TEST_F(BrewLogRpcTest, ActiveBrewDoesNotConsumeCompletedRetentionSlot)
 TEST_F(BrewLogRpcTest, CancellingOneSubscriberDoesNotStopAnother)
 {
   startServer();
-  manager->startBrew(1);
+  manager->startBrew(1, {});
   auto& cancelled = subscribe(1);
   auto& live = subscribe(1);
   cancelled.context.TryCancel();
@@ -381,7 +381,7 @@ TEST_F(BrewLogRpcTest, CancellingOneSubscriberDoesNotStopAnother)
 TEST_F(BrewLogRpcTest, UnknownBrewIdClosesStreamWithNotFoundResult)
 {
   startServer();
-  manager->startBrew(1);
+  manager->startBrew(1, {});
   auto& stream = subscribe(42);
   BrewLog record;
   ASSERT_TRUE(stream.next(record));
@@ -395,7 +395,7 @@ TEST_F(BrewLogRpcTest, UnknownBrewIdClosesStreamWithNotFoundResult)
 TEST_F(BrewLogRpcTest, ChangingProfileAfterBrewKeepsCompletedLogById)
 {
   startServer();
-  manager->startBrew(1);
+  manager->startBrew(1, {});
   auto& live = subscribe(1);
   BrewLog record;
   ASSERT_TRUE(live.next(record));
@@ -532,7 +532,7 @@ TEST_F(BrewLogRpcTest, ChangingProfileAfterBrewKeepsCompletedLogById)
 TEST_F(BrewLogRpcTest, StepWithoutMetricsSnapshotIsNotRecorded)
 {
   startServer();
-  manager->startBrew(1);
+  manager->startBrew(1, {});
   auto& stream = subscribe(1);
   BrewLog record;
   ASSERT_TRUE(stream.next(record));
@@ -551,7 +551,7 @@ TEST_F(BrewLogRpcTest, StepWithoutMetricsSnapshotIsNotRecorded)
 TEST_F(BrewLogRpcTest, RetainedLogOmitsStepWithoutMetricsSnapshot)
 {
   startServer();
-  manager->startBrew(1);
+  manager->startBrew(1, {});
   auto& live = subscribe(1);
   BrewLog record;
   ASSERT_TRUE(live.next(record));

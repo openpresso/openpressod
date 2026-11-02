@@ -9,7 +9,6 @@
 #include "state_manager/user_settings_manager.hpp"
 #include "utils/procedures_serial_executor.hpp"
 
-#include <cstddef>
 #include <list>
 #include <memory>
 #include <stdexcept>
@@ -100,7 +99,6 @@ private:
   void notifyHeatingStatusChange(HeatingStatus status);
 
 private:
-  size_t m_brewProfileGeneration = 0;
   std::unique_ptr<StateManager> m_stateManager;
   std::unique_ptr<BrewProfileManager> m_brewProfileManager;
   std::unique_ptr<UserSettingsManager> m_userSettings;

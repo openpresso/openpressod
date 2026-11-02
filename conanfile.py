@@ -53,6 +53,7 @@ class openpressod(ConanFile):
         self.requires("toml11/[>=4.4.0]")
         self.requires("magic_enum/[>=0.9.7]")
         self.requires("cli11/[>=2.3.0]")
+        self.requires("sqlite_orm/1.9.1")
             
         self.requires("libopenpresso/0.0.0-11-g2e2665b", options = { "min_log_level": "trace" })
         self.requires("openpresso_proto/dev")

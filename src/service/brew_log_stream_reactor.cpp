@@ -73,13 +73,15 @@ void BrewLogStreamReactor::pushRecords(std::list<BrewLog>&& recordsQueue)
 }
 
 BrewLog BrewLogStreamReactor::makeBrewStart(std::chrono::steady_clock::duration samplingInterval,
-                                            std::chrono::system_clock::time_point startPoint)
+                                            std::chrono::system_clock::time_point startPoint,
+                                            uint32_t profileId)
 {
   using namespace protobuf_helpers;
 
   BrewLog brewRecord;
   toProtoDuration(samplingInterval, *brewRecord.mutable_brewlogstart()->mutable_samplinginterval());
   toProtoTimestamp(startPoint, *brewRecord.mutable_brewlogstart()->mutable_startpoint());
+  brewRecord.mutable_brewlogstart()->set_historicalprofileid(profileId);
   return brewRecord;
 }
 

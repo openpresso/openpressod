@@ -38,9 +38,10 @@ public:
   template <std::ranges::input_range R>
   void sendBrewStart(std::chrono::steady_clock::duration samplingInterval,
                      std::chrono::system_clock::time_point startPoint,
+                     uint32_t profileId,
                      const R& records)
   {
-    std::list<BrewLog> queue = {makeBrewStart(samplingInterval, startPoint)};
+    std::list<BrewLog> queue = {makeBrewStart(samplingInterval, startPoint, profileId)};
     queue.splice(queue.end(), makeRecords(records));
     pushRecords(std::move(queue));
   }
@@ -57,9 +58,10 @@ public:
   template <std::ranges::input_range R>
   void sendCompletedBrew(std::chrono::steady_clock::duration samplingInterval,
                          std::chrono::system_clock::time_point startPoint,
+                         uint32_t profileId,
                          const R& records)
   {
-    std::list<BrewLog> queue = {makeBrewStart(samplingInterval, startPoint)};
+    std::list<BrewLog> queue = {makeBrewStart(samplingInterval, startPoint, profileId)};
     queue.splice(queue.end(), makeRecords(records));
     queue.push_back(makeBrewStop());
     pushRecords(std::move(queue));
@@ -71,7 +73,8 @@ private:
   void worker();
 
   static BrewLog makeBrewStart(std::chrono::steady_clock::duration samplingInterval,
-                               std::chrono::system_clock::time_point startPoint);
+                               std::chrono::system_clock::time_point startPoint,
+                               uint32_t profileId);
 
   static BrewLog makeBrewStop();
 

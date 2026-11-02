@@ -3,7 +3,6 @@
 #include "config/openpressod_config.hpp"
 #include "service/brew_log_stream_reactor.hpp"
 
-#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -37,9 +36,9 @@ void BrewLogManager::removeStreamReactor(const BrewLogStreamReactor* reactor)
   m_executor.executeDiscardResult(&BrewLogManager::doRemoveStreamReactor, this, reactor);
 }
 
-void BrewLogManager::startBrew(uint32_t brewId)
+void BrewLogManager::startBrew(uint32_t brewId, const BrewProfile& profile)
 {
-  m_executor.executeDiscardResult(&BrewLogManager::doStartBrew, this, brewId);
+  m_executor.executeDiscardResult(&BrewLogManager::doStartBrew, this, brewId, profile);
   m_sampler.startSampling([this](auto... metrics) {
     m_executor.executeDiscardResult(&BrewLogManager::doPushData, this, metrics...);
   });
@@ -59,21 +58,20 @@ void BrewLogManager::stopBrew()
 void BrewLogManager::doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor)
 {
   if (m_brewId.has_value() && reactor->brewId() == m_brewId.value()) {
-    reactor->sendBrewStart(m_samplingInterval, m_brewStartTime, m_records);
+    reactor->sendBrewStart(m_samplingInterval, m_brewStartTime, m_profileId.value(), m_records);
     m_activeEventSinks.push_back(std::move(reactor));
     return;
   }
 
-  auto logIt =
-    std::ranges::find(m_completedLogs, reactor->brewId(), &decltype(m_completedLogs)::value_type::first);
-  if (logIt == m_completedLogs.end()) {
-    reactor->sendLogNotFound();
-  }
-  else {
-    reactor->sendCompletedBrew(logIt->second.samplingInterval,
-                               logIt->second.brewStartTime,
-                               logIt->second.records);
-  }
+  // try {
+  //   CompletedBrewLog log = m_brewLogsDb.getLog(reactor->brewId());
+  //   reactor->sendCompletedBrew(log.samplingInterval, log.brewStartTime, log.brewProfileId,
+  //   log.records);
+  // }
+  // catch (const NotFoundException& e) {
+  //   reactor->sendLogNotFound();
+  // }
+
   m_eventsSinks.push_back(std::move(reactor));
 }
 
@@ -87,11 +85,12 @@ void BrewLogManager::doRemoveStreamReactor(const BrewLogStreamReactor* reactor)
   }
 }
 
-void BrewLogManager::doStartBrew(uint32_t brewId)
+void BrewLogManager::doStartBrew(uint32_t brewId, [[maybe_unused]] const BrewProfile& profile)
 {
   m_records.clear();
   m_brewStartTime = std::chrono::system_clock::now();
   m_brewId = brewId;
+  // m_profileId = m_historicalProfilesDb.addProfileReference(profile);
 }
 
 void BrewLogManager::doStopBrew()
@@ -105,16 +104,14 @@ void BrewLogManager::doStopBrew()
   }
   m_eventsSinks.splice(m_eventsSinks.end(), m_activeEventSinks);
 
-  m_completedLogs.emplace_back(std::exchange(m_brewId, {}).value(),
-                               CompletedBrewLog{
-                                 .brewStartTime = m_brewStartTime,
-                                 .samplingInterval = m_samplingInterval,
-                                 .records = std::move(m_records),
-                               });
+  CompletedBrewLog log{
+    .brewStartTime = m_brewStartTime,
+    .samplingInterval = m_samplingInterval,
+    .brewProfileId = std::exchange(m_brewId, {}).value(),
+    .records = std::move(m_records),
+  };
 
-  if (m_completedLogs.size() > m_maxBrewLogsCount) {
-    m_completedLogs.pop_front();
-  }
+  // m_brewLogsDb.store(std::move(log));
 }
 
 void BrewLogManager::doPushData(libopenpresso::millidegrees_t temperature,

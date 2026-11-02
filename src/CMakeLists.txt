@@ -2,6 +2,7 @@ find_package(spdlog REQUIRED)
 find_package(toml11 REQUIRED)
 find_package(CLI11 REQUIRED)
 find_package(magic_enum REQUIRED)
+find_package(SqliteOrm REQUIRED)
 find_package(openpresso_proto REQUIRED)
 find_package(libopenpresso REQUIRED)
 
@@ -11,6 +12,7 @@ target_link_libraries(openpressod_objects PUBLIC
     CLI11::CLI11
     toml11::toml11
     magic_enum::magic_enum
+    sqlite_orm::sqlite_orm
     openpresso_proto::openpresso_proto  
     libopenpresso::libopenpresso
 )
