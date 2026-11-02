@@ -125,7 +125,6 @@ inline void AsyncEventDispatcher::getBrewProfile(Cb&& callback)
     [this] {
       BrewProfileInfo profileInfo;
       profileInfo.mutable_profile()->CopyFrom(m_brewProfileManager->getProfile());
-      profileInfo.set_generation(m_brewProfileGeneration);
       return profileInfo;
     },
     std::forward<Cb>(callback));
@@ -144,7 +143,6 @@ inline void AsyncEventDispatcher::setBrewProfile(const BrewProfile* profile, Cb&
 
       BrewProfileInfo profileUpdate;
       profileUpdate.mutable_profile()->CopyFrom(*profile);
-      profileUpdate.set_generation(++m_brewProfileGeneration);
 
       for (auto&& sink : m_eventsSinks) {
         sink->notifyChanged(profileUpdate);
@@ -175,7 +173,6 @@ inline void AsyncEventDispatcher::getBrewState(Cb&& callback)
       BrewState state;
       state.set_isactive(m_stateManager->getBrewState());
       state.set_brewid(m_stateManager->brewGeneration());
-      state.set_profilegeneration(m_brewProfileGeneration);
       return state;
     },
     std::forward<Cb>(callback));

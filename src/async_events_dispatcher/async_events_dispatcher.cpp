@@ -123,7 +123,6 @@ void AsyncEventDispatcher::doStartBrew()
   BrewState stateChange;
   stateChange.set_isactive(true);
   stateChange.set_brewid(m_stateManager->brewGeneration());
-  stateChange.set_profilegeneration(m_brewProfileGeneration);
 
   for (auto&& sink : m_eventsSinks) {
     sink->notifyChanged(stateChange);
@@ -142,7 +141,6 @@ void AsyncEventDispatcher::doStopBrew()
   BrewState state;
   state.set_isactive(false);
   state.set_brewid(m_stateManager->brewGeneration());
-  state.set_profilegeneration(m_brewProfileGeneration);
 
   for (auto&& sink : m_eventsSinks) {
     sink->notifyChanged(state);
@@ -180,7 +178,6 @@ void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamRe
     BrewState state;
     state.set_isactive(m_stateManager->getBrewState());
     state.set_brewid(m_stateManager->brewGeneration());
-    state.set_profilegeneration(m_brewProfileGeneration);
     sink->notifyChanged(state);
   }
 
@@ -199,7 +196,6 @@ void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamRe
   {
     BrewProfileInfo profileInfo;
     profileInfo.mutable_profile()->CopyFrom(m_brewProfileManager->getProfile());
-    profileInfo.set_generation(m_brewProfileGeneration);
     sink->notifyChanged(profileInfo);
   }
 

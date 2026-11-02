@@ -85,7 +85,7 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::setUserSettings(grpc::Callback
   return reactor;
 }
 
-grpc::ServerUnaryReactor* OpenpressodServiceImpl::getBrewProfile(
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::getActiveBrewProfile(
   grpc::CallbackServerContext* context,
   [[maybe_unused]] const google::protobuf::Empty* request,
   BrewProfileInfo* response)
@@ -104,12 +104,19 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::getBrewProfile(
   return reactor;
 }
 
-grpc::ServerUnaryReactor* OpenpressodServiceImpl::setBrewProfile(grpc::CallbackServerContext* context,
-                                                                 const BrewProfile* request,
-                                                                 [[maybe_unused]] google::protobuf::Empty* response)
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::setActiveBrewProfile(
+  grpc::CallbackServerContext* context,
+  const ActivateBrewProfile* request,
+  [[maybe_unused]] google::protobuf::Empty* response)
 {
   auto* reactor = context->DefaultReactor();
-  m_dispatcher->setBrewProfile(request, makeVoidCallback(reactor));
+  if (request->has_profile()) {
+    m_dispatcher->setBrewProfile(&request->profile(), makeVoidCallback(reactor));
+  }
+  else {
+    reactor->Finish(grpc::Status{grpc::StatusCode::ABORTED, "NotFound"});
+  }
+
   return reactor;
 }
 
@@ -234,8 +241,8 @@ grpc::ServerWriteReactor<Metrics>* OpenpressodServiceImpl::metrics(
   }
 }
 
-grpc::ServerWriteReactor<BrewLog>* OpenpressodServiceImpl::brewLog(
-  [[maybe_unused]] grpc::CallbackServerContext* context, const BrewLogRequest* request)
+grpc::ServerWriteReactor<BrewLog>* OpenpressodServiceImpl::getBrewLog(
+  [[maybe_unused]] grpc::CallbackServerContext* context, const BrewLogId* request)
 {
   auto reactor = std::make_unique<BrewLogStreamReactor>(m_brewLogManager.get(), request->brewid());
   auto* raw = reactor.get();

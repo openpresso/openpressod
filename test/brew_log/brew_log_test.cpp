@@ -112,9 +112,9 @@ protected:
     Stream(OpenpressoDaemon::Stub& stub, uint32_t brewId, std::chrono::milliseconds deadline = 2s)
     {
       context.set_deadline(std::chrono::system_clock::now() + deadline);
-      BrewLogRequest request;
+      BrewLogId request;
       request.set_brewid(brewId);
-      reader = stub.brewLog(&context, request);
+      reader = stub.getBrewLog(&context, request);
     }
 
     ~Stream()
@@ -497,7 +497,6 @@ TEST_F(BrewLogRpcTest, ChangingProfileAfterBrewKeepsCompletedLogById)
   });
   ASSERT_EQ(std::future_status::ready, profileInfoFuture.wait_for(2s));
   const auto profileInfo = profileInfoFuture.get();
-  EXPECT_EQ(1U, profileInfo.generation());
   EXPECT_EQ("new profile", profileInfo.profile().name());
   EXPECT_EQ(94'000, profileInfo.profile().temperature());
   ASSERT_EQ(1, profileInfo.profile().steps_size());
@@ -517,7 +516,6 @@ TEST_F(BrewLogRpcTest, ChangingProfileAfterBrewKeepsCompletedLogById)
   const auto brewState = brewStateFuture.get();
   EXPECT_FALSE(brewState.isactive());
   EXPECT_EQ(0U, brewState.brewid());
-  EXPECT_EQ(profileInfo.generation(), brewState.profilegeneration());
 
   auto& after = subscribe(1);
   ASSERT_TRUE(after.next(record));
