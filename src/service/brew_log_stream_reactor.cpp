@@ -10,6 +10,8 @@
 #include <mutex>
 #include <utility>
 
+#include <grpcpp/support/status.h>
+#include <openpresso_proto/brew_profile.pb.h>
 #include <openpresso_proto/openpresso.pb.h>
 
 using namespace openpressod;
@@ -52,7 +54,7 @@ void BrewLogStreamReactor::sendBrewStop()
   pushRecord(makeBrewStop());
 }
 
-void BrewLogStreamReactor::pushRecord(BrewLog record)
+void BrewLogStreamReactor::pushRecord(BrewLogStream record)
 {
   {
     std::scoped_lock lock(m_queueLock);
@@ -62,7 +64,7 @@ void BrewLogStreamReactor::pushRecord(BrewLog record)
   m_queueCv.notify_one();
 }
 
-void BrewLogStreamReactor::pushRecords(std::list<BrewLog>&& recordsQueue)
+void BrewLogStreamReactor::pushRecords(std::list<BrewLogStream>&& recordsQueue)
 {
   {
     std::scoped_lock lock(m_queueLock);
@@ -72,41 +74,43 @@ void BrewLogStreamReactor::pushRecords(std::list<BrewLog>&& recordsQueue)
   m_queueCv.notify_one();
 }
 
-BrewLog BrewLogStreamReactor::makeBrewStart(std::chrono::steady_clock::duration samplingInterval,
-                                            std::chrono::system_clock::time_point startPoint,
-                                            uint32_t profileId)
+BrewLogStream BrewLogStreamReactor::makeBrewStart(std::chrono::steady_clock::duration samplingInterval,
+                                                  std::chrono::system_clock::time_point startPoint,
+                                                  BrewProfile profile)
 {
   using namespace protobuf_helpers;
 
-  BrewLog brewRecord;
+  BrewLogStream brewRecord;
   toProtoDuration(samplingInterval, *brewRecord.mutable_brewlogstart()->mutable_samplinginterval());
   toProtoTimestamp(startPoint, *brewRecord.mutable_brewlogstart()->mutable_startpoint());
-  brewRecord.mutable_brewlogstart()->set_historicalprofileid(profileId);
+  *brewRecord.mutable_brewlogstart()->mutable_profile() = std::move(profile);
   return brewRecord;
 }
 
-BrewLog BrewLogStreamReactor::makeBrewStop()
+BrewLogStream BrewLogStreamReactor::makeBrewStop()
 {
-  BrewLog brewRecord;
-  brewRecord.mutable_brewlogstop()->set_result(openpressod::BrewLogResult::BrewLogResult_Ok);
+  BrewLogStream brewRecord;
+  brewRecord.mutable_brewlogstop();
   return brewRecord;
 }
 
 void BrewLogStreamReactor::sendLogNotFound()
 {
-  BrewLog brewRecord;
-  brewRecord.mutable_brewlogstop()->set_result(openpressod::BrewLogResult::BrewLogResult_IdNotFound);
-  pushRecord(std::move(brewRecord));
+  {
+    std::scoped_lock lock(m_queueLock);
+    m_notFound = true;
+  }
+  m_queueCv.notify_one();
 }
 
 void BrewLogStreamReactor::worker()
 {
-  std::list<BrewLog> queue;
+  std::list<BrewLogStream> queue;
   while (true) {
     if (queue.empty()) {
       std::unique_lock lock(m_queueLock);
-      m_queueCv.wait(lock, [this] { return m_cancelled || !m_recordsQueue.empty(); });
-      if (m_cancelled) {
+      m_queueCv.wait(lock, [this] { return m_cancelled || m_notFound || !m_recordsQueue.empty(); });
+      if (m_cancelled || m_notFound) {
         break;
       }
       queue.splice(queue.begin(), m_recordsQueue);
@@ -123,5 +127,5 @@ void BrewLogStreamReactor::worker()
     queue.pop_front();
   }
 
-  Finish(grpc::Status::OK);
+  Finish(m_notFound ? grpc::Status{grpc::StatusCode::NOT_FOUND, "Brew log not found"} : grpc::Status::OK);
 }

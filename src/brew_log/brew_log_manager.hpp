@@ -1,6 +1,7 @@
 #ifndef BREW_LOG_MANAGER_HPP
 #define BREW_LOG_MANAGER_HPP
 
+#include "brew_log_data.hpp"
 #include "brew_log_sampler.hpp"
 #include "utils/procedures_serial_executor.hpp"
 
@@ -10,8 +11,6 @@
 #include <list>
 #include <memory>
 #include <optional>
-#include <utility>
-#include <vector>
 
 #include <libopenpresso/interfaces/brew_profiler.hpp>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
@@ -28,21 +27,6 @@ class BrewLogManager {
   using step_index_t = libopenpresso::interfaces::BrewProfiler::step_index_t;
   using stopped_flag_t = libopenpresso::interfaces::BrewProfiler::stopped_flag_t;
 
-  struct BrewLogRecord {
-    libopenpresso::millidegrees_t temperature;
-    libopenpresso::millibars_t pressure;
-    libopenpresso::milligrams_t weight;
-    libopenpresso::milligrams_p_second_t flowRate;
-    size_t step;
-  };
-
-  struct CompletedBrewLog {
-    std::chrono::system_clock::time_point brewStartTime;
-    std::chrono::steady_clock::duration samplingInterval;
-    uint32_t brewProfileId;
-    std::vector<BrewLogRecord> records;
-  };
-
 public:
   BrewLogManager(const libopenpresso::CorePtr& core, const OpenpressodConfig& config);
   BrewLogManager(const BrewLogManager&) = delete;
@@ -54,7 +38,7 @@ public:
   void addStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void removeStreamReactor(const BrewLogStreamReactor* reactor);
 
-  void startBrew(uint32_t brewId, const BrewProfile& profile);
+  void startBrew(uint32_t brewId, BrewProfile profile);
   void setCurrentStep(size_t step);
   void stopBrew();
 
@@ -62,11 +46,10 @@ private:
   void doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void doRemoveStreamReactor(const BrewLogStreamReactor* reactor);
 
-  void doStartBrew(uint32_t brewId, const BrewProfile& profile);
+  void doStartBrew(uint32_t brewId, BrewProfile profile);
   void doStopBrew();
 
-  void doPushData(libopenpresso::millidegrees_t temperature,
-                  libopenpresso::millibars_t pressure,
+  void doPushData(libopenpresso::millibars_t pressure,
                   libopenpresso::milligrams_t weight,
                   libopenpresso::milligrams_p_second_t flowRate,
                   size_t stepIndex);
@@ -78,7 +61,7 @@ private:
   std::chrono::system_clock::time_point m_brewStartTime;
   std::chrono::steady_clock::duration m_samplingInterval;
   std::optional<uint32_t> m_brewId;
-  std::optional<uint32_t> m_profileId;
+  BrewProfile m_profile;
   std::vector<BrewLogRecord> m_records;
 
   std::list<std::unique_ptr<BrewLogStreamReactor>> m_eventsSinks;

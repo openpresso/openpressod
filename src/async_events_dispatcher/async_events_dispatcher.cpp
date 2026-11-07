@@ -194,7 +194,7 @@ void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamRe
   }
 
   {
-    BrewProfileInfo profileInfo;
+    ActiveBrewProfile profileInfo;
     profileInfo.mutable_profile()->CopyFrom(m_brewProfileManager->getProfile());
     sink->notifyChanged(profileInfo);
   }

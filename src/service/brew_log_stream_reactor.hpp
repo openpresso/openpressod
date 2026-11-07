@@ -12,6 +12,7 @@
 #include <utility>
 
 #include <grpcpp/support/server_callback.h>
+#include <openpresso_proto/brew_profile.pb.h>
 #include <openpresso_proto/openpresso.pb.h>
 
 namespace openpressod
@@ -19,7 +20,7 @@ namespace openpressod
 
 class BrewLogManager;
 
-class BrewLogStreamReactor final : public grpc::ServerWriteReactor<BrewLog> {
+class BrewLogStreamReactor final : public grpc::ServerWriteReactor<BrewLogStream> {
   enum class WriteStatus : uint8_t {
     Idle,
     InProgress,
@@ -38,10 +39,10 @@ public:
   template <std::ranges::input_range R>
   void sendBrewStart(std::chrono::steady_clock::duration samplingInterval,
                      std::chrono::system_clock::time_point startPoint,
-                     uint32_t profileId,
+                     BrewProfile profile,
                      const R& records)
   {
-    std::list<BrewLog> queue = {makeBrewStart(samplingInterval, startPoint, profileId)};
+    std::list<BrewLogStream> queue = {makeBrewStart(samplingInterval, startPoint, std::move(profile))};
     queue.splice(queue.end(), makeRecords(records));
     pushRecords(std::move(queue));
   }
@@ -58,31 +59,30 @@ public:
   template <std::ranges::input_range R>
   void sendCompletedBrew(std::chrono::steady_clock::duration samplingInterval,
                          std::chrono::system_clock::time_point startPoint,
-                         uint32_t profileId,
+                         BrewProfile profile,
                          const R& records)
   {
-    std::list<BrewLog> queue = {makeBrewStart(samplingInterval, startPoint, profileId)};
+    std::list<BrewLogStream> queue = {makeBrewStart(samplingInterval, startPoint, std::move(profile))};
     queue.splice(queue.end(), makeRecords(records));
     queue.push_back(makeBrewStop());
     pushRecords(std::move(queue));
   }
 
 private:
-  void pushRecords(std::list<BrewLog>&& recordsQueue);
-  void pushRecord(BrewLog record);
+  void pushRecords(std::list<BrewLogStream>&& recordsQueue);
+  void pushRecord(BrewLogStream record);
   void worker();
 
-  static BrewLog makeBrewStart(std::chrono::steady_clock::duration samplingInterval,
-                               std::chrono::system_clock::time_point startPoint,
-                               uint32_t profileId);
+  static BrewLogStream makeBrewStart(std::chrono::steady_clock::duration samplingInterval,
+                                     std::chrono::system_clock::time_point startPoint,
+                                     BrewProfile profile);
 
-  static BrewLog makeBrewStop();
+  static BrewLogStream makeBrewStop();
 
   template <typename T>
-  static BrewLog makeRecord(const T& recordData)
+  static BrewLogStream makeRecord(const T& recordData)
   {
-    BrewLog brewRecord;
-    brewRecord.mutable_record()->set_temperature(recordData.temperature);
+    BrewLogStream brewRecord;
     brewRecord.mutable_record()->set_pressure(recordData.pressure);
     brewRecord.mutable_record()->set_weight(recordData.weight);
     brewRecord.mutable_record()->set_flowrate(recordData.flowRate);
@@ -91,7 +91,7 @@ private:
   }
 
   template <std::ranges::input_range R>
-  std::list<BrewLog> makeRecords(const R& records)
+  std::list<BrewLogStream> makeRecords(const R& records)
   {
     auto recordsView =
       records | std::views::transform([](auto&& record) { return makeRecord(record); });
@@ -106,7 +106,8 @@ private:
   std::mutex m_queueLock;
   std::condition_variable m_queueCv;
   bool m_cancelled = false;
-  std::list<BrewLog> m_recordsQueue;
+  bool m_notFound = false;
+  std::list<BrewLogStream> m_recordsQueue;
   std::thread m_worker;
 };
 

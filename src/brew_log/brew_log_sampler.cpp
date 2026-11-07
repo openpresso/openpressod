@@ -13,7 +13,6 @@ using namespace openpressod;
 BrewLogSampler::BrewLogSampler(const libopenpresso::CorePtr& core,
                                std::chrono::steady_clock::duration samplingInterval)
 : m_pressureSensor{core->getPressureSensor(libopenpresso_config_labels::PRESSURE_SENSOR_LABEL)}
-, m_temperatureSensor{core->getTemperatureSensor(libopenpresso_config_labels::TEMPERATURE_SENSOR_LABEL)}
 , m_weightSensor{core->getWeightSensor(libopenpresso_config_labels::WEIGHT_SENSOR_LABEL)}
 , m_samplingInterval{samplingInterval}
 {

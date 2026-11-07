@@ -16,6 +16,7 @@
 #include <variant>
 
 #include <libopenpresso/types.hpp>
+#include <openpresso_proto/brew_profile.pb.h>
 #include <openpresso_proto/openpresso.pb.h>
 
 namespace openpressod
@@ -121,7 +122,7 @@ inline void AsyncEventDispatcher::getBrewProfile(Cb&& callback)
 {
   m_executor.executeWithCallback(
     [this] {
-      BrewProfileInfo profileInfo;
+      ActiveBrewProfile profileInfo;
       profileInfo.mutable_profile()->CopyFrom(m_brewProfileManager->getProfile());
       return profileInfo;
     },
@@ -139,7 +140,7 @@ inline void AsyncEventDispatcher::setBrewProfile(const BrewProfile* profile, Cb&
       m_brewProfileManager->saveProfile(*profile);
       m_brewProfileManager->applyBrewProfile(*m_stateManager);
 
-      BrewProfileInfo profileUpdate;
+      ActiveBrewProfile profileUpdate;
       profileUpdate.mutable_profile()->CopyFrom(*profile);
 
       for (auto&& sink : m_eventsSinks) {

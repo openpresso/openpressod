@@ -36,9 +36,9 @@ void BrewLogManager::removeStreamReactor(const BrewLogStreamReactor* reactor)
   m_executor.executeDiscardResult(&BrewLogManager::doRemoveStreamReactor, this, reactor);
 }
 
-void BrewLogManager::startBrew(uint32_t brewId, const BrewProfile& profile)
+void BrewLogManager::startBrew(uint32_t brewId, BrewProfile profile)
 {
-  m_executor.executeDiscardResult(&BrewLogManager::doStartBrew, this, brewId, profile);
+  m_executor.executeDiscardResult(&BrewLogManager::doStartBrew, this, brewId, std::move(profile));
   m_sampler.startSampling([this](auto... metrics) {
     m_executor.executeDiscardResult(&BrewLogManager::doPushData, this, metrics...);
   });
@@ -58,7 +58,7 @@ void BrewLogManager::stopBrew()
 void BrewLogManager::doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor)
 {
   if (m_brewId.has_value() && reactor->brewId() == m_brewId.value()) {
-    reactor->sendBrewStart(m_samplingInterval, m_brewStartTime, m_profileId.value(), m_records);
+    reactor->sendBrewStart(m_samplingInterval, m_brewStartTime, m_profile, m_records);
     m_activeEventSinks.push_back(std::move(reactor));
     return;
   }
@@ -85,12 +85,12 @@ void BrewLogManager::doRemoveStreamReactor(const BrewLogStreamReactor* reactor)
   }
 }
 
-void BrewLogManager::doStartBrew(uint32_t brewId, [[maybe_unused]] const BrewProfile& profile)
+void BrewLogManager::doStartBrew(uint32_t brewId, BrewProfile profile)
 {
   m_records.clear();
   m_brewStartTime = std::chrono::system_clock::now();
   m_brewId = brewId;
-  // m_profileId = m_historicalProfilesDb.addProfileReference(profile);
+  m_profile = std::move(profile);
 }
 
 void BrewLogManager::doStopBrew()
@@ -114,14 +114,12 @@ void BrewLogManager::doStopBrew()
   // m_brewLogsDb.store(std::move(log));
 }
 
-void BrewLogManager::doPushData(libopenpresso::millidegrees_t temperature,
-                                libopenpresso::millibars_t pressure,
+void BrewLogManager::doPushData(libopenpresso::millibars_t pressure,
                                 libopenpresso::milligrams_t weight,
                                 libopenpresso::milligrams_p_second_t flowRate,
                                 size_t stepIndex)
 {
   BrewLogRecord record{
-    .temperature = temperature,
     .pressure = pressure,
     .weight = weight,
     .flowRate = flowRate,

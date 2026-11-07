@@ -59,7 +59,7 @@ void EventsStreamReactor::notifyChanged(const SteamModeState& steamModeState)
   pushEvent(std::move(event));
 }
 
-void EventsStreamReactor::notifyChanged(const BrewProfileInfo& brewProfile)
+void EventsStreamReactor::notifyChanged(const ActiveBrewProfile& brewProfile)
 {
   Event event;
   event.mutable_brewprofile()->CopyFrom(brewProfile);

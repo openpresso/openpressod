@@ -9,7 +9,6 @@
 
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/interfaces/pressure_sensor.hpp>
-#include <libopenpresso/interfaces/temperature_sensor.hpp>
 #include <libopenpresso/interfaces/weight_sensor.hpp>
 
 namespace openpressod
@@ -30,7 +29,6 @@ public:
       // NOLINTBEGIN(cppcoreguidelines-avoid-do-while)
       do {
         std::invoke(callback,
-                    m_temperatureSensor->getTemperature(),
                     m_pressureSensor->getPressure(),
                     m_weightSensor->getWeight(),
                     m_weightSensor->getFlowRate(),
@@ -49,7 +47,6 @@ public:
 private:
   bool m_isRunning = false;
   libopenpresso::PressureSensorPtr m_pressureSensor;
-  libopenpresso::TemperatureSensorPtr m_temperatureSensor;
   libopenpresso::WeightSensorPtr m_weightSensor;
   std::chrono::steady_clock::duration m_samplingInterval;
   std::atomic<size_t> m_currentStep = 0;
