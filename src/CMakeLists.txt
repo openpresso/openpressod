@@ -48,5 +48,6 @@ add_subdirectory(leds)
 add_subdirectory(service)
 add_subdirectory(utils)
 add_subdirectory(brew_log)
+add_subdirectory(database)
 
 install(TARGETS openpressod RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
