@@ -23,6 +23,8 @@ public:
   void completeLog(uint64_t id, const CompletedBrewLog& log, const BrewProfile& profile);
   std::pair<CompletedBrewLog, BrewProfile> get(uint64_t id);
   void erase(uint64_t id);
+  void discardIncomplete();
+  void discardIncomplete(uint64_t id);
   BrewLogsSearchResult find(const FindBrewLogs& query);
 
 private:

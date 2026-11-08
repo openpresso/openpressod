@@ -80,14 +80,25 @@ void BrewHistoryRepository::erase(uint64_t id)
 
   auto transaction = m_storage.immediate_transaction_guard();
   const auto row = m_storage.get_optional<BrewLogRow>(id);
-  if (row) {
+  if (row && row->profileId) {
     m_storage.remove<BrewLogRow>(id); // ON DELETE CASCADE removes records.
-    if (row->profileId &&
-        m_storage.count<BrewLogRow>(where(c(&BrewLogRow::profileId) == row->profileId)) == 0) {
+    if (m_storage.count<BrewLogRow>(where(c(&BrewLogRow::profileId) == row->profileId)) == 0) {
       m_storage.remove<HistoricalProfileRow>(*row->profileId); // ON DELETE CASCADE removes steps.
     }
   }
   transaction.commit();
+}
+
+void BrewHistoryRepository::discardIncomplete()
+{
+  using namespace sqlite_orm;
+  m_storage.remove_all<BrewLogRow>(where(is_null(&BrewLogRow::profileId)));
+}
+
+void BrewHistoryRepository::discardIncomplete(uint64_t id)
+{
+  using namespace sqlite_orm;
+  m_storage.remove_all<BrewLogRow>(where(c(&BrewLogRow::id) == id && is_null(&BrewLogRow::profileId)));
 }
 
 openpressod::BrewLogsSearchResult BrewHistoryRepository::find(const FindBrewLogs& query)

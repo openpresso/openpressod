@@ -131,6 +131,8 @@ TEST_F(BrewHistoryRepositoryTest, EmptyDatabaseAndMissingIds)
   EXPECT_THROW(repository->get(42), std::system_error);
   EXPECT_THROW(repository->completeLog(42, makeLog(), makeProfile()), std::system_error);
   EXPECT_NO_THROW(repository->erase(42));
+  EXPECT_NO_THROW(repository->discardIncomplete(42));
+  EXPECT_NO_THROW(repository->discardIncomplete());
   expectCounts(0, 0, 0, 0);
 }
 
@@ -149,13 +151,88 @@ TEST_F(BrewHistoryRepositoryTest, EmptyLogsReservePersistentIdsWithoutCreatingPr
   repository->completeLog(first, makeLog(), makeProfile());
   expectLog(makeLog(), repository->get(first).first);
   expectCounts(2, 1, 3, 3);
-  repository->erase(second);
+  repository->discardIncomplete(second);
   expectCounts(1, 1, 3, 3);
   EXPECT_THROW(repository->completeLog(second, makeLog(), makeProfile()), std::system_error);
   repository->erase(first);
   const auto empty = repository->createEmptyLog();
-  repository->erase(empty);
+  repository->discardIncomplete(empty);
   expectCounts(0, 0, 0, 0);
+}
+
+TEST_F(BrewHistoryRepositoryTest, ErasePreservesIncompleteLogsAndTheyCanStillBeCompleted)
+{
+  const auto incomplete = repository->createEmptyLog();
+  const auto complete = createLog(makeLog(), makeProfile());
+
+  EXPECT_NO_THROW(repository->erase(incomplete));
+  expectCounts(2, 1, 3, 3);
+  EXPECT_THROW(repository->get(incomplete), std::out_of_range);
+  EXPECT_EQ((std::vector<uint64_t>{complete}), ids(repository->find(FindBrewLogs{})));
+
+  repository->completeLog(incomplete, makeLog(), makeProfile());
+  expectLog(makeLog(), repository->get(incomplete).first);
+  repository->erase(incomplete);
+  expectCounts(1, 1, 3, 3);
+}
+
+TEST_F(BrewHistoryRepositoryTest, DiscardIncompletePreservesCompletedLogsAndTheirData)
+{
+  const auto incomplete = repository->createEmptyLog();
+  const auto otherIncomplete = repository->createEmptyLog();
+  const auto complete = createLog(makeLog(), makeProfile());
+  const auto original = repository->find(FindBrewLogs{});
+
+  EXPECT_NO_THROW(repository->discardIncomplete(complete));
+  expectCounts(3, 1, 3, 3);
+  EXPECT_EQ(original.SerializeAsString(), repository->find(FindBrewLogs{}).SerializeAsString());
+
+  repository->discardIncomplete(incomplete);
+  expectCounts(2, 1, 3, 3);
+  EXPECT_THROW(repository->completeLog(incomplete, makeLog(), makeProfile()), std::system_error);
+  EXPECT_NO_THROW(repository->discardIncomplete(incomplete));
+  repository->completeLog(otherIncomplete, makeLog(), makeProfile());
+  expectCounts(2, 1, 6, 3);
+}
+
+TEST_F(BrewHistoryRepositoryTest, DiscardAllIncompletePreservesCompletedLogsAndTheirData)
+{
+  const auto firstIncomplete = repository->createEmptyLog();
+  createLog(makeLog(), makeProfile());
+  const auto secondIncomplete = repository->createEmptyLog();
+  createLog(makeLog(200s), makeProfile());
+  auto emptyLog = makeLog(300s);
+  emptyLog.records.clear();
+  createLog(emptyLog, makeProfile("Other"));
+  const auto original = repository->find(FindBrewLogs{});
+  expectCounts(5, 2, 6, 6);
+
+  repository->discardIncomplete();
+  expectCounts(3, 2, 6, 6);
+  EXPECT_EQ(original.SerializeAsString(), repository->find(FindBrewLogs{}).SerializeAsString());
+  EXPECT_THROW(repository->completeLog(firstIncomplete, makeLog(), makeProfile()), std::system_error);
+  EXPECT_THROW(repository->completeLog(secondIncomplete, makeLog(), makeProfile()), std::system_error);
+
+  EXPECT_NO_THROW(repository->discardIncomplete());
+  expectCounts(3, 2, 6, 6);
+  EXPECT_EQ(original.SerializeAsString(), repository->find(FindBrewLogs{}).SerializeAsString());
+}
+
+TEST_F(BrewHistoryRepositoryTest, DiscardAllIncompleteClearsReservationsAndPreservesIdSequence)
+{
+  const auto first = repository->createEmptyLog();
+  const auto second = repository->createEmptyLog();
+
+  repository->discardIncomplete();
+  expectCounts(0, 0, 0, 0);
+  EXPECT_THROW(repository->completeLog(first, makeLog(), makeProfile()), std::system_error);
+  EXPECT_THROW(repository->completeLog(second, makeLog(), makeProfile()), std::system_error);
+
+  const auto next = repository->createEmptyLog();
+  EXPECT_GT(next, second);
+  repository->completeLog(next, makeLog(), makeProfile());
+  expectLog(makeLog(), repository->get(next).first);
+  expectCounts(1, 1, 3, 3);
 }
 
 TEST_F(BrewHistoryRepositoryTest, CompletingAnAlreadyCompletedLogLeavesHistoryUnchanged)
