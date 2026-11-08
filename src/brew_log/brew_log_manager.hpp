@@ -48,7 +48,7 @@ public:
   void addStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void removeStreamReactor(const BrewLogStreamReactor* reactor);
 
-  void startBrew(uint32_t brewId, BrewProfile profile);
+  void startBrew(uint64_t brewId, BrewProfile profile);
   void setCurrentStep(size_t step);
   void stopBrew();
 
@@ -56,7 +56,7 @@ private:
   void doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> reactor);
   void doRemoveStreamReactor(const BrewLogStreamReactor* reactor);
 
-  void doStartBrew(uint32_t brewId, BrewProfile profile);
+  void doStartBrew(uint64_t brewId, BrewProfile profile);
   void doStopBrew();
 
   void doPushData(libopenpresso::millibars_t pressure,
@@ -70,7 +70,7 @@ private:
 
   std::chrono::system_clock::time_point m_brewStartTime;
   std::chrono::steady_clock::duration m_samplingInterval;
-  std::optional<uint32_t> m_brewId;
+  std::optional<uint64_t> m_brewId;
   BrewProfile m_profile;
   std::vector<BrewLogRecord> m_records;
 
