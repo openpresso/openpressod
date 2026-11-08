@@ -6,6 +6,7 @@
 #include "config/libopenpresso_config_maker.hpp"
 #include "config/openpressod_config.hpp"
 #include "database/brew_history/async_repository.hpp"
+#include "database/brew_history/repository.hpp"
 #include "database/brew_profiles/async_repository.hpp"
 #include "leds/leds_handler.hpp"
 #include "service/brew_log_stream_reactor.hpp"
@@ -57,8 +58,8 @@ Daemon::Daemon(const std::string& configPath)
                                                            historyRepository);
 
   m_buttonsHandler = std::make_unique<ButtonsCallbackRegistrator>(dispatcher, core, config);
-  m_service =
-    std::make_unique<ServiceManager>(dispatcher, brewLogManager, core, std::move(brewTimer), config);
+  m_service = std::make_unique<ServiceManager>(
+    dispatcher, brewLogManager, core, std::move(brewTimer), profilesRepository, historyRepository, config);
 }
 
 std::unique_ptr<BrewProfileManager> Daemon::setupBrewProfileManager(const OpenpressodConfig& config)

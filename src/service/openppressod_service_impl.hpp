@@ -2,10 +2,12 @@
 #define OPENPPRESSOD_SERVICE_IMPL_HPP
 
 #include <memory>
+#include <system_error>
 
 #include <google/protobuf/empty.pb.h>
 #include <grpcpp/server_context.h>
 #include <grpcpp/support/server_callback.h>
+#include <grpcpp/support/status.h>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <openpresso_proto/brew_log.pb.h>
 #include <openpresso_proto/brew_profile.pb.h>
@@ -22,12 +24,23 @@ class AsyncEventDispatcher;
 class BrewLogManager;
 class BrewTimer;
 
+namespace db::brew_profiles
+{
+class AsyncBrewProfilesRepository;
+}
+namespace db::brew_history
+{
+class AsyncBrewHistoryRepository;
+}
+
 class OpenpressodServiceImpl : public OpenpressoDaemon::CallbackService {
 public:
   OpenpressodServiceImpl(std::shared_ptr<AsyncEventDispatcher> dispatcher,
                          std::shared_ptr<BrewLogManager> brewLogManager,
                          libopenpresso::CorePtr core,
-                         std::shared_ptr<const BrewTimer> brewTimer);
+                         std::shared_ptr<const BrewTimer> brewTimer,
+                         std::shared_ptr<db::brew_profiles::AsyncBrewProfilesRepository> profilesRepository,
+                         std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> historyRepository);
 
   grpc::ServerUnaryReactor* resetScales(grpc::CallbackServerContext* context,
                                         const google::protobuf::Empty* request,
@@ -116,12 +129,15 @@ public:
 
 private:
   static auto makeVoidCallback(grpc::ServerUnaryReactor* reactor);
+  static grpc::Status dbError(const std::system_error& error);
 
 private:
   std::shared_ptr<AsyncEventDispatcher> m_dispatcher;
   std::shared_ptr<BrewLogManager> m_brewLogManager;
   libopenpresso::CorePtr m_core;
   std::shared_ptr<const BrewTimer> m_brewTimer;
+  std::shared_ptr<db::brew_profiles::AsyncBrewProfilesRepository> m_profilesRepository;
+  std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> m_historyRepository;
 };
 
 } // namespace openpressod

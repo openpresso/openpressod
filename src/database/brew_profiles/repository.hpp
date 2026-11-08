@@ -14,10 +14,16 @@ namespace openpressod::db::brew_profiles
 class BrewProfilesRepository {
 public:
   explicit BrewProfilesRepository(std::string path);
+  BrewProfilesRepository(BrewProfilesRepository&&) = delete;
+  BrewProfilesRepository(const BrewProfilesRepository&) = default;
+  auto operator=(const BrewProfilesRepository&) = delete;
+  auto operator=(BrewProfilesRepository&&) = delete;
+  ~BrewProfilesRepository() = default;
 
   uint64_t create(const BrewProfile& profile);
   void update(uint64_t id, const BrewProfile& profile);
   PersistentBrewProfile get(uint64_t id);
+  // Throws when the ID is missing.
   void erase(uint64_t id);
   PersistentBrewProfile find(const BrewProfile& profile);
   BrewProfilesSearchResult find(const FindBrewProfiles& query);

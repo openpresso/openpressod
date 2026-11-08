@@ -9,8 +9,10 @@
 #include "state_manager/user_settings_manager.hpp"
 #include "utils/procedures_serial_executor.hpp"
 
+#include <cstdint>
 #include <list>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <variant>
@@ -65,7 +67,7 @@ public:
   void getBrewProfile(Cb&& callback);
 
   template <typename Cb>
-  void setBrewProfile(const BrewProfile* profile, Cb&& callback);
+  void setBrewProfile(BrewProfile profile, Cb&& callback);
 
   template <typename Cb>
   void getPowerState(Cb&& callback);
@@ -140,18 +142,18 @@ inline void AsyncEventDispatcher::getBrewProfile(Cb&& callback)
 }
 
 template <typename Cb>
-inline void AsyncEventDispatcher::setBrewProfile(const BrewProfile* profile, Cb&& callback)
+inline void AsyncEventDispatcher::setBrewProfile(BrewProfile profile, Cb&& callback)
 {
   m_executor.executeWithCallback(
-    [this, profile] {
+    [this, profile = std::move(profile)] mutable {
       if (m_stateManager->getBrewState()) {
         throw std::runtime_error{"Cannot change profile while brewing"};
       }
-      m_brewProfileManager->saveProfile(*profile);
+      m_brewProfileManager->saveProfile(profile);
       m_brewProfileManager->applyBrewProfile(*m_stateManager);
 
       ActiveBrewProfile profileUpdate;
-      profileUpdate.mutable_profile()->CopyFrom(*profile);
+      *profileUpdate.mutable_profile() = std::move(profile);
 
       for (auto&& sink : m_eventsSinks) {
         sink->notifyChanged(profileUpdate);

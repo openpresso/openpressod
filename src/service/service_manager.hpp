@@ -24,6 +24,8 @@ public:
                  std::shared_ptr<BrewLogManager> brewLogManager,
                  libopenpresso::CorePtr core,
                  std::shared_ptr<const BrewTimer> brewTimer,
+                 std::shared_ptr<db::brew_profiles::AsyncBrewProfilesRepository> profilesRepository,
+                 std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> historyRepository,
                  const OpenpressodConfig& config);
   ServiceManager(const ServiceManager&) = delete;
   ServiceManager(ServiceManager&&) = delete;

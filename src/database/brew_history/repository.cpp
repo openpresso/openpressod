@@ -66,7 +66,7 @@ std::pair<openpressod::CompletedBrewLog, openpressod::BrewProfile> BrewHistoryRe
 
   const auto row = m_storage.get<BrewLogRow>(id);
   if (!row.profileId) {
-    throw std::out_of_range("Brew log is incomplete");
+    throw std::system_error{sqlite_orm::orm_error_code::not_found};
   }
   auto result = std::pair{loadLog(row), loadProfile(*row.profileId)};
 
@@ -79,12 +79,13 @@ void BrewHistoryRepository::erase(uint64_t id)
   using namespace sqlite_orm;
 
   auto transaction = m_storage.immediate_transaction_guard();
-  const auto row = m_storage.get_optional<BrewLogRow>(id);
-  if (row && row->profileId) {
-    m_storage.remove<BrewLogRow>(id); // ON DELETE CASCADE removes records.
-    if (m_storage.count<BrewLogRow>(where(c(&BrewLogRow::profileId) == row->profileId)) == 0) {
-      m_storage.remove<HistoricalProfileRow>(*row->profileId); // ON DELETE CASCADE removes steps.
-    }
+  const auto row = m_storage.get<BrewLogRow>(id);
+  if (!row.profileId.has_value()) {
+    throw std::system_error{orm_error_code::not_found};
+  }
+  m_storage.remove<BrewLogRow>(id); // ON DELETE CASCADE removes records.
+  if (m_storage.count<BrewLogRow>(where(c(&BrewLogRow::profileId) == row.profileId)) == 0) {
+    m_storage.remove<HistoricalProfileRow>(*row.profileId); // ON DELETE CASCADE removes steps.
   }
   transaction.commit();
 }
@@ -99,6 +100,9 @@ void BrewHistoryRepository::discardIncomplete(uint64_t id)
 {
   using namespace sqlite_orm;
   m_storage.remove_all<BrewLogRow>(where(c(&BrewLogRow::id) == id && is_null(&BrewLogRow::profileId)));
+  if (m_storage.changes() == 0) {
+    throw std::system_error{orm_error_code::not_found};
+  }
 }
 
 openpressod::BrewLogsSearchResult BrewHistoryRepository::find(const FindBrewLogs& query)

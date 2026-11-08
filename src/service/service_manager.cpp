@@ -1,6 +1,8 @@
 #include "service_manager.hpp"
 
 #include "config/openpressod_config.hpp"
+#include "database/brew_history/async_repository.hpp"
+#include "database/brew_profiles/async_repository.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -18,8 +20,15 @@ ServiceManager::ServiceManager(std::shared_ptr<AsyncEventDispatcher> dispatcher,
                                std::shared_ptr<BrewLogManager> brewLogManager,
                                libopenpresso::CorePtr core,
                                std::shared_ptr<const BrewTimer> brewTimer,
+                               std::shared_ptr<db::brew_profiles::AsyncBrewProfilesRepository> profilesRepository,
+                               std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> historyRepository,
                                const OpenpressodConfig& config)
-: m_impl{std::move(dispatcher), std::move(brewLogManager), std::move(core), std::move(brewTimer)}
+: m_impl{std::move(dispatcher),
+         std::move(brewLogManager),
+         std::move(core),
+         std::move(brewTimer),
+         std::move(profilesRepository),
+         std::move(historyRepository)}
 , m_server{buildServer(config)}
 {
   spdlog::debug("Openpresso service created");

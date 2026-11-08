@@ -28,13 +28,13 @@ class BrewLogStreamReactor final : public grpc::ServerWriteReactor<BrewLogStream
   };
 
 public:
-  explicit BrewLogStreamReactor(BrewLogManager* owner, uint32_t brewId);
+  explicit BrewLogStreamReactor(BrewLogManager* owner, uint64_t brewId);
 
   void OnWriteDone(bool ok) override;
   void OnCancel() override;
   void OnDone() override;
 
-  uint32_t brewId() const noexcept;
+  uint64_t brewId() const noexcept;
 
   template <std::ranges::input_range R>
   void sendBrewStart(std::chrono::steady_clock::duration samplingInterval,
@@ -100,7 +100,7 @@ private:
   }
 
 private:
-  uint32_t m_brewId;
+  uint64_t m_brewId;
   std::atomic<WriteStatus> m_writeStatus = WriteStatus::Idle;
   BrewLogManager* m_owner;
   std::mutex m_queueLock;

@@ -17,6 +17,11 @@ namespace openpressod::db::brew_history
 class BrewHistoryRepository {
 public:
   explicit BrewHistoryRepository(std::string path);
+  BrewHistoryRepository(BrewHistoryRepository&&) = delete;
+  BrewHistoryRepository(const BrewHistoryRepository&) = default;
+  auto operator=(const BrewHistoryRepository&) = delete;
+  auto operator=(BrewHistoryRepository&&) = delete;
+  ~BrewHistoryRepository() = default;
 
   // Reserve a persistent ID; incomplete logs are excluded from get() and find().
   uint64_t createEmptyLog();

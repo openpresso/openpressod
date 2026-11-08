@@ -3,14 +3,19 @@
 #include "async_events_dispatcher/async_events_dispatcher.hpp"
 #include "brew_log/brew_log_manager.hpp"
 #include "brew_log_stream_reactor.hpp"
+#include "database/brew_history/async_repository.hpp"
+#include "database/brew_profiles/async_repository.hpp"
 #include "events_stream_reactor.hpp"
 #include "metrics_stream_reactor.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <exception>
 #include <future>
 #include <memory>
+#include <sqlite3.h>
 #include <stdexcept>
+#include <system_error>
 #include <utility>
 
 #include <google/protobuf/empty.pb.h>
@@ -25,17 +30,23 @@
 #include <openpresso_proto/metrics.pb.h>
 #include <openpresso_proto/user_settings.pb.h>
 #include <spdlog/spdlog.h>
+#include <sqlite_orm/sqlite_orm.h>
 
 using namespace openpressod;
 
-OpenpressodServiceImpl::OpenpressodServiceImpl(std::shared_ptr<AsyncEventDispatcher> dispatcher,
-                                               std::shared_ptr<BrewLogManager> brewLogManager,
-                                               libopenpresso::CorePtr core,
-                                               std::shared_ptr<const BrewTimer> brewTimer)
+OpenpressodServiceImpl::OpenpressodServiceImpl(
+  std::shared_ptr<AsyncEventDispatcher> dispatcher,
+  std::shared_ptr<BrewLogManager> brewLogManager,
+  libopenpresso::CorePtr core,
+  std::shared_ptr<const BrewTimer> brewTimer,
+  std::shared_ptr<db::brew_profiles::AsyncBrewProfilesRepository> profilesRepository,
+  std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> historyRepository)
 : m_dispatcher{std::move(dispatcher)}
 , m_brewLogManager{std::move(brewLogManager)}
 , m_core{std::move(core)}
 , m_brewTimer{std::move(brewTimer)}
+, m_profilesRepository{std::move(profilesRepository)}
+, m_historyRepository{std::move(historyRepository)}
 {
 }
 
@@ -116,12 +127,20 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::setActiveBrewProfile(
 {
   auto* reactor = context->DefaultReactor();
   if (request->has_profile()) {
-    m_dispatcher->setBrewProfile(&request->profile(), makeVoidCallback(reactor));
+    m_dispatcher->setBrewProfile(request->profile(), makeVoidCallback(reactor));
   }
   else if (request->has_persistentid()) {
+    m_profilesRepository->get(request->persistentid(), [reactor, this](std::future<PersistentBrewProfile> result) {
+      try {
+        m_dispatcher->setBrewProfile(result.get().profile(), makeVoidCallback(reactor));
+      }
+      catch (const std::system_error& error) {
+        reactor->Finish(dbError(error));
+      }
+    });
   }
   else {
-    reactor->Finish(grpc::Status{grpc::StatusCode::ABORTED, "NotFound"});
+    reactor->Finish(grpc::Status{grpc::StatusCode::INVALID_ARGUMENT, "Message has no valid profile"});
   }
 
   return reactor;
@@ -258,69 +277,132 @@ grpc::ServerWriteReactor<BrewLogStream>* OpenpressodServiceImpl::getBrewLog(
 }
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::getPersistentBrewProfile(
-  grpc::CallbackServerContext* context,
-  [[maybe_unused]] const BrewProfileId* request,
-  [[maybe_unused]] PersistentBrewProfile* response)
+  grpc::CallbackServerContext* context, const BrewProfileId* request, PersistentBrewProfile* response)
 {
   auto* reactor = context->DefaultReactor();
-  reactor->Finish(grpc::Status::OK);
+  m_profilesRepository->get(request->id(), [reactor, response](std::future<PersistentBrewProfile> result) {
+    try {
+      *response = result.get();
+      reactor->Finish(grpc::Status::OK);
+    }
+    catch (const std::system_error& error) {
+      reactor->Finish(dbError(error));
+    }
+  });
   return reactor;
 }
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::addPersistentBrewProfile(
-  grpc::CallbackServerContext* context,
-  [[maybe_unused]] const BrewProfile* request,
-  [[maybe_unused]] BrewProfileId* response)
+  grpc::CallbackServerContext* context, const BrewProfile* request, BrewProfileId* response)
 {
   auto* reactor = context->DefaultReactor();
-  reactor->Finish(grpc::Status::OK);
+  m_profilesRepository->create(*request, [reactor, response](std::future<uint64_t> result) {
+    try {
+      response->set_id(result.get());
+      reactor->Finish(grpc::Status::OK);
+    }
+    catch (const std::system_error& error) {
+      reactor->Finish(dbError(error));
+    }
+  });
   return reactor;
 }
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::updatePersistentBrewProfile(
   grpc::CallbackServerContext* context,
-  [[maybe_unused]] const UpdatePersistentProfile* request,
+  const UpdatePersistentProfile* request,
   [[maybe_unused]] google::protobuf::Empty* response)
 {
   auto* reactor = context->DefaultReactor();
-  reactor->Finish(grpc::Status::OK);
+  m_profilesRepository->update(request->id(), request->profile(), [reactor](std::future<void> result) {
+    try {
+      result.get();
+      reactor->Finish(grpc::Status::OK);
+    }
+    catch (const std::system_error& error) {
+      reactor->Finish(dbError(error));
+    }
+  });
   return reactor;
 }
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::deletePersistentBrewProfile(
   grpc::CallbackServerContext* context,
-  [[maybe_unused]] const BrewProfileId* request,
+  const BrewProfileId* request,
   [[maybe_unused]] google::protobuf::Empty* response)
 {
   auto* reactor = context->DefaultReactor();
-  reactor->Finish(grpc::Status::OK);
+  m_profilesRepository->erase(request->id(), [reactor](std::future<void> result) {
+    try {
+      result.get();
+      reactor->Finish(grpc::Status::OK);
+    }
+    catch (const std::system_error& error) {
+      reactor->Finish(dbError(error));
+    }
+  });
   return reactor;
 }
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::findPersistentBrewProfiles(
-  grpc::CallbackServerContext* context,
-  [[maybe_unused]] const FindBrewProfiles* request,
-  [[maybe_unused]] BrewProfilesSearchResult* response)
+  grpc::CallbackServerContext* context, const FindBrewProfiles* request, BrewProfilesSearchResult* response)
 {
   auto* reactor = context->DefaultReactor();
-  reactor->Finish(grpc::Status::OK);
+  m_profilesRepository->find(*request, [reactor, response](std::future<BrewProfilesSearchResult> result) {
+    try {
+      *response = result.get();
+      reactor->Finish(grpc::Status::OK);
+    }
+    catch (const std::system_error& error) {
+      reactor->Finish(dbError(error));
+    }
+  });
   return reactor;
 }
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::findBrewLogs(grpc::CallbackServerContext* context,
-                                                               [[maybe_unused]] const FindBrewLogs* request,
-                                                               [[maybe_unused]] BrewLogsSearchResult* response)
+                                                               const FindBrewLogs* request,
+                                                               BrewLogsSearchResult* response)
 {
   auto* reactor = context->DefaultReactor();
-  reactor->Finish(grpc::Status::OK);
+  m_historyRepository->find(*request, [reactor, response](std::future<BrewLogsSearchResult> result) {
+    try {
+      *response = result.get();
+      reactor->Finish(grpc::Status::OK);
+    }
+    catch (const std::system_error& error) {
+      reactor->Finish(dbError(error));
+    }
+  });
   return reactor;
 }
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::removeBrewLog(grpc::CallbackServerContext* context,
-                                                                [[maybe_unused]] const BrewLogId* request,
+                                                                const BrewLogId* request,
                                                                 [[maybe_unused]] google::protobuf::Empty* response)
 {
   auto* reactor = context->DefaultReactor();
-  reactor->Finish(grpc::Status::OK);
+  m_historyRepository->erase(request->id(), [reactor](std::future<void> result) {
+    try {
+      result.get();
+      reactor->Finish(grpc::Status::OK);
+    }
+    catch (const std::system_error& error) {
+      reactor->Finish(dbError(error));
+    }
+  });
   return reactor;
+}
+
+grpc::Status OpenpressodServiceImpl::dbError(const std::system_error& error)
+{
+  if (error.code() == sqlite_orm::make_error_code(sqlite_orm::orm_error_code::not_found)) {
+    return grpc::Status{grpc::StatusCode::NOT_FOUND, error.what()};
+  }
+
+  if (error.code() == sqlite_orm::make_error_code(sqlite_orm::sqlite_errc(SQLITE_CONSTRAINT_UNIQUE))) {
+    return grpc::Status{grpc::StatusCode::ALREADY_EXISTS, "Database unique constraint violated"};
+  }
+
+  return grpc::Status{grpc::StatusCode::INTERNAL, error.what()};
 }

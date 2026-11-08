@@ -16,7 +16,7 @@
 
 using namespace openpressod;
 
-BrewLogStreamReactor::BrewLogStreamReactor(BrewLogManager* owner, uint32_t brewId)
+BrewLogStreamReactor::BrewLogStreamReactor(BrewLogManager* owner, uint64_t brewId)
 : m_brewId{brewId}
 , m_owner{owner}
 , m_worker{&BrewLogStreamReactor::worker, this}
@@ -44,7 +44,7 @@ void BrewLogStreamReactor::OnDone()
   m_owner->removeStreamReactor(this);
 }
 
-uint32_t BrewLogStreamReactor::brewId() const noexcept
+uint64_t BrewLogStreamReactor::brewId() const noexcept
 {
   return m_brewId;
 }

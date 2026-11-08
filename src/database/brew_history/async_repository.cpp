@@ -18,8 +18,8 @@ AsyncBrewHistoryRepository::AsyncBrewHistoryRepository(std::string path)
 {
 }
 
-AsyncBrewHistoryRepository::AsyncBrewHistoryRepository(BrewHistoryRepository&& repository)
-: m_repository{std::move(repository)}
+AsyncBrewHistoryRepository::AsyncBrewHistoryRepository(const BrewHistoryRepository& repository)
+: m_repository{repository}
 {
 }
 

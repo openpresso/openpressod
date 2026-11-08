@@ -9,7 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <stdexcept>
+#include <system_error>
 #include <utility>
 
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
@@ -74,7 +74,7 @@ void BrewLogManager::doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> re
       auto&& [log, profile] = brewLogFuture.get();
       reactor->sendCompletedBrew(log.samplingInterval, log.brewStartTime, std::move(profile), log.records);
     }
-    catch (const std::out_of_range&) {
+    catch (const std::system_error&) {
       reactor->sendLogNotFound();
     }
   });

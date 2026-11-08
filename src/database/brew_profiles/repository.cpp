@@ -8,8 +8,9 @@
 #include <cstdint>
 #include <optional>
 #include <ranges>
-#include <stdexcept>
+#include <sqlite3.h>
 #include <string>
+#include <system_error>
 #include <utility>
 
 #include <google/protobuf/util/time_util.h>
@@ -21,6 +22,12 @@ using namespace openpressod::db::brew_profiles;
 BrewProfilesRepository::BrewProfilesRepository(std::string path)
 : m_storage(makeStorage(std::move(path)))
 {
+  m_storage.on_open = [](sqlite3* connection) {
+    const auto result = sqlite3_extended_result_codes(connection, 1);
+    if (result != SQLITE_OK) {
+      throw std::system_error{sqlite_orm::sqlite_errc(result)};
+    }
+  };
   m_storage.open_forever();
   m_storage.sync_schema();
 }
@@ -73,9 +80,10 @@ openpressod::PersistentBrewProfile BrewProfilesRepository::get(uint64_t id)
 
 void BrewProfilesRepository::erase(uint64_t id)
 {
-  auto transaction = m_storage.immediate_transaction_guard();
   m_storage.remove<ProfileRow>(id); // ON DELETE CASCADE removes steps
-  transaction.commit();
+  if (m_storage.changes() == 0) {
+    throw std::system_error{sqlite_orm::orm_error_code::not_found};
+  }
 }
 
 openpressod::PersistentBrewProfile BrewProfilesRepository::find(const BrewProfile& profile)
@@ -87,7 +95,7 @@ openpressod::PersistentBrewProfile BrewProfilesRepository::find(const BrewProfil
   auto rows = m_storage.get_all<ProfileRow>(where(c(&ProfileRow::fingerprint) == fingerprint));
 
   if (rows.empty()) {
-    throw std::out_of_range("Profile not found");
+    throw std::system_error{orm_error_code::not_found};
   }
 
   PersistentBrewProfile result;
