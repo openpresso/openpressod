@@ -442,8 +442,8 @@ TEST_F(BrewLogManagerTest, BrewWithoutSubscribersIsPersistedAndSurvivesRepositor
   shutdown();
   history.reset();
   history = std::make_shared<db::brew_history::AsyncBrewHistoryRepository>(path);
-  const auto [log, storedProfile] = history->get(id).get();
-  EXPECT_EQ(profile.SerializeAsString(), storedProfile.SerializeAsString());
+  const auto log = history->get(id).get();
+  EXPECT_EQ(profile.SerializeAsString(), log.profile.SerializeAsString());
   EXPECT_EQ(1h, log.samplingInterval);
   ASSERT_EQ(1U, log.records.size());
   EXPECT_EQ(8'500U, log.records.front().pressure);

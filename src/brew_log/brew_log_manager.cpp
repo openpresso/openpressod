@@ -71,8 +71,9 @@ void BrewLogManager::doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> re
 
   m_repository->get(reactor->brewId(), [reactor = reactor.get()](auto&& brewLogFuture) {
     try {
-      auto&& [log, profile] = brewLogFuture.get();
-      reactor->sendCompletedBrew(log.samplingInterval, log.brewStartTime, std::move(profile), log.records);
+      auto log = brewLogFuture.get();
+      reactor->sendCompletedBrew(
+        log.samplingInterval, log.brewStartTime, std::move(log.profile), log.records);
     }
     catch (const std::system_error&) {
       reactor->sendLogNotFound();
@@ -114,10 +115,11 @@ void BrewLogManager::doStopBrew()
   CompletedBrewLog log{
     .brewStartTime = m_brewStartTime,
     .samplingInterval = m_samplingInterval,
+    .profile = std::move(m_profile),
     .records = std::move(m_records),
   };
 
-  m_repository->completeLog(m_brewId.value(), std::move(log), std::move(m_profile));
+  m_repository->completeLog(m_brewId.value(), std::move(log));
   m_brewId.reset();
 }
 

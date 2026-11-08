@@ -9,7 +9,6 @@
 #include <utility>
 
 #include <openpresso_proto/brew_log.pb.h>
-#include <openpresso_proto/brew_profile.pb.h>
 
 using namespace openpressod::db::brew_history;
 
@@ -28,14 +27,12 @@ std::future<uint64_t> AsyncBrewHistoryRepository::createEmptyLog()
   return m_executor.executeWithFuture(&BrewHistoryRepository::createEmptyLog, &m_repository);
 }
 
-std::future<void> AsyncBrewHistoryRepository::completeLog(uint64_t id, CompletedBrewLog log, BrewProfile profile)
+std::future<void> AsyncBrewHistoryRepository::completeLog(uint64_t id, CompletedBrewLog log)
 {
-  return m_executor.executeWithFuture(
-    &BrewHistoryRepository::completeLog, &m_repository, id, std::move(log), std::move(profile));
+  return m_executor.executeWithFuture(&BrewHistoryRepository::completeLog, &m_repository, id, std::move(log));
 }
 
-std::future<std::pair<openpressod::CompletedBrewLog, openpressod::BrewProfile>>
-AsyncBrewHistoryRepository::get(uint64_t id)
+std::future<openpressod::CompletedBrewLog> AsyncBrewHistoryRepository::get(uint64_t id)
 {
   return m_executor.executeWithFuture(&BrewHistoryRepository::get, &m_repository, id);
 }

@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <string>
-#include <utility>
 
 #include <openpresso_proto/brew_log.pb.h>
 #include <openpresso_proto/brew_profile.pb.h>
@@ -25,8 +24,8 @@ public:
 
   // Reserve a persistent ID; incomplete logs are excluded from get() and find().
   uint64_t createEmptyLog();
-  void completeLog(uint64_t id, const CompletedBrewLog& log, const BrewProfile& profile);
-  std::pair<CompletedBrewLog, BrewProfile> get(uint64_t id);
+  void completeLog(uint64_t id, const CompletedBrewLog& log);
+  CompletedBrewLog get(uint64_t id);
   void erase(uint64_t id);
   void discardIncomplete();
   void discardIncomplete(uint64_t id);

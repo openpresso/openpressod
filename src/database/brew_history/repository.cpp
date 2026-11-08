@@ -41,7 +41,7 @@ uint64_t BrewHistoryRepository::createEmptyLog()
   return row.id;
 }
 
-void BrewHistoryRepository::completeLog(uint64_t id, const CompletedBrewLog& log, const BrewProfile& profile)
+void BrewHistoryRepository::completeLog(uint64_t id, const CompletedBrewLog& log)
 {
   auto transaction = m_storage.immediate_transaction_guard();
 
@@ -49,7 +49,7 @@ void BrewHistoryRepository::completeLog(uint64_t id, const CompletedBrewLog& log
   if (row.profileId) {
     throw std::logic_error("Brew log is already complete");
   }
-  row.profileId = saveProfile(profile);
+  row.profileId = saveProfile(log.profile);
   row.startTime =
     std::chrono::duration_cast<std::chrono::milliseconds>(log.brewStartTime.time_since_epoch()).count();
   row.samplingInterval =
@@ -60,7 +60,7 @@ void BrewHistoryRepository::completeLog(uint64_t id, const CompletedBrewLog& log
   transaction.commit();
 }
 
-std::pair<openpressod::CompletedBrewLog, openpressod::BrewProfile> BrewHistoryRepository::get(uint64_t id)
+openpressod::CompletedBrewLog BrewHistoryRepository::get(uint64_t id)
 {
   auto transaction = m_storage.deferred_transaction_guard();
 
@@ -68,7 +68,7 @@ std::pair<openpressod::CompletedBrewLog, openpressod::BrewProfile> BrewHistoryRe
   if (!row.profileId) {
     throw std::system_error{sqlite_orm::orm_error_code::not_found};
   }
-  auto result = std::pair{loadLog(row), loadProfile(*row.profileId)};
+  auto result = loadLog(row);
 
   transaction.commit();
   return result;
@@ -133,12 +133,12 @@ openpressod::BrewLogsSearchResult BrewHistoryRepository::find(const FindBrewLogs
 
   BrewLogsSearchResult result;
   for (const auto& row : rows) {
-    const auto log = loadLog(row);
+    auto log = loadLog(row);
     auto* brewLog = result.add_logs();
     brewLog->set_id(row.id);
     protobuf_helpers::toProtoTimestamp(log.brewStartTime, *brewLog->mutable_startpoint());
     protobuf_helpers::toProtoDuration(log.samplingInterval, *brewLog->mutable_samplinginterval());
-    *brewLog->mutable_profile() = loadProfile(row.profileId.value());
+    *brewLog->mutable_profile() = std::move(log.profile);
     for (const auto& record : log.records) {
       auto* data = brewLog->add_records();
       data->set_pressure(record.pressure);
@@ -249,6 +249,7 @@ openpressod::CompletedBrewLog BrewHistoryRepository::loadLog(const BrewLogRow& r
     std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::milliseconds{row.startTime})};
   log.samplingInterval = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
     std::chrono::milliseconds{row.samplingInterval});
+  log.profile = loadProfile(row.profileId.value());
   for (const auto& record : m_storage.get_all<BrewLogRecordRow>(
          where(c(&BrewLogRecordRow::brewId) == row.id), order_by(&BrewLogRecordRow::position))) {
     log.records.push_back({

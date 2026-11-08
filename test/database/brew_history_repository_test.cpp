@@ -42,11 +42,12 @@ BrewProfile makeProfile(std::string name = "Espresso")
   return profile;
 }
 
-CompletedBrewLog makeLog(std::chrono::nanoseconds start = 100s + 123ms)
+CompletedBrewLog makeLog(std::chrono::nanoseconds start = 100s + 123ms, BrewProfile profile = makeProfile())
 {
   return {
     .brewStartTime = std::chrono::system_clock::time_point{start},
     .samplingInterval = 10ms,
+    .profile = std::move(profile),
     .records = {{8'500, -200, -300, 2}, {9'000, 36'000, 2'100, 0}, {7'000, 40'000, 100, 1}},
   };
 }
@@ -91,15 +92,16 @@ protected:
     ASSERT_EQ(SQLITE_OK, result) << sqlite3_errmsg(connection);
   }
 
-  uint64_t createLog(const CompletedBrewLog& log, const BrewProfile& profile)
+  uint64_t createLog(const CompletedBrewLog& log)
   {
     const auto id = repository->createEmptyLog();
-    repository->completeLog(id, log, profile);
+    repository->completeLog(id, log);
     return id;
   }
 
   void expectLog(const CompletedBrewLog& expected, const CompletedBrewLog& actual)
   {
+    EXPECT_EQ(expected.profile.SerializeAsString(), actual.profile.SerializeAsString());
     EXPECT_EQ(expected.brewStartTime, actual.brewStartTime);
     EXPECT_EQ(expected.samplingInterval, actual.samplingInterval);
     ASSERT_EQ(expected.records.size(), actual.records.size());
@@ -129,7 +131,7 @@ TEST_F(BrewHistoryRepositoryTest, EmptyDatabaseAndMissingIds)
 {
   EXPECT_TRUE(repository->find(FindBrewLogs{}).logs().empty());
   EXPECT_THROW(repository->get(42), std::system_error);
-  EXPECT_THROW(repository->completeLog(42, makeLog(), makeProfile()), std::system_error);
+  EXPECT_THROW(repository->completeLog(42, makeLog()), std::system_error);
   EXPECT_THROW(repository->erase(42), std::system_error);
   EXPECT_THROW(repository->discardIncomplete(42), std::system_error);
   EXPECT_NO_THROW(repository->discardIncomplete());
@@ -148,12 +150,12 @@ TEST_F(BrewHistoryRepositoryTest, EmptyLogsReservePersistentIdsWithoutCreatingPr
   repository.reset();
   repository = std::make_unique<BrewHistoryRepository>(path);
   EXPECT_THROW(repository->get(first), std::system_error);
-  repository->completeLog(first, makeLog(), makeProfile());
-  expectLog(makeLog(), repository->get(first).first);
+  repository->completeLog(first, makeLog());
+  expectLog(makeLog(), repository->get(first));
   expectCounts(2, 1, 3, 3);
   repository->discardIncomplete(second);
   expectCounts(1, 1, 3, 3);
-  EXPECT_THROW(repository->completeLog(second, makeLog(), makeProfile()), std::system_error);
+  EXPECT_THROW(repository->completeLog(second, makeLog()), std::system_error);
   repository->erase(first);
   const auto empty = repository->createEmptyLog();
   repository->discardIncomplete(empty);
@@ -163,15 +165,15 @@ TEST_F(BrewHistoryRepositoryTest, EmptyLogsReservePersistentIdsWithoutCreatingPr
 TEST_F(BrewHistoryRepositoryTest, ErasePreservesIncompleteLogsAndTheyCanStillBeCompleted)
 {
   const auto incomplete = repository->createEmptyLog();
-  const auto complete = createLog(makeLog(), makeProfile());
+  const auto complete = createLog(makeLog());
 
   EXPECT_THROW(repository->erase(incomplete), std::system_error);
   expectCounts(2, 1, 3, 3);
   EXPECT_THROW(repository->get(incomplete), std::system_error);
   EXPECT_EQ((std::vector<uint64_t>{complete}), ids(repository->find(FindBrewLogs{})));
 
-  repository->completeLog(incomplete, makeLog(), makeProfile());
-  expectLog(makeLog(), repository->get(incomplete).first);
+  repository->completeLog(incomplete, makeLog());
+  expectLog(makeLog(), repository->get(incomplete));
   repository->erase(incomplete);
   expectCounts(1, 1, 3, 3);
 }
@@ -180,7 +182,7 @@ TEST_F(BrewHistoryRepositoryTest, DiscardIncompletePreservesCompletedLogsAndThei
 {
   const auto incomplete = repository->createEmptyLog();
   const auto otherIncomplete = repository->createEmptyLog();
-  const auto complete = createLog(makeLog(), makeProfile());
+  const auto complete = createLog(makeLog());
   const auto original = repository->find(FindBrewLogs{});
 
   EXPECT_THROW(repository->discardIncomplete(complete), std::system_error);
@@ -189,29 +191,29 @@ TEST_F(BrewHistoryRepositoryTest, DiscardIncompletePreservesCompletedLogsAndThei
 
   repository->discardIncomplete(incomplete);
   expectCounts(2, 1, 3, 3);
-  EXPECT_THROW(repository->completeLog(incomplete, makeLog(), makeProfile()), std::system_error);
+  EXPECT_THROW(repository->completeLog(incomplete, makeLog()), std::system_error);
   EXPECT_THROW(repository->discardIncomplete(incomplete), std::system_error);
-  repository->completeLog(otherIncomplete, makeLog(), makeProfile());
+  repository->completeLog(otherIncomplete, makeLog());
   expectCounts(2, 1, 6, 3);
 }
 
 TEST_F(BrewHistoryRepositoryTest, DiscardAllIncompletePreservesCompletedLogsAndTheirData)
 {
   const auto firstIncomplete = repository->createEmptyLog();
-  createLog(makeLog(), makeProfile());
+  createLog(makeLog());
   const auto secondIncomplete = repository->createEmptyLog();
-  createLog(makeLog(200s), makeProfile());
-  auto emptyLog = makeLog(300s);
+  createLog(makeLog(200s));
+  auto emptyLog = makeLog(300s, makeProfile("Other"));
   emptyLog.records.clear();
-  createLog(emptyLog, makeProfile("Other"));
+  createLog(emptyLog);
   const auto original = repository->find(FindBrewLogs{});
   expectCounts(5, 2, 6, 6);
 
   repository->discardIncomplete();
   expectCounts(3, 2, 6, 6);
   EXPECT_EQ(original.SerializeAsString(), repository->find(FindBrewLogs{}).SerializeAsString());
-  EXPECT_THROW(repository->completeLog(firstIncomplete, makeLog(), makeProfile()), std::system_error);
-  EXPECT_THROW(repository->completeLog(secondIncomplete, makeLog(), makeProfile()), std::system_error);
+  EXPECT_THROW(repository->completeLog(firstIncomplete, makeLog()), std::system_error);
+  EXPECT_THROW(repository->completeLog(secondIncomplete, makeLog()), std::system_error);
 
   EXPECT_NO_THROW(repository->discardIncomplete());
   expectCounts(3, 2, 6, 6);
@@ -225,36 +227,35 @@ TEST_F(BrewHistoryRepositoryTest, DiscardAllIncompleteClearsReservationsAndPrese
 
   repository->discardIncomplete();
   expectCounts(0, 0, 0, 0);
-  EXPECT_THROW(repository->completeLog(first, makeLog(), makeProfile()), std::system_error);
-  EXPECT_THROW(repository->completeLog(second, makeLog(), makeProfile()), std::system_error);
+  EXPECT_THROW(repository->completeLog(first, makeLog()), std::system_error);
+  EXPECT_THROW(repository->completeLog(second, makeLog()), std::system_error);
 
   const auto next = repository->createEmptyLog();
   EXPECT_GT(next, second);
-  repository->completeLog(next, makeLog(), makeProfile());
-  expectLog(makeLog(), repository->get(next).first);
+  repository->completeLog(next, makeLog());
+  expectLog(makeLog(), repository->get(next));
   expectCounts(1, 1, 3, 3);
 }
 
 TEST_F(BrewHistoryRepositoryTest, CompletingAnAlreadyCompletedLogLeavesHistoryUnchanged)
 {
-  const auto id = createLog(makeLog(), makeProfile());
+  const auto id = createLog(makeLog());
   const auto original = repository->find(FindBrewLogs{});
-  EXPECT_THROW(repository->completeLog(id, makeLog(200s), makeProfile("Replacement")), std::logic_error);
+  EXPECT_THROW(repository->completeLog(id, makeLog(200s, makeProfile("Replacement"))), std::logic_error);
   EXPECT_EQ(original.SerializeAsString(), repository->find(FindBrewLogs{}).SerializeAsString());
   expectCounts(1, 1, 3, 3);
-  EXPECT_NO_THROW(createLog(makeLog(), makeProfile()));
+  EXPECT_NO_THROW(createLog(makeLog()));
   expectCounts(2, 1, 6, 3);
 }
 
 TEST_F(BrewHistoryRepositoryTest, RoundTripsAllFieldsAndFindReturnsCompleteLogs)
 {
-  const auto log = makeLog();
   const auto profile = makeProfile("Café 'special' ☕");
-  const auto id = createLog(log, profile);
-  const auto [storedLog, storedProfile] = repository->get(id);
+  const auto log = makeLog(100s + 123ms, profile);
+  const auto id = createLog(log);
+  const auto storedLog = repository->get(id);
   EXPECT_GT(id, 0U);
   expectLog(log, storedLog);
-  EXPECT_EQ(profile.SerializeAsString(), storedProfile.SerializeAsString());
 
   const auto result = repository->find(FindBrewLogs{});
   ASSERT_EQ(1, result.logs_size());
@@ -279,12 +280,12 @@ TEST_F(BrewHistoryRepositoryTest, StoresTimesInMillisecondsAndTruncatesSubmillis
 {
   auto log = makeLog(100s + 123ms + 456us);
   log.samplingInterval = 10ms + 321us;
-  const auto id = createLog(log, makeProfile());
+  const auto id = createLog(log);
   auto storage = makeStorage(path);
   const auto row = storage.get<BrewLogRow>(id);
   EXPECT_EQ(100'123, row.startTime);
   EXPECT_EQ(10, row.samplingInterval);
-  expectLog(makeLog(), repository->get(id).first);
+  expectLog(makeLog(), repository->get(id));
   const auto result = repository->find(FindBrewLogs{});
   ASSERT_EQ(1, result.logs_size());
   EXPECT_EQ(123'000'000, result.logs(0).startpoint().nanos());
@@ -293,31 +294,31 @@ TEST_F(BrewHistoryRepositoryTest, StoresTimesInMillisecondsAndTruncatesSubmillis
 
 TEST_F(BrewHistoryRepositoryTest, EmptyLogsAndAbsentAndDefaultConditionsRemainDistinct)
 {
-  BrewProfile profile;
-  profile.add_steps();
   auto log = makeLog();
+  log.profile.Clear();
+  log.profile.add_steps();
   log.records.clear();
-  const auto absent = createLog(log, profile);
-  EXPECT_EQ(profile.SerializeAsString(), repository->get(absent).second.SerializeAsString());
-  EXPECT_TRUE(repository->get(absent).first.records.empty());
-  profile.mutable_stopcondition();
-  const auto stop = createLog(log, profile);
-  EXPECT_EQ(profile.SerializeAsString(), repository->get(stop).second.SerializeAsString());
-  profile.mutable_steps(0)->mutable_advancecondition();
-  const auto advance = createLog(log, profile);
-  EXPECT_EQ(profile.SerializeAsString(), repository->get(advance).second.SerializeAsString());
-  profile.clear_steps();
-  const auto noSteps = createLog(log, profile);
-  EXPECT_EQ(profile.SerializeAsString(), repository->get(noSteps).second.SerializeAsString());
+  const auto absent = createLog(log);
+  EXPECT_EQ(log.profile.SerializeAsString(), repository->get(absent).profile.SerializeAsString());
+  EXPECT_TRUE(repository->get(absent).records.empty());
+  log.profile.mutable_stopcondition();
+  const auto stop = createLog(log);
+  EXPECT_EQ(log.profile.SerializeAsString(), repository->get(stop).profile.SerializeAsString());
+  log.profile.mutable_steps(0)->mutable_advancecondition();
+  const auto advance = createLog(log);
+  EXPECT_EQ(log.profile.SerializeAsString(), repository->get(advance).profile.SerializeAsString());
+  log.profile.clear_steps();
+  const auto noSteps = createLog(log);
+  EXPECT_EQ(log.profile.SerializeAsString(), repository->get(noSteps).profile.SerializeAsString());
   expectCounts(4, 4, 0, 3);
 }
 
 TEST_F(BrewHistoryRepositoryTest, ReusesProfilesUntilLastReferenceIsDeleted)
 {
   const auto profile = makeProfile();
-  const auto first = createLog(makeLog(), profile);
-  const auto second = createLog(makeLog(200s), profile);
-  const auto other = createLog(makeLog(), makeProfile("Other"));
+  const auto first = createLog(makeLog(100s + 123ms, profile));
+  const auto second = createLog(makeLog(200s, profile));
+  const auto other = createLog(makeLog(100s + 123ms, makeProfile("Other")));
   expectCounts(3, 2, 9, 6);
   auto storage = makeStorage(path);
   const auto profileId = storage.get<BrewLogRow>(first).profileId;
@@ -325,13 +326,13 @@ TEST_F(BrewHistoryRepositoryTest, ReusesProfilesUntilLastReferenceIsDeleted)
   repository->erase(first);
   expectCounts(2, 2, 6, 6);
   EXPECT_THROW(repository->get(first), std::system_error);
-  EXPECT_EQ(profile.SerializeAsString(), repository->get(second).second.SerializeAsString());
+  EXPECT_EQ(profile.SerializeAsString(), repository->get(second).profile.SerializeAsString());
   repository->erase(second);
   expectCounts(1, 1, 3, 3);
   EXPECT_FALSE(storage.get_optional<HistoricalProfileRow>(profileId.value()));
-  EXPECT_EQ("Other", repository->get(other).second.name());
+  EXPECT_EQ("Other", repository->get(other).profile.name());
   EXPECT_THROW(repository->erase(second), std::system_error);
-  const auto recreated = createLog(makeLog(), profile);
+  const auto recreated = createLog(makeLog(100s + 123ms, profile));
   EXPECT_NE(profileId, storage.get<BrewLogRow>(recreated).profileId);
   expectCounts(2, 2, 6, 6);
 }
@@ -339,17 +340,17 @@ TEST_F(BrewHistoryRepositoryTest, ReusesProfilesUntilLastReferenceIsDeleted)
 TEST_F(BrewHistoryRepositoryTest, FingerprintDistinguishesEveryFieldAndStepOrder)
 {
   const auto original = makeProfile();
-  createLog(makeLog(), original);
+  createLog(makeLog(100s + 123ms, original));
   int profiles = 1;
   auto distinct = [&](const char* field, auto mutate) {
     SCOPED_TRACE(field);
     auto profile = original;
     mutate(profile);
-    const auto id = createLog(makeLog(), profile);
-    EXPECT_EQ(profile.SerializeAsString(), repository->get(id).second.SerializeAsString());
+    const auto id = createLog(makeLog(100s + 123ms, profile));
+    EXPECT_EQ(profile.SerializeAsString(), repository->get(id).profile.SerializeAsString());
     auto storage = makeStorage(path);
     EXPECT_EQ(++profiles, storage.count<HistoricalProfileRow>());
-    createLog(makeLog(), profile);
+    createLog(makeLog(100s + 123ms, profile));
     EXPECT_EQ(profiles, storage.count<HistoricalProfileRow>());
   };
   distinct("name", [](auto& p) { p.set_name("espresso"); });
@@ -374,18 +375,20 @@ TEST_F(BrewHistoryRepositoryTest, FingerprintDistinguishesEveryFieldAndStepOrder
 TEST_F(BrewHistoryRepositoryTest, FailedCompletionRollsBackAllNewRowsAndCanBeRetried)
 {
   const auto profile = makeProfile();
-  const auto id = createLog(makeLog(), profile);
+  const auto id = createLog(makeLog(100s + 123ms, profile));
   const auto first = repository->createEmptyLog();
   const auto second = repository->createEmptyLog();
   sql("CREATE TRIGGER fail_step BEFORE INSERT ON steps WHEN NEW.position = 1 "
       "BEGIN SELECT RAISE(ABORT, 'injected step failure'); END");
-  EXPECT_THROW(repository->completeLog(first, makeLog(), makeProfile("Rejected")), std::system_error);
+  EXPECT_THROW(repository->completeLog(first, makeLog(100s + 123ms, makeProfile("Rejected"))),
+               std::system_error);
   expectCounts(3, 1, 3, 3);
   sql("DROP TRIGGER fail_step");
   sql("CREATE TRIGGER fail_record BEFORE INSERT ON brew_log_records WHEN NEW.position = 1 "
       "BEGIN SELECT RAISE(ABORT, 'injected record failure'); END");
-  EXPECT_THROW(repository->completeLog(first, makeLog(), makeProfile("Rejected")), std::system_error);
-  EXPECT_THROW(repository->completeLog(second, makeLog(), profile), std::system_error);
+  EXPECT_THROW(repository->completeLog(first, makeLog(100s + 123ms, makeProfile("Rejected"))),
+               std::system_error);
+  EXPECT_THROW(repository->completeLog(second, makeLog(100s + 123ms, profile)), std::system_error);
   expectCounts(3, 1, 3, 3);
   auto storage = makeStorage(path);
   for (const auto pending : {first, second}) {
@@ -396,23 +399,23 @@ TEST_F(BrewHistoryRepositoryTest, FailedCompletionRollsBackAllNewRowsAndCanBeRet
     EXPECT_THROW(repository->get(pending), std::system_error);
   }
   EXPECT_EQ((std::vector<uint64_t>{id}), ids(repository->find(FindBrewLogs{})));
-  expectLog(makeLog(), repository->get(id).first);
+  expectLog(makeLog(), repository->get(id));
   sql("DROP TRIGGER fail_record");
-  EXPECT_NO_THROW(repository->completeLog(first, makeLog(), makeProfile("Accepted")));
-  EXPECT_NO_THROW(repository->completeLog(second, makeLog(), profile));
+  EXPECT_NO_THROW(repository->completeLog(first, makeLog(100s + 123ms, makeProfile("Accepted"))));
+  EXPECT_NO_THROW(repository->completeLog(second, makeLog(100s + 123ms, profile)));
   expectCounts(3, 2, 9, 6);
-  expectLog(makeLog(), repository->get(first).first);
-  expectLog(makeLog(), repository->get(second).first);
+  expectLog(makeLog(100s + 123ms, makeProfile("Accepted")), repository->get(first));
+  expectLog(makeLog(), repository->get(second));
 }
 
 TEST_F(BrewHistoryRepositoryTest, FailedProfileCleanupRestoresLogAndRecords)
 {
-  const auto id = createLog(makeLog(), makeProfile());
+  const auto id = createLog(makeLog());
   sql("CREATE TRIGGER fail_cleanup BEFORE DELETE ON profiles "
       "BEGIN SELECT RAISE(ABORT, 'injected cleanup failure'); END");
   EXPECT_THROW(repository->erase(id), std::system_error);
   expectCounts(1, 1, 3, 3);
-  expectLog(makeLog(), repository->get(id).first);
+  expectLog(makeLog(), repository->get(id));
   sql("DROP TRIGGER fail_cleanup");
   repository->erase(id);
   expectCounts(0, 0, 0, 0);
@@ -420,26 +423,26 @@ TEST_F(BrewHistoryRepositoryTest, FailedProfileCleanupRestoresLogAndRecords)
 
 TEST_F(BrewHistoryRepositoryTest, ReopeningPreservesLogsAndProfileReferences)
 {
-  const auto first = createLog(makeLog(), makeProfile());
-  const auto second = createLog(makeLog(200s), makeProfile());
+  const auto first = createLog(makeLog());
+  const auto second = createLog(makeLog(200s));
   repository->erase(first);
   const auto expected = repository->find(FindBrewLogs{});
   repository.reset();
   repository = std::make_unique<BrewHistoryRepository>(path);
   EXPECT_EQ(expected.SerializeAsString(), repository->find(FindBrewLogs{}).SerializeAsString());
   EXPECT_THROW(repository->get(first), std::system_error);
-  expectLog(makeLog(200s), repository->get(second).first);
-  createLog(makeLog(), makeProfile());
+  expectLog(makeLog(200s), repository->get(second));
+  createLog(makeLog());
   expectCounts(2, 1, 6, 3);
 }
 
 TEST_F(BrewHistoryRepositoryTest, PaginationUsesIdOrderAndZeroLimitMeansUnlimited)
 {
   repository->createEmptyLog();
-  const auto first = createLog(makeLog(300s), makeProfile());
+  const auto first = createLog(makeLog(300s));
   repository->createEmptyLog();
-  const auto second = createLog(makeLog(100s), makeProfile());
-  const auto third = createLog(makeLog(200s), makeProfile());
+  const auto second = createLog(makeLog(100s));
+  const auto third = createLog(makeLog(200s));
   FindBrewLogs query;
   EXPECT_EQ((std::vector<uint64_t>{first, second, third}), ids(repository->find(query)));
   query.set_offset(1);
@@ -452,13 +455,13 @@ TEST_F(BrewHistoryRepositoryTest, PaginationUsesIdOrderAndZeroLimitMeansUnlimite
 
 TEST_F(BrewHistoryRepositoryTest, ProfileFiltersApplyBeforePagination)
 {
-  createLog(makeLog(), makeProfile("Other"));
+  createLog(makeLog(100s + 123ms, makeProfile("Other")));
   const auto profile = makeProfile();
-  const auto first = createLog(makeLog(), profile);
+  const auto first = createLog(makeLog(100s + 123ms, profile));
   auto changed = profile;
   changed.set_temperature(94'000);
-  const auto second = createLog(makeLog(), changed);
-  const auto third = createLog(makeLog(), makeProfile("espresso long"));
+  const auto second = createLog(makeLog(100s + 123ms, changed));
+  const auto third = createLog(makeLog(100s + 123ms, makeProfile("espresso long")));
   FindBrewLogs query;
   query.set_profilenamepattern("ESPRESS_");
   EXPECT_EQ((std::vector<uint64_t>{first, second}), ids(repository->find(query)));
@@ -483,9 +486,9 @@ TEST_F(BrewHistoryRepositoryTest, DateBoundsAreInclusiveAndCombineWithProfileFil
 {
   using google::protobuf::util::TimeUtil;
 
-  const auto first = createLog(makeLog(100s + 1ms), makeProfile("Other"));
-  const auto second = createLog(makeLog(100s + 2ms), makeProfile());
-  const auto third = createLog(makeLog(100s + 3ms), makeProfile());
+  const auto first = createLog(makeLog(100s + 1ms, makeProfile("Other")));
+  const auto second = createLog(makeLog(100s + 2ms));
+  const auto third = createLog(makeLog(100s + 3ms));
   FindBrewLogs query;
   *query.mutable_mindate() = TimeUtil::MillisecondsToTimestamp((100s + 2ms).count());
   EXPECT_EQ((std::vector<uint64_t>{second, third}), ids(repository->find(query)));
@@ -505,8 +508,8 @@ TEST_F(BrewHistoryRepositoryTest, DateBoundsAreInclusiveAndCombineWithProfileFil
 TEST_F(BrewHistoryRepositoryTest, DatesBeforeUnixEpochRemainSigned)
 {
   const auto log = makeLog(-1ms);
-  const auto id = createLog(log, makeProfile());
-  expectLog(log, repository->get(id).first);
+  const auto id = createLog(log);
+  expectLog(log, repository->get(id));
   FindBrewLogs query;
   *query.mutable_maxdate() = google::protobuf::util::TimeUtil::MillisecondsToTimestamp(-1);
   const auto result = repository->find(query);
@@ -519,16 +522,16 @@ TEST_F(BrewHistoryRepositoryTest, PreservesLogAndHistoricalProfileIdsAbove32Bits
 {
   sql("INSERT INTO sqlite_sequence(name, seq) VALUES ('profiles', 4294967295), ('brew_logs', "
       "4294967295)");
-  const auto first = createLog(makeLog(), makeProfile());
-  const auto second = createLog(makeLog(), makeProfile());
+  const auto first = createLog(makeLog());
+  const auto second = createLog(makeLog());
   ASSERT_GT(first, std::numeric_limits<uint32_t>::max());
   auto storage = makeStorage(path);
   const auto profileId = storage.get<BrewLogRow>(first).profileId;
   ASSERT_TRUE(profileId.has_value());
   EXPECT_GT(*profileId, std::numeric_limits<uint32_t>::max());
   EXPECT_EQ(profileId, storage.get<BrewLogRow>(second).profileId);
-  expectLog(makeLog(), repository->get(first).first);
-  EXPECT_EQ(makeProfile().SerializeAsString(), repository->get(first).second.SerializeAsString());
+  expectLog(makeLog(), repository->get(first));
+  EXPECT_EQ(makeProfile().SerializeAsString(), repository->get(first).profile.SerializeAsString());
   EXPECT_EQ((std::vector<uint64_t>{first, second}), ids(repository->find(FindBrewLogs{})));
   repository->erase(first);
   expectCounts(1, 1, 3, 3);

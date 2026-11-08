@@ -11,7 +11,6 @@
 #include <utility>
 
 #include <openpresso_proto/brew_log.pb.h>
-#include <openpresso_proto/brew_profile.pb.h>
 
 namespace openpressod::db::brew_history
 {
@@ -30,11 +29,11 @@ public:
   template <typename Cb>
   void createEmptyLog(Cb&& callback);
 
-  std::future<void> completeLog(uint64_t id, CompletedBrewLog log, BrewProfile profile);
+  std::future<void> completeLog(uint64_t id, CompletedBrewLog log);
   template <typename Cb>
-  void completeLog(uint64_t id, CompletedBrewLog log, BrewProfile profile, Cb&& callback);
+  void completeLog(uint64_t id, CompletedBrewLog log, Cb&& callback);
 
-  std::future<std::pair<CompletedBrewLog, BrewProfile>> get(uint64_t id);
+  std::future<CompletedBrewLog> get(uint64_t id);
   template <typename Cb>
   void get(uint64_t id, Cb&& callback);
 
@@ -58,15 +57,10 @@ inline void AsyncBrewHistoryRepository::createEmptyLog(Cb&& callback)
 }
 
 template <typename Cb>
-inline void AsyncBrewHistoryRepository::completeLog(
-  uint64_t id, CompletedBrewLog log, BrewProfile profile, Cb&& callback)
+inline void AsyncBrewHistoryRepository::completeLog(uint64_t id, CompletedBrewLog log, Cb&& callback)
 {
-  m_executor.executeWithCallback(&BrewHistoryRepository::completeLog,
-                                 std::forward<Cb>(callback),
-                                 &m_repository,
-                                 id,
-                                 std::move(log),
-                                 std::move(profile));
+  m_executor.executeWithCallback(
+    &BrewHistoryRepository::completeLog, std::forward<Cb>(callback), &m_repository, id, std::move(log));
 }
 
 template <typename Cb>

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <libopenpresso/types.hpp>
+#include <openpresso_proto/brew_profile.pb.h>
 
 namespace openpressod
 {
@@ -20,6 +21,7 @@ struct BrewLogRecord {
 struct CompletedBrewLog {
   std::chrono::system_clock::time_point brewStartTime;
   std::chrono::steady_clock::duration samplingInterval;
+  BrewProfile profile;
   std::vector<BrewLogRecord> records;
 };
 

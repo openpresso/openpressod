@@ -66,11 +66,13 @@ protected:
     return profile;
   }
 
-  static CompletedBrewLog makeLog(std::chrono::milliseconds start = 100s + 123ms)
+  static CompletedBrewLog makeLog(std::chrono::milliseconds start = 100s + 123ms,
+                                  BrewProfile profile = makeProfile())
   {
     return {
       .brewStartTime = std::chrono::system_clock::time_point{start},
       .samplingInterval = 10ms,
+      .profile = std::move(profile),
       .records = {{8'500, -200, -300, 1}, {9'000, 36'000, 2'100, 0}},
     };
   }
@@ -228,10 +230,10 @@ protected:
     return response;
   }
 
-  uint64_t createLog(const CompletedBrewLog& log, const BrewProfile& profile)
+  uint64_t createLog(const CompletedBrewLog& log)
   {
     const auto id = history->createEmptyLog().get();
-    history->completeLog(id, log, profile).get();
+    history->completeLog(id, log).get();
     return id;
   }
 
@@ -462,8 +464,8 @@ TEST_F(DatabaseRpcTest, HistorySearchReturnsCompleteLogsAnd64BitIds)
   EXPECT_EQ(0, findLogs().logs_size());
   sql(historyPath, "INSERT INTO sqlite_sequence(name, seq) VALUES ('brew_logs', 4294967295)");
   const auto profile = makeProfile();
-  const auto log = makeLog();
-  const auto id = createLog(log, profile);
+  const auto log = makeLog(100s + 123ms, profile);
+  const auto id = createLog(log);
   ASSERT_GT(id, std::numeric_limits<uint32_t>::max());
   const auto result = findLogs();
   ASSERT_EQ(1, result.logs_size());
@@ -489,9 +491,9 @@ TEST_F(DatabaseRpcTest, HistorySearchReturnsCompleteLogsAnd64BitIds)
 TEST_F(DatabaseRpcTest, HistorySearchForwardsDateProfileAndPaginationFilters)
 {
   const auto profile = makeProfile("Espresso");
-  const auto first = createLog(makeLog(100s), profile);
-  const auto second = createLog(makeLog(200s), makeProfile("Other"));
-  const auto third = createLog(makeLog(300s), profile);
+  const auto first = createLog(makeLog(100s, profile));
+  const auto second = createLog(makeLog(200s, makeProfile("Other")));
+  const auto third = createLog(makeLog(300s, profile));
   EXPECT_EQ((std::vector<uint64_t>{first, second, third}), ids(findLogs()));
   FindBrewLogs query;
   query.set_profilenamepattern("espresso%");
@@ -520,8 +522,8 @@ TEST_F(DatabaseRpcTest, HistorySearchForwardsDateProfileAndPaginationFilters)
 TEST_F(DatabaseRpcTest, RemovingCompletedLogsPreservesSharedHistoryAndIncompleteReservations)
 {
   const auto profile = makeProfile();
-  const auto first = createLog(makeLog(), profile);
-  const auto second = createLog(makeLog(200s), profile);
+  const auto first = createLog(makeLog(100s + 123ms, profile));
+  const auto second = createLog(makeLog(200s, profile));
   const auto incomplete = history->createEmptyLog().get();
   EXPECT_EQ(grpc::StatusCode::NOT_FOUND, removeLog(incomplete).error_code());
   EXPECT_EQ(grpc::StatusCode::NOT_FOUND, removeLog(incomplete).error_code());
@@ -534,14 +536,14 @@ TEST_F(DatabaseRpcTest, RemovingCompletedLogsPreservesSharedHistoryAndIncomplete
   EXPECT_TRUE(removeLog(second).ok());
   EXPECT_EQ(0, findLogs().logs_size());
   // Removing an incomplete reservation must not prevent its later completion.
-  history->completeLog(incomplete, makeLog(300s), profile).get();
+  history->completeLog(incomplete, makeLog(300s, profile)).get();
   EXPECT_EQ((std::vector<uint64_t>{incomplete}), ids(findLogs()));
 }
 
 TEST_F(DatabaseRpcTest, DatabaseFailuresReturnInternalForReadsSearchesAndDeletes)
 {
   const auto id = createProfile(makeProfile());
-  const auto logId = createLog(makeLog(), makeProfile());
+  const auto logId = createLog(makeLog());
   sql(profilesPath,
       "CREATE TRIGGER fail_delete BEFORE DELETE ON profiles "
       "BEGIN SELECT RAISE(ABORT, 'injected failure'); END");
@@ -581,10 +583,10 @@ TEST_F(DatabaseRpcTest, DatabaseFailuresReturnInternalForReadsSearchesAndDeletes
 
 TEST_F(DatabaseRpcTest, GetBrewLogByIdStreamsStoredMetadataRecordsAndStop)
 {
-  createLog(makeLog(50s), makeProfile("Other"));
+  createLog(makeLog(50s, makeProfile("Other")));
   const auto profile = makeProfile("Requested profile");
-  const auto log = makeLog();
-  const auto id = createLog(log, profile);
+  const auto log = makeLog(100s + 123ms, profile);
+  const auto id = createLog(log);
   const auto [status, records] = readLog(id);
   ASSERT_TRUE(status.ok()) << status.error_message();
   ASSERT_EQ(log.records.size() + 2, records.size());
@@ -609,19 +611,18 @@ TEST_F(DatabaseRpcTest, GetEmptyCompletedBrewLogStreamsStartAndStop)
 {
   auto log = makeLog();
   log.records.clear();
-  const auto profile = makeProfile();
-  const auto id = createLog(log, profile);
+  const auto id = createLog(log);
   const auto [status, records] = readLog(id);
   ASSERT_TRUE(status.ok()) << status.error_message();
   ASSERT_EQ(2U, records.size());
   ASSERT_TRUE(records.front().has_brewlogstart());
-  EXPECT_EQ(profile.SerializeAsString(), records.front().brewlogstart().profile().SerializeAsString());
+  EXPECT_EQ(log.profile.SerializeAsString(), records.front().brewlogstart().profile().SerializeAsString());
   EXPECT_TRUE(records.back().has_brewlogstop());
 }
 
 TEST_F(DatabaseRpcTest, GetMissingDeletedAndIncompleteBrewLogsReturnsNotFoundWithoutRecords)
 {
-  const auto deleted = createLog(makeLog(), makeProfile());
+  const auto deleted = createLog(makeLog());
   ASSERT_TRUE(removeLog(deleted).ok());
   const auto incomplete = history->createEmptyLog().get();
   for (const auto id : {uint64_t{42}, deleted, incomplete}) {
@@ -630,7 +631,7 @@ TEST_F(DatabaseRpcTest, GetMissingDeletedAndIncompleteBrewLogsReturnsNotFoundWit
     EXPECT_EQ(grpc::StatusCode::NOT_FOUND, status.error_code());
     EXPECT_TRUE(records.empty());
   }
-  history->completeLog(incomplete, makeLog(), makeProfile()).get();
+  history->completeLog(incomplete, makeLog()).get();
   EXPECT_TRUE(readLog(incomplete).first.ok());
 }
 
