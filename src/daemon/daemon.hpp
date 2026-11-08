@@ -14,6 +14,11 @@ class BrewProfileManager;
 class UserSettingsManager;
 class OpenpressodConfig;
 
+namespace db::brew_history
+{
+class AsyncBrewHistoryRepository;
+}
+
 class Daemon {
 public:
   explicit Daemon(const std::string& configPath);
@@ -22,6 +27,8 @@ private:
   static void setupLogger(const OpenpressodConfig& config);
   static std::unique_ptr<BrewProfileManager> setupBrewProfileManager(const OpenpressodConfig& config);
   static std::unique_ptr<UserSettingsManager> setupUserSettingsManager(const OpenpressodConfig& config);
+  static std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> setupHistoryRepository(
+    const OpenpressodConfig& config);
 
 private:
   std::unique_ptr<ButtonsCallbackRegistrator> m_buttonsHandler;

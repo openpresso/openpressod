@@ -4,7 +4,6 @@
 #include "config/libopenpresso_config_labels.hpp"
 #include "state_manager/status_manager.hpp"
 
-#include <cstdint>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -91,8 +90,6 @@ void StateManager::startBrew()
 
   m_brewProfiler->activate();
   m_brewTimer->start();
-
-  ++m_brewGeneration;
 
   spdlog::debug("Brew process started");
 }
@@ -191,9 +188,4 @@ HeatingStatus StateManager::heatingStatus() const noexcept
 void StateManager::setHeatingStatusChangeCallback(std::function<void(HeatingStatus)> callback)
 {
   m_statusManager->setCallback(std::move(callback));
-}
-
-uint32_t StateManager::brewGeneration() const noexcept
-{
-  return m_brewGeneration;
 }

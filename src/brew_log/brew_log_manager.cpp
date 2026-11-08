@@ -2,12 +2,14 @@
 
 #include "brew_log_data.hpp"
 #include "config/openpressod_config.hpp"
+#include "database/brew_history/async_repository.hpp" // IWYU pragma: keep
 #include "service/brew_log_stream_reactor.hpp"
 
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
@@ -16,8 +18,10 @@
 
 using namespace openpressod;
 
-BrewLogManager::BrewLogManager(const libopenpresso::CorePtr& core, const OpenpressodConfig& config)
-: m_maxBrewLogsCount{config.brewLogsRetantionCount()}
+BrewLogManager::BrewLogManager(const libopenpresso::CorePtr& core,
+                               std::shared_ptr<Repository> repository,
+                               const OpenpressodConfig& config)
+: m_repository{std::move(repository)}
 , m_samplingInterval{config.brewLogSamplingInterval()}
 , m_sampler{core, m_samplingInterval}
 {
@@ -65,7 +69,15 @@ void BrewLogManager::doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> re
     return;
   }
 
-  // Load completed logs here once history persistence is connected.
+  m_repository->get(reactor->brewId(), [reactor = reactor.get()](auto&& brewLogFuture) {
+    try {
+      auto&& [log, profile] = brewLogFuture.get();
+      reactor->sendCompletedBrew(log.samplingInterval, log.brewStartTime, std::move(profile), log.records);
+    }
+    catch (const std::out_of_range&) {
+      reactor->sendLogNotFound();
+    }
+  });
 
   m_eventsSinks.push_back(std::move(reactor));
 }

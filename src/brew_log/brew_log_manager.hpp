@@ -25,12 +25,20 @@ namespace openpressod
 class BrewLogStreamReactor;
 class OpenpressodConfig;
 
+namespace db::brew_history
+{
+class AsyncBrewHistoryRepository;
+}
+
 class BrewLogManager {
   using step_index_t = libopenpresso::interfaces::BrewProfiler::step_index_t;
   using stopped_flag_t = libopenpresso::interfaces::BrewProfiler::stopped_flag_t;
+  using Repository = db::brew_history::AsyncBrewHistoryRepository;
 
 public:
-  BrewLogManager(const libopenpresso::CorePtr& core, const OpenpressodConfig& config);
+  BrewLogManager(const libopenpresso::CorePtr& core,
+                 std::shared_ptr<Repository> repository,
+                 const OpenpressodConfig& config);
   BrewLogManager(const BrewLogManager&) = delete;
   BrewLogManager(BrewLogManager&&) = delete;
   auto operator=(const BrewLogManager&) = delete;
@@ -57,7 +65,7 @@ private:
                   size_t stepIndex);
 
 private:
-  size_t m_maxBrewLogsCount;
+  std::shared_ptr<Repository> m_repository;
   std::list<std::pair<uint32_t, CompletedBrewLog>> m_completedLogs;
 
   std::chrono::system_clock::time_point m_brewStartTime;

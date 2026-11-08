@@ -3,7 +3,6 @@
 
 #include "status_manager.hpp"
 
-#include <cstdint>
 #include <functional>
 #include <memory>
 #include <ranges>
@@ -50,8 +49,6 @@ public:
   void setBrewTemperature(libopenpresso::millidegrees_t temperature);
   void setSteamTemperature(libopenpresso::millidegrees_t temperature);
 
-  uint32_t brewGeneration() const noexcept;
-
   std::shared_ptr<const BrewTimer> brewTimer() const noexcept;
 
   HeatingStatus heatingStatus() const noexcept;
@@ -87,7 +84,6 @@ public:
 private:
   bool m_power = false;
   bool m_steam = false;
-  uint32_t m_brewGeneration = 0;
   std::shared_ptr<BrewTimer> m_brewTimer;
   brew_profiler_ptr_t m_brewProfiler;
   temperature_controller_ptr_t m_brewTemperatureController;

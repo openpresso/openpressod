@@ -69,10 +69,6 @@ public:
                                                        const FindBrewProfiles* request,
                                                        BrewProfilesSearchResult* response) override;
 
-  grpc::ServerUnaryReactor* getHistoricalBrewProfile(grpc::CallbackServerContext* context,
-                                                     const BrewProfileId* request,
-                                                     BrewProfile* response) override;
-
   grpc::ServerUnaryReactor* findBrewLogs(grpc::CallbackServerContext* context,
                                          const FindBrewLogs* request,
                                          BrewLogsSearchResult* response) override;

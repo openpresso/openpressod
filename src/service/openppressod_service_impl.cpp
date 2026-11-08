@@ -307,16 +307,6 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::findPersistentBrewProfiles(
   return reactor;
 }
 
-grpc::ServerUnaryReactor* OpenpressodServiceImpl::getHistoricalBrewProfile(
-  grpc::CallbackServerContext* context,
-  [[maybe_unused]] const BrewProfileId* request,
-  [[maybe_unused]] BrewProfile* response)
-{
-  auto* reactor = context->DefaultReactor();
-  reactor->Finish(grpc::Status::OK);
-  return reactor;
-}
-
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::findBrewLogs(grpc::CallbackServerContext* context,
                                                                [[maybe_unused]] const FindBrewLogs* request,
                                                                [[maybe_unused]] BrewLogsSearchResult* response)

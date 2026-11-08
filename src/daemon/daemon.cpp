@@ -5,6 +5,8 @@
 #include "buttons/buttons_callback_registrator.hpp"
 #include "config/libopenpresso_config_maker.hpp"
 #include "config/openpressod_config.hpp"
+#include "database/brew_history/async_repository.hpp"
+#include "database/brew_profiles/async_repository.hpp"
 #include "leds/leds_handler.hpp"
 #include "service/brew_log_stream_reactor.hpp"
 #include "service/service_manager.hpp"
@@ -38,14 +40,21 @@ Daemon::Daemon(const std::string& configPath)
   auto profileManager = setupBrewProfileManager(config);
   auto settingsManager = setupUserSettingsManager(config);
   auto brewTimer = stateManager->brewTimer();
+  auto profilesRepository =
+    std::make_shared<db::brew_profiles::AsyncBrewProfilesRepository>(config.profilesDatabasePath());
+
+  auto historyRepository = setupHistoryRepository(config);
 
   profileManager->applyBrewProfile(*stateManager);
   settingsManager->applySettings(*stateManager);
 
-  auto brewLogManager = std::make_shared<BrewLogManager>(core, config);
+  auto brewLogManager = std::make_shared<BrewLogManager>(core, historyRepository, config);
 
-  auto dispatcher = std::make_shared<AsyncEventDispatcher>(
-    std::move(stateManager), std::move(profileManager), std::move(settingsManager), brewLogManager);
+  auto dispatcher = std::make_shared<AsyncEventDispatcher>(std::move(stateManager),
+                                                           std::move(profileManager),
+                                                           std::move(settingsManager),
+                                                           brewLogManager,
+                                                           historyRepository);
 
   m_buttonsHandler = std::make_unique<ButtonsCallbackRegistrator>(dispatcher, core, config);
   m_service =
@@ -83,4 +92,12 @@ void Daemon::setupLogger(const OpenpressodConfig& config)
   spdlog::set_level(config.logLevel());
   spdlog::set_pattern(config.logMessagePattern());
   spdlog::debug("Logger settings updated");
+}
+
+std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> Daemon::setupHistoryRepository(
+  const OpenpressodConfig& config)
+{
+  db::brew_history::BrewHistoryRepository historyRepository{config.historyDatabasePath()};
+  historyRepository.discardIncomplete();
+  return std::make_shared<db::brew_history::AsyncBrewHistoryRepository>(std::move(historyRepository));
 }

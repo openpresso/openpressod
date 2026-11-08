@@ -26,15 +26,22 @@ namespace openpressod
 class BrewProfile;
 class EventsStreamReactor;
 
+namespace db::brew_history
+{
+class AsyncBrewHistoryRepository;
+}
+
 class AsyncEventDispatcher : public ButtonsEventSink {
   using step_index_t = libopenpresso::interfaces::BrewProfiler::step_index_t;
   using stopped_flag_t = libopenpresso::interfaces::BrewProfiler::stopped_flag_t;
+  using HistoryRepository = db::brew_history::AsyncBrewHistoryRepository;
 
 public:
   AsyncEventDispatcher(std::unique_ptr<StateManager> stateManager,
                        std::unique_ptr<BrewProfileManager> brewProfileManager,
                        std::unique_ptr<UserSettingsManager> userSettingsManager,
-                       std::shared_ptr<BrewLogManager> brewLogManager);
+                       std::shared_ptr<BrewLogManager> brewLogManager,
+                       std::shared_ptr<HistoryRepository> repository);
   AsyncEventDispatcher(const AsyncEventDispatcher&) = delete;
   AsyncEventDispatcher(AsyncEventDispatcher&&) = delete;
   auto operator=(const AsyncEventDispatcher&) = delete;
@@ -105,6 +112,8 @@ private:
   std::unique_ptr<BrewProfileManager> m_brewProfileManager;
   std::unique_ptr<UserSettingsManager> m_userSettings;
   std::shared_ptr<BrewLogManager> m_brewLogManager;
+  std::shared_ptr<HistoryRepository> m_historyRepository;
+  std::optional<uint64_t> m_brewId;
   std::list<std::unique_ptr<EventsStreamReactor>> m_eventsSinks;
   ProceduresSerialExecutor m_executor;
   libopenpresso::callback_descriptor_t m_brewCallback;
@@ -172,7 +181,9 @@ inline void AsyncEventDispatcher::getBrewState(Cb&& callback)
     [this] {
       BrewState state;
       state.set_isactive(m_stateManager->getBrewState());
-      state.set_brewid(m_stateManager->brewGeneration());
+      if (m_brewId.has_value()) {
+        state.set_brewid(m_brewId.value());
+      }
       return state;
     },
     std::forward<Cb>(callback));

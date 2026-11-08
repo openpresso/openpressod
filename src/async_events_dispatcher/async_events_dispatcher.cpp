@@ -1,6 +1,7 @@
 #include "async_events_dispatcher.hpp"
 
 #include "brew_log/brew_log_manager.hpp"
+#include "database/brew_history/async_repository.hpp" // IWYU pragma: keep
 #include "service/events_stream_reactor.hpp"
 #include "state_manager/brew_profile_manager.hpp"
 #include "state_manager/state_manager.hpp"
@@ -20,11 +21,13 @@ using namespace openpressod;
 AsyncEventDispatcher::AsyncEventDispatcher(std::unique_ptr<StateManager> stateManager,
                                            std::unique_ptr<BrewProfileManager> brewProfileManager,
                                            std::unique_ptr<UserSettingsManager> userSettingsManager,
-                                           std::shared_ptr<BrewLogManager> brewLogManager)
+                                           std::shared_ptr<BrewLogManager> brewLogManager,
+                                           std::shared_ptr<HistoryRepository> repository)
 : m_stateManager{std::move(stateManager)}
 , m_brewProfileManager{std::move(brewProfileManager)}
 , m_userSettings{std::move(userSettingsManager)}
 , m_brewLogManager(std::move(brewLogManager))
+, m_historyRepository{std::move(repository)}
 , m_brewCallback{
     m_stateManager->registerBrewProfilerCallback([this](auto cbData) { brewCallback(cbData); }),
   }
@@ -119,11 +122,12 @@ void AsyncEventDispatcher::doStartBrew()
   }
 
   m_stateManager->startBrew();
-  m_brewLogManager->startBrew(m_stateManager->brewGeneration(), m_brewProfileManager->getProfile());
+  m_brewId = m_historyRepository->createEmptyLog().get();
+  m_brewLogManager->startBrew(m_brewId.value(), m_brewProfileManager->getProfile());
 
   BrewState stateChange;
   stateChange.set_isactive(true);
-  stateChange.set_brewid(m_stateManager->brewGeneration());
+  stateChange.set_brewid(m_brewId.value());
 
   for (auto&& sink : m_eventsSinks) {
     sink->notifyChanged(stateChange);
@@ -141,7 +145,7 @@ void AsyncEventDispatcher::doStopBrew()
 
   BrewState state;
   state.set_isactive(false);
-  state.set_brewid(m_stateManager->brewGeneration());
+  state.set_brewid(m_brewId.value());
 
   for (auto&& sink : m_eventsSinks) {
     sink->notifyChanged(state);
@@ -178,7 +182,9 @@ void AsyncEventDispatcher::sendInitialState(const std::unique_ptr<EventsStreamRe
   {
     BrewState state;
     state.set_isactive(m_stateManager->getBrewState());
-    state.set_brewid(m_stateManager->brewGeneration());
+    if (m_brewId.has_value()) {
+      state.set_brewid(m_brewId.value());
+    }
     sink->notifyChanged(state);
   }
 
