@@ -8,3 +8,4 @@ add_subdirectory(state_manager)
 # add_subdirectory(brew_log)
 
 add_subdirectory(database)
+add_subdirectory(service)

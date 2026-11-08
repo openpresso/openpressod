@@ -1,0 +1,5 @@
+add_executable(service_test database_rpc_test.cpp)
+target_link_libraries(service_test PRIVATE openpressod_objects libopenpresso_mock GTest::gtest_main)
+openpressod_targets_compile_warnings(service_test)
+gtest_add_tests(TARGET service_test)
+append_targets_to_clang_format_list(service_test)
