@@ -17,7 +17,7 @@
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/interfaces/temperature_sensor.hpp>
 #include <libopenpresso/types.hpp>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/machine_state.pb.h>
 
 using namespace openpressod;
 

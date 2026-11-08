@@ -1,23 +1,17 @@
 #ifndef BREW_PROFILE_SCHEMA_HPP
 #define BREW_PROFILE_SCHEMA_HPP
 
-#include "database/sqlite_enum.hpp"
 #include "database/steps_schema.hpp"
 
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include <openpresso_proto/brew_profile.pb.h>
 #include <sqlite_orm/sqlite_orm.h>
 
-namespace openpressod::db
-{
-
-template <>
-struct integer_enum<StopConditionType> : std::true_type {};
-
-namespace brew_profiles
+namespace openpressod::db::brew_profiles
 {
 
 struct ProfileRow {
@@ -67,8 +61,6 @@ inline auto makeStorage(std::string filename)
 
 using Storage = decltype(makeStorage({}));
 
-} // namespace brew_profiles
-
-} // namespace openpressod::db
+} // namespace openpressod::db::brew_profiles
 
 #endif // BREW_PROFILE_SCHEMA_HPP

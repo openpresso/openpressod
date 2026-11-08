@@ -1,5 +1,6 @@
 #include "brew_log_manager.hpp"
 
+#include "brew_log_data.hpp"
 #include "config/openpressod_config.hpp"
 #include "service/brew_log_stream_reactor.hpp"
 
@@ -11,6 +12,7 @@
 
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/types.hpp>
+#include <openpresso_proto/brew_profile.pb.h>
 
 using namespace openpressod;
 
@@ -63,14 +65,7 @@ void BrewLogManager::doAddStreamReactor(std::unique_ptr<BrewLogStreamReactor> re
     return;
   }
 
-  // try {
-  //   CompletedBrewLog log = m_brewLogsDb.getLog(reactor->brewId());
-  //   reactor->sendCompletedBrew(log.samplingInterval, log.brewStartTime, log.brewProfileId,
-  //   log.records);
-  // }
-  // catch (const NotFoundException& e) {
-  //   reactor->sendLogNotFound();
-  // }
+  // Load completed logs here once history persistence is connected.
 
   m_eventsSinks.push_back(std::move(reactor));
 }
@@ -103,11 +98,11 @@ void BrewLogManager::doStopBrew()
     sink->sendBrewStop();
   }
   m_eventsSinks.splice(m_eventsSinks.end(), m_activeEventSinks);
+  m_brewId.reset();
 
   CompletedBrewLog log{
     .brewStartTime = m_brewStartTime,
     .samplingInterval = m_samplingInterval,
-    .brewProfileId = std::exchange(m_brewId, {}).value(),
     .records = std::move(m_records),
   };
 

@@ -11,7 +11,8 @@
 #include <utility>
 #include <variant>
 
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/brew_profile.pb.h>
+#include <openpresso_proto/machine_state.pb.h>
 #include <spdlog/spdlog.h>
 
 using namespace openpressod;

@@ -3,6 +3,8 @@
 
 #include "utils/fingerprint_encoder.hpp"
 
+#include <cstdint>
+
 #include <openpresso_proto/brew_profile.pb.h>
 
 namespace openpressod::db

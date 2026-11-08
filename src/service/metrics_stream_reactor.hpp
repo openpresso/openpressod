@@ -16,7 +16,7 @@
 #include <libopenpresso/interfaces/temperature_sensor.hpp>
 #include <libopenpresso/interfaces/weight_sensor.hpp>
 #include <libopenpresso/types.hpp>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/metrics.pb.h>
 
 namespace openpressod
 {

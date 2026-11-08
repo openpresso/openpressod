@@ -12,8 +12,8 @@
 #include <utility>
 
 #include <grpcpp/support/server_callback.h>
+#include <openpresso_proto/brew_log.pb.h>
 #include <openpresso_proto/brew_profile.pb.h>
-#include <openpresso_proto/openpresso.pb.h>
 
 namespace openpressod
 {

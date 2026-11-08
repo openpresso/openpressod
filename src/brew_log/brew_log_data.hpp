@@ -3,7 +3,6 @@
 
 #include <chrono>
 #include <cstddef>
-#include <cstdint>
 #include <vector>
 
 #include <libopenpresso/types.hpp>
@@ -21,7 +20,6 @@ struct BrewLogRecord {
 struct CompletedBrewLog {
   std::chrono::system_clock::time_point brewStartTime;
   std::chrono::steady_clock::duration samplingInterval;
-  uint32_t brewProfileId;
   std::vector<BrewLogRecord> records;
 };
 

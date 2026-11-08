@@ -1,8 +1,12 @@
 #ifndef FINGERPRINT_ENCODER_HPP
 #define FINGERPRINT_ENCODER_HPP
 
+#include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 #include <xxhash.h>
 

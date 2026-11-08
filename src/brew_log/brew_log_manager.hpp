@@ -11,6 +11,8 @@
 #include <list>
 #include <memory>
 #include <optional>
+#include <utility>
+#include <vector>
 
 #include <libopenpresso/interfaces/brew_profiler.hpp>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>

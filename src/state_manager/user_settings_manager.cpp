@@ -10,7 +10,7 @@
 #include <string>
 
 #include <google/protobuf/util/json_util.h>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/user_settings.pb.h>
 #include <spdlog/spdlog.h>
 
 using namespace openpressod;

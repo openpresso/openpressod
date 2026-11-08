@@ -6,12 +6,16 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <type_traits>
 
 #include <openpresso_proto/brew_profile.pb.h>
 #include <sqlite_orm/sqlite_orm.h>
 
 namespace openpressod::db
 {
+
+template <>
+struct integer_enum<StopConditionType> : std::true_type {};
 
 template <>
 struct integer_enum<BrewStepTargetType> : std::true_type {};

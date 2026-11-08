@@ -15,7 +15,7 @@
 #include <libopenpresso/interfaces/libopenpresso_core.hpp> // IWYU pragma: keep
 #include <libopenpresso/interfaces/logical_input.hpp>      // IWYU pragma: keep
 #include <libopenpresso/types.hpp>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/machine_state.pb.h>
 #include <spdlog/spdlog.h>
 
 using namespace openpressod;

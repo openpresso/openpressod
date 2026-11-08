@@ -3,7 +3,7 @@
 
 #include <filesystem>
 
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/user_settings.pb.h>
 
 namespace openpressod
 {

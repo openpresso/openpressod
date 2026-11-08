@@ -17,7 +17,8 @@
 
 #include <libopenpresso/types.hpp>
 #include <openpresso_proto/brew_profile.pb.h>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/machine_state.pb.h>
+#include <openpresso_proto/user_settings.pb.h>
 
 namespace openpressod
 {

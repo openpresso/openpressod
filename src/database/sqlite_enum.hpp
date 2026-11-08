@@ -1,6 +1,7 @@
 #ifndef SQLITE_ENUM_HPP
 #define SQLITE_ENUM_HPP
 
+#include <sqlite3.h>
 #include <string>
 #include <type_traits>
 

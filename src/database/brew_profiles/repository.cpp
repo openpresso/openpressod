@@ -1,13 +1,19 @@
 #include "repository.hpp"
 
 #include "database/brew_profile_fingerprint.hpp"
+#include "database/steps_schema.hpp"
 #include "schema.hpp"
 
 #include <chrono>
 #include <cstdint>
+#include <optional>
+#include <ranges>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 #include <google/protobuf/util/time_util.h>
+#include <openpresso_proto/brew_profile.pb.h>
 #include <sqlite_orm/sqlite_orm.h>
 
 using namespace openpressod::db::brew_profiles;
@@ -159,10 +165,10 @@ uint64_t BrewProfilesRepository::nowSeconds()
 
 void BrewProfilesRepository::saveSteps(uint64_t id, const BrewProfile& profile)
 {
-  for (auto&& [i, step] : profile.steps() | std::views::enumerate) {
+  for (auto&& [position, step] : profile.steps() | std::views::enumerate) {
     StepRow row;
     row.profileId = id;
-    row.position = i;
+    row.position = position;
     row.targetType = step.targettype();
     row.targetValue = step.targetvalue();
     if (step.has_advancecondition()) {
@@ -184,8 +190,8 @@ void BrewProfilesRepository::loadSteps(uint64_t id, BrewProfile& profile)
     profileStep->set_targetvalue(step.targetValue);
     if (step.advanceType) {
       auto* condition = profileStep->mutable_advancecondition();
-      condition->set_type(static_cast<openpressod::BrewStepAdvanceConditionType>(*step.advanceType));
-      condition->set_value(*step.advanceValue);
+      condition->set_type(step.advanceType.value());
+      condition->set_value(step.advanceValue.value());
     }
   }
 }

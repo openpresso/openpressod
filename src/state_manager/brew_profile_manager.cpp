@@ -15,7 +15,7 @@
 #include <google/protobuf/util/json_util.h>
 #include <libopenpresso/brew_steps_data.hpp>
 #include <libopenpresso/types.hpp>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/brew_profile.pb.h>
 #include <spdlog/spdlog.h>
 
 using namespace openpressod;

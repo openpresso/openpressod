@@ -15,7 +15,7 @@
 
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/interfaces/pid_controller_state.hpp>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/metrics.pb.h>
 
 using namespace openpressod;
 

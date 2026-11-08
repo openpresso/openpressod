@@ -7,9 +7,13 @@
 #include <grpcpp/server_context.h>
 #include <grpcpp/support/server_callback.h>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
+#include <openpresso_proto/brew_log.pb.h>
 #include <openpresso_proto/brew_profile.pb.h>
+#include <openpresso_proto/events.pb.h>
+#include <openpresso_proto/machine_state.pb.h>
+#include <openpresso_proto/metrics.pb.h>
 #include <openpresso_proto/openpresso.grpc.pb.h>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/user_settings.pb.h>
 
 namespace openpressod
 {

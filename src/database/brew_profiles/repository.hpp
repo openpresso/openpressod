@@ -3,6 +3,9 @@
 
 #include "schema.hpp"
 
+#include <cstdint>
+#include <string>
+
 #include <openpresso_proto/brew_profile.pb.h>
 
 namespace openpressod::db::brew_profiles
