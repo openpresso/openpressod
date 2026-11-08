@@ -1,12 +1,13 @@
-add_executable(brew_profiles_repository_test
+add_executable(database_test
     brew_profiles_repository_test.cpp
+    brew_history_repository_test.cpp
 )
 
-target_link_libraries(brew_profiles_repository_test PRIVATE
+target_link_libraries(database_test PRIVATE
     openpressod_objects
     GTest::gtest_main
 )
 
-openpressod_targets_compile_warnings(brew_profiles_repository_test)
-gtest_add_tests(TARGET brew_profiles_repository_test)
-append_targets_to_clang_format_list(brew_profiles_repository_test)
+openpressod_targets_compile_warnings(database_test)
+gtest_add_tests(TARGET database_test TEST_LIST database_tests)
+append_targets_to_clang_format_list(database_test)
