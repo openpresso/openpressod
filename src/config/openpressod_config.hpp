@@ -20,13 +20,14 @@ namespace openpressod
 
 class OpenpressodConfig {
 public:
-  static std::filesystem::path daemonBaseDirectory();
   static OpenpressodConfig fromFile(const std::filesystem::path& configPath = OPENPRESSOD_CONFIG_PATH);
   static OpenpressodConfig fromString(const std::string& conf);
 
   // [global]
   std::filesystem::path brewProfilePath() const;
   std::filesystem::path userSettingsPath() const;
+  std::filesystem::path historyDatabasePath() const;
+  std::filesystem::path profilesDatabasePath() const;
   size_t mainsFrequency() const;
   libopenpresso::unix_dev_addr_t i2cBus() const;
   libopenpresso::unix_dev_addr_t gpioChip() const;
@@ -114,6 +115,8 @@ public:
 
 private:
   explicit OpenpressodConfig(toml::value config);
+  std::filesystem::path daemonDataDirectory() const;
+  std::filesystem::path resolveDataPath(const std::filesystem::path& path) const;
 
 private:
   toml::value m_config;

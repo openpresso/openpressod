@@ -15,6 +15,8 @@ using namespace std::chrono_literals;
 
 static constexpr auto DEFAULT_BREW_PROFILE_FILE_NAME = "brew_profile.json";
 static constexpr auto DEFAULT_USER_SETTINGS_FILE_NAME = "user_settings.json";
+static constexpr auto DEFAULT_HISTORY_DATABASE_FILE_NAME = "brew_history.db";
+static constexpr auto DEFAULT_PROFILES_DATABASE_FILE_NAME = "profiles.db";
 
 static constexpr auto DEFAULT_I2C_BUS = "/dev/i2c-0";
 static constexpr auto DEFAULT_GPIO_CHIP = "/dev/gpiochip0";

@@ -42,11 +42,22 @@ Main system-wide parameters.
 `mains_zc_pin`
 : Integer, required. GPIO pin used for AC mains zero-cross detection.
 
+`daemon_data_directory`
+: String, optional. Base directory for persistent daemon data files. Default: `@OPENPRESSOD_DATA_DIR@`.
+
 `user_settings_path`
-: String, optional. Absolute path to the runtime user settings file. Default: `/var/lib/openpressod/user_settings.json`.
+: String, optional. Absolute path or path relative to `daemon_data_directory` for the runtime user settings file. Default: `user_settings.json`.
 
 `brew_profile_path`
-: String, optional. Absolute path to the active brew profile file. Default: `/var/lib/openpressod/brew_profile.json`.
+: String, optional. Absolute path or path relative to `daemon_data_directory` for the active brew profile file. Default: `brew_profile.json`.
+
+`history_database_path`
+: String, optional. Absolute path or path relative to `daemon_data_directory` for the brew history database. Default: `brew_history.db`.
+
+`profiles_database_path`
+: String, optional. Absolute path or path relative to `daemon_data_directory` for the brew profiles database. Default: `profiles.db`.
+
+The four data-file paths accept bare filenames and nested relative paths. Relative paths and default filenames resolve under `daemon_data_directory`; absolute paths are used unchanged. With the default directory, the history database path is `@OPENPRESSOD_DATA_DIR@/brew_history.db`.
 
 `i2c_bus`
 : String, optional. I2C bus device path. Default: `/dev/i2c-0`.
