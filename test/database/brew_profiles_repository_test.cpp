@@ -92,7 +92,7 @@ TEST_F(BrewProfilesRepositoryTest, EmptyDatabaseAndMissingIds)
   EXPECT_EQ(0, repository->find(FindBrewProfiles{}).profiles_size());
   EXPECT_THROW(repository->get(42), std::system_error);
   EXPECT_THROW(repository->update(42, makeProfile()), std::system_error);
-  EXPECT_NO_THROW(repository->erase(42));
+  EXPECT_THROW(repository->erase(42), std::system_error);
   EXPECT_EQ(0, repository->find(FindBrewProfiles{}).profiles_size());
 }
 
@@ -132,11 +132,11 @@ TEST_F(BrewProfilesRepositoryTest, FindByProfileReturnsCompletePersistentProfile
 TEST_F(BrewProfilesRepositoryTest, FindByProfileThrowsWhenMissingAndRepositoryRemainsUsable)
 {
   const auto profile = makeProfile();
-  EXPECT_THROW(repository->find(profile), std::out_of_range);
+  EXPECT_THROW(repository->find(profile), std::system_error);
   const auto id = repository->create(profile);
   EXPECT_EQ(id, repository->find(profile).id());
   repository->erase(id);
-  EXPECT_THROW(repository->find(profile), std::out_of_range);
+  EXPECT_THROW(repository->find(profile), std::system_error);
   const auto recreated = repository->create(profile);
   EXPECT_EQ(recreated, repository->find(profile).id());
 }
@@ -149,7 +149,7 @@ TEST_F(BrewProfilesRepositoryTest, FindByProfileRequiresEveryFieldAndStepOrderTo
     SCOPED_TRACE(field);
     auto changed = profile;
     mutate(changed);
-    EXPECT_THROW(repository->find(changed), std::out_of_range);
+    EXPECT_THROW(repository->find(changed), std::system_error);
   };
   expectMissing("name", [](auto& p) { p.set_name("espresso"); });
   expectMissing("temperature", [](auto& p) { p.set_temperature(94'000); });
@@ -182,16 +182,16 @@ TEST_F(BrewProfilesRepositoryTest, FindByProfileDistinguishesAbsentAndDefaultCon
 
   auto withStop = profile;
   withStop.mutable_stopcondition();
-  EXPECT_THROW(repository->find(withStop), std::out_of_range);
+  EXPECT_THROW(repository->find(withStop), std::system_error);
   auto withAdvance = profile;
   withAdvance.mutable_steps(0)->mutable_advancecondition();
-  EXPECT_THROW(repository->find(withAdvance), std::out_of_range);
+  EXPECT_THROW(repository->find(withAdvance), std::system_error);
 
   repository->update(id, withStop);
-  EXPECT_THROW(repository->find(profile), std::out_of_range);
+  EXPECT_THROW(repository->find(profile), std::system_error);
   EXPECT_EQ(withStop.SerializeAsString(), repository->find(withStop).profile().SerializeAsString());
   repository->update(id, withAdvance);
-  EXPECT_THROW(repository->find(withStop), std::out_of_range);
+  EXPECT_THROW(repository->find(withStop), std::system_error);
   EXPECT_EQ(withAdvance.SerializeAsString(), repository->find(withAdvance).profile().SerializeAsString());
 }
 
@@ -270,8 +270,8 @@ TEST_F(BrewProfilesRepositoryTest, FailedStepWritesRollBackCreateAndUpdate)
   EXPECT_EQ(1, repository->find(FindBrewProfiles{}).profiles_size());
   EXPECT_EQ(original.SerializeAsString(), repository->get(id).SerializeAsString());
   EXPECT_EQ(original.SerializeAsString(), repository->find(makeProfile()).SerializeAsString());
-  EXPECT_THROW(repository->find(makeProfile("Rejected")), std::out_of_range);
-  EXPECT_THROW(repository->find(makeProfile("Replacement")), std::out_of_range);
+  EXPECT_THROW(repository->find(makeProfile("Rejected")), std::system_error);
+  EXPECT_THROW(repository->find(makeProfile("Replacement")), std::system_error);
   sql("DROP TRIGGER fail_step");
   EXPECT_NO_THROW(repository->create(makeProfile("Accepted")));
   EXPECT_NO_THROW(repository->update(id, makeProfile("Replacement")));
@@ -284,6 +284,7 @@ TEST_F(BrewProfilesRepositoryTest, EraseCascadesStepsAndPreservesOtherProfiles)
   const auto first = repository->create(makeProfile("First"));
   const auto second = repository->create(makeProfile("Second"));
   repository->erase(first);
+  EXPECT_THROW(repository->erase(first), std::system_error);
   EXPECT_THROW(repository->get(first), std::system_error);
   EXPECT_EQ((std::vector<uint64_t>{second}), ids(repository->find(FindBrewProfiles{})));
   auto storage = makeStorage(path);
@@ -306,8 +307,8 @@ TEST_F(BrewProfilesRepositoryTest, ReopeningDatabasePreservesUpdatesAndDeletions
   repository = std::make_unique<BrewProfilesRepository>(path);
   EXPECT_EQ(original.SerializeAsString(), repository->get(second).SerializeAsString());
   EXPECT_EQ(original.SerializeAsString(), repository->find(makeProfile("Updated")).SerializeAsString());
-  EXPECT_THROW(repository->find(makeProfile("Second")), std::out_of_range);
-  EXPECT_THROW(repository->find(makeProfile("First")), std::out_of_range);
+  EXPECT_THROW(repository->find(makeProfile("Second")), std::system_error);
+  EXPECT_THROW(repository->find(makeProfile("First")), std::system_error);
   EXPECT_THROW(repository->get(first), std::system_error);
   EXPECT_EQ((std::vector<uint64_t>{second}), ids(repository->find(FindBrewProfiles{})));
 }
@@ -386,10 +387,10 @@ TEST_F(BrewProfilesRepositoryTest, PreservesIdsAbove32BitsInGetAndFind)
   EXPECT_EQ((std::vector<uint64_t>{id}), ids(repository->find(FindBrewProfiles{})));
   repository->update(id, makeProfile("Updated"));
   EXPECT_EQ(id, repository->get(id).id());
-  EXPECT_THROW(repository->find(makeProfile()), std::out_of_range);
+  EXPECT_THROW(repository->find(makeProfile()), std::system_error);
   EXPECT_EQ(id, repository->find(makeProfile("Updated")).id());
   repository->erase(id);
-  EXPECT_THROW(repository->find(makeProfile("Updated")), std::out_of_range);
+  EXPECT_THROW(repository->find(makeProfile("Updated")), std::system_error);
   EXPECT_THROW(repository->get(id), std::system_error);
 }
 
