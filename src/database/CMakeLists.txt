@@ -5,3 +5,4 @@ target_sources(openpressod_objects PRIVATE
 )
 
 add_subdirectory(brew_profiles)
+add_subdirectory(brew_history)
