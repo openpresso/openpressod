@@ -19,6 +19,7 @@ namespace openpressod::db::brew_history
 class AsyncBrewHistoryRepository {
 public:
   explicit AsyncBrewHistoryRepository(std::string path);
+  explicit AsyncBrewHistoryRepository(BrewHistoryRepository&& repository);
   AsyncBrewHistoryRepository(const AsyncBrewHistoryRepository&) = delete;
   AsyncBrewHistoryRepository(AsyncBrewHistoryRepository&&) = delete;
   auto operator=(const AsyncBrewHistoryRepository&) = delete;

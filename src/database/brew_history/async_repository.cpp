@@ -18,6 +18,11 @@ AsyncBrewHistoryRepository::AsyncBrewHistoryRepository(std::string path)
 {
 }
 
+AsyncBrewHistoryRepository::AsyncBrewHistoryRepository(BrewHistoryRepository&& repository)
+: m_repository{std::move(repository)}
+{
+}
+
 std::future<uint64_t> AsyncBrewHistoryRepository::createEmptyLog()
 {
   return m_executor.executeWithFuture(&BrewHistoryRepository::createEmptyLog, &m_repository);
