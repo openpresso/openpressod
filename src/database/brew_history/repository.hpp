@@ -1,13 +1,13 @@
 #ifndef BREW_HISTORY_REPOSITORY_HPP
 #define BREW_HISTORY_REPOSITORY_HPP
 
-#include "brew_log/brew_log_data.hpp"
+#include "brew_history/brew_history_data.hpp"
+#include "database/database_id.hpp"
 #include "schema.hpp"
 
-#include <cstdint>
 #include <string>
 
-#include <openpresso_proto/brew_log.pb.h>
+#include <openpresso_proto/brew_history.pb.h>
 #include <openpresso_proto/brew_profile.pb.h>
 
 namespace openpressod::db::brew_history
@@ -22,22 +22,22 @@ public:
   auto operator=(BrewHistoryRepository&&) = delete;
   ~BrewHistoryRepository() = default;
 
-  // Reserve a persistent ID; incomplete logs are excluded from get() and find().
-  uint64_t createEmptyLog();
-  void completeLog(uint64_t id, const CompletedBrewLog& log);
-  CompletedBrewLog get(uint64_t id);
-  void erase(uint64_t id);
+  // Reserve a persistent ID; incomplete entries are excluded from get() and find().
+  DatabaseId createEmptyEntry();
+  void completeEntry(DatabaseId id, const CompletedBrewHistoryEntry& entry);
+  CompletedBrewHistoryEntry get(DatabaseId id);
+  void erase(DatabaseId id);
   void discardIncomplete();
-  void discardIncomplete(uint64_t id);
-  BrewLogsSearchResult find(const FindBrewLogs& query);
+  void discardIncomplete(DatabaseId id);
+  BrewHistorySearchResult find(const FindBrewHistory& query);
 
 private:
-  uint64_t saveProfile(const BrewProfile& profile);
-  BrewProfile loadProfile(uint64_t id);
-  void saveSteps(uint64_t id, const BrewProfile& profile);
-  void loadSteps(uint64_t id, BrewProfile& profile);
-  void saveRecords(uint64_t id, const CompletedBrewLog& log);
-  CompletedBrewLog loadLog(const BrewLogRow& row);
+  DatabaseId saveProfile(const BrewProfile& profile);
+  BrewProfile loadProfile(DatabaseId id);
+  void saveSteps(DatabaseId id, const BrewProfile& profile);
+  void loadSteps(DatabaseId id, BrewProfile& profile);
+  void saveSamples(DatabaseId id, const CompletedBrewHistoryEntry& entry);
+  CompletedBrewHistoryEntry loadEntry(const BrewHistoryEntryRow& row);
 
 private:
   Storage m_storage;

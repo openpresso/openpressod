@@ -1,10 +1,11 @@
 #include "openppressod_service_impl.hpp"
 
 #include "async_events_dispatcher/async_events_dispatcher.hpp"
-#include "brew_log/brew_log_manager.hpp"
-#include "brew_log_stream_reactor.hpp"
+#include "brew_history/brew_history_manager.hpp"
+#include "brew_history_stream_reactor.hpp"
 #include "database/brew_history/async_repository.hpp"
 #include "database/brew_profiles/async_repository.hpp"
+#include "database/database_id.hpp"
 #include "events_stream_reactor.hpp"
 #include "metrics_stream_reactor.hpp"
 
@@ -23,7 +24,7 @@
 #include <grpcpp/support/server_callback.h>
 #include <grpcpp/support/status.h>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
-#include <openpresso_proto/brew_log.pb.h>
+#include <openpresso_proto/brew_history.pb.h>
 #include <openpresso_proto/brew_profile.pb.h>
 #include <openpresso_proto/events.pb.h>
 #include <openpresso_proto/machine_state.pb.h>
@@ -36,13 +37,13 @@ using namespace openpressod;
 
 OpenpressodServiceImpl::OpenpressodServiceImpl(
   std::shared_ptr<AsyncEventDispatcher> dispatcher,
-  std::shared_ptr<BrewLogManager> brewLogManager,
+  std::shared_ptr<BrewHistoryManager> brewHistoryManager,
   libopenpresso::CorePtr core,
   std::shared_ptr<const BrewTimer> brewTimer,
   std::shared_ptr<db::brew_profiles::AsyncBrewProfilesRepository> profilesRepository,
   std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> historyRepository)
 : m_dispatcher{std::move(dispatcher)}
-, m_brewLogManager{std::move(brewLogManager)}
+, m_brewHistoryManager{std::move(brewHistoryManager)}
 , m_core{std::move(core)}
 , m_brewTimer{std::move(brewTimer)}
 , m_profilesRepository{std::move(profilesRepository)}
@@ -267,17 +268,17 @@ grpc::ServerWriteReactor<Metrics>* OpenpressodServiceImpl::metrics(
   }
 }
 
-grpc::ServerWriteReactor<BrewLogStream>* OpenpressodServiceImpl::getBrewLog(
-  [[maybe_unused]] grpc::CallbackServerContext* context, const BrewLogId* request)
+grpc::ServerWriteReactor<BrewHistoryStream>* OpenpressodServiceImpl::getBrewHistoryEntry(
+  [[maybe_unused]] grpc::CallbackServerContext* context, const PersistentId* request)
 {
-  auto reactor = std::make_unique<BrewLogStreamReactor>(m_brewLogManager.get(), request->id());
+  auto reactor = std::make_unique<BrewHistoryStreamReactor>(m_brewHistoryManager.get(), request->id());
   auto* raw = reactor.get();
-  m_brewLogManager->addStreamReactor(std::move(reactor));
+  m_brewHistoryManager->addStreamReactor(std::move(reactor));
   return raw;
 }
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::getPersistentBrewProfile(
-  grpc::CallbackServerContext* context, const BrewProfileId* request, PersistentBrewProfile* response)
+  grpc::CallbackServerContext* context, const PersistentId* request, PersistentBrewProfile* response)
 {
   auto* reactor = context->DefaultReactor();
   m_profilesRepository->get(request->id(), [reactor, response](std::future<PersistentBrewProfile> result) {
@@ -293,10 +294,10 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::getPersistentBrewProfile(
 }
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::addPersistentBrewProfile(
-  grpc::CallbackServerContext* context, const BrewProfile* request, BrewProfileId* response)
+  grpc::CallbackServerContext* context, const BrewProfile* request, PersistentId* response)
 {
   auto* reactor = context->DefaultReactor();
-  m_profilesRepository->create(*request, [reactor, response](std::future<uint64_t> result) {
+  m_profilesRepository->create(*request, [reactor, response](std::future<DatabaseId> result) {
     try {
       response->set_id(result.get());
       reactor->Finish(grpc::Status::OK);
@@ -328,7 +329,7 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::updatePersistentBrewProfile(
 
 grpc::ServerUnaryReactor* OpenpressodServiceImpl::deletePersistentBrewProfile(
   grpc::CallbackServerContext* context,
-  const BrewProfileId* request,
+  const PersistentId* request,
   [[maybe_unused]] google::protobuf::Empty* response)
 {
   auto* reactor = context->DefaultReactor();
@@ -360,12 +361,12 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::findPersistentBrewProfiles(
   return reactor;
 }
 
-grpc::ServerUnaryReactor* OpenpressodServiceImpl::findBrewLogs(grpc::CallbackServerContext* context,
-                                                               const FindBrewLogs* request,
-                                                               BrewLogsSearchResult* response)
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::findBrewHistory(grpc::CallbackServerContext* context,
+                                                                  const FindBrewHistory* request,
+                                                                  BrewHistorySearchResult* response)
 {
   auto* reactor = context->DefaultReactor();
-  m_historyRepository->find(*request, [reactor, response](std::future<BrewLogsSearchResult> result) {
+  m_historyRepository->find(*request, [reactor, response](std::future<BrewHistorySearchResult> result) {
     try {
       *response = result.get();
       reactor->Finish(grpc::Status::OK);
@@ -377,9 +378,10 @@ grpc::ServerUnaryReactor* OpenpressodServiceImpl::findBrewLogs(grpc::CallbackSer
   return reactor;
 }
 
-grpc::ServerUnaryReactor* OpenpressodServiceImpl::removeBrewLog(grpc::CallbackServerContext* context,
-                                                                const BrewLogId* request,
-                                                                [[maybe_unused]] google::protobuf::Empty* response)
+grpc::ServerUnaryReactor* OpenpressodServiceImpl::removeBrewHistoryEntry(
+  grpc::CallbackServerContext* context,
+  const PersistentId* request,
+  [[maybe_unused]] google::protobuf::Empty* response)
 {
   auto* reactor = context->DefaultReactor();
   m_historyRepository->erase(request->id(), [reactor](std::future<void> result) {

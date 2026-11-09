@@ -14,8 +14,7 @@ i2c_bus = "/dev/i2c-1"
 gpio_chip = "/dev/gpiochip4"
 user_settings_path = "/custom/user_settings.json"
 pid_state_monitoring_enabled = true
-brew_log_sampling_interval = 00:00:00.025
-brew_logs_retantion_count = 3
+brew_history_sampling_interval = 00:00:00.025
 
 [service]
 socket_path = "/tmp/custom.sock"

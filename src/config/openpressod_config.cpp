@@ -55,14 +55,9 @@ std::filesystem::path OpenpressodConfig::profilesDatabasePath() const
     toml::find_or(m_config, "global", "profiles_database_path", DEFAULT_PROFILES_DATABASE_FILE_NAME));
 }
 
-std::chrono::steady_clock::duration OpenpressodConfig::brewLogSamplingInterval() const
+std::chrono::steady_clock::duration OpenpressodConfig::brewHistorySamplingInterval() const
 {
-  return toml::find_or(m_config, "global", "brew_log_sampling_interval", DEFAULT_BREW_LOG_SAMPLING_PERIOD);
-}
-
-size_t OpenpressodConfig::brewLogsRetantionCount() const
-{
-  return toml::find_or(m_config, "global", "brew_logs_retantion_count", DEFAULT_BREW_LOGS_RETANTION_COUNT);
+  return toml::find_or(m_config, "global", "brew_history_sampling_interval", DEFAULT_BREW_HISTORY_SAMPLING_PERIOD);
 }
 
 bool OpenpressodConfig::pidStateMonitoringEnabled() const

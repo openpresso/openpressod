@@ -1,15 +1,15 @@
 #ifndef ASYNC_EVENTS_DISPATCHER_HPP
 #define ASYNC_EVENTS_DISPATCHER_HPP
 
-#include "brew_log/brew_log_manager.hpp"
+#include "brew_history/brew_history_manager.hpp"
 #include "buttons/buttons_event_sink.hpp"
+#include "database/database_id.hpp"
 #include "service/events_stream_reactor.hpp"
 #include "state_manager/brew_profile_manager.hpp"
 #include "state_manager/state_manager.hpp"
 #include "state_manager/user_settings_manager.hpp"
 #include "utils/procedures_serial_executor.hpp"
 
-#include <cstdint>
 #include <list>
 #include <memory>
 #include <optional>
@@ -42,7 +42,7 @@ public:
   AsyncEventDispatcher(std::unique_ptr<StateManager> stateManager,
                        std::unique_ptr<BrewProfileManager> brewProfileManager,
                        std::unique_ptr<UserSettingsManager> userSettingsManager,
-                       std::shared_ptr<BrewLogManager> brewLogManager,
+                       std::shared_ptr<BrewHistoryManager> brewHistoryManager,
                        std::shared_ptr<HistoryRepository> repository);
   AsyncEventDispatcher(const AsyncEventDispatcher&) = delete;
   AsyncEventDispatcher(AsyncEventDispatcher&&) = delete;
@@ -113,9 +113,9 @@ private:
   std::unique_ptr<StateManager> m_stateManager;
   std::unique_ptr<BrewProfileManager> m_brewProfileManager;
   std::unique_ptr<UserSettingsManager> m_userSettings;
-  std::shared_ptr<BrewLogManager> m_brewLogManager;
+  std::shared_ptr<BrewHistoryManager> m_brewHistoryManager;
   std::shared_ptr<HistoryRepository> m_historyRepository;
-  std::optional<uint64_t> m_brewId;
+  std::optional<DatabaseId> m_brewId;
   std::list<std::unique_ptr<EventsStreamReactor>> m_eventsSinks;
   ProceduresSerialExecutor m_executor;
   libopenpresso::callback_descriptor_t m_brewCallback;

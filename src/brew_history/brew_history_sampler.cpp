@@ -1,4 +1,4 @@
-#include "brew_log_sampler.hpp"
+#include "brew_history_sampler.hpp"
 
 #include "config/libopenpresso_config_labels.hpp"
 
@@ -10,15 +10,15 @@
 
 using namespace openpressod;
 
-BrewLogSampler::BrewLogSampler(const libopenpresso::CorePtr& core,
-                               std::chrono::steady_clock::duration samplingInterval)
+BrewHistorySampler::BrewHistorySampler(const libopenpresso::CorePtr& core,
+                                       std::chrono::steady_clock::duration samplingInterval)
 : m_pressureSensor{core->getPressureSensor(libopenpresso_config_labels::PRESSURE_SENSOR_LABEL)}
 , m_weightSensor{core->getWeightSensor(libopenpresso_config_labels::WEIGHT_SENSOR_LABEL)}
 , m_samplingInterval{samplingInterval}
 {
 }
 
-void BrewLogSampler::stopSampling()
+void BrewHistorySampler::stopSampling()
 {
   if (!m_isRunning) {
     return;
@@ -31,7 +31,7 @@ void BrewLogSampler::stopSampling()
   m_samplingStopFlag = {};
 }
 
-void BrewLogSampler::setCurrentStep(size_t step)
+void BrewHistorySampler::setCurrentStep(size_t step)
 {
   m_currentStep.store(step, std::memory_order_relaxed);
 }

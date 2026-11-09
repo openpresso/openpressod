@@ -1,5 +1,5 @@
-#ifndef BREW_LOG_SAMPLER_HPP
-#define BREW_LOG_SAMPLER_HPP
+#ifndef BREW_HISTORY_SAMPLER_HPP
+#define BREW_HISTORY_SAMPLER_HPP
 
 #include <atomic>
 #include <chrono>
@@ -16,9 +16,10 @@ namespace openpressod
 
 class OpenpressodConfig;
 
-class BrewLogSampler {
+class BrewHistorySampler {
 public:
-  BrewLogSampler(const libopenpresso::CorePtr& core, std::chrono::steady_clock::duration samplingInterval);
+  BrewHistorySampler(const libopenpresso::CorePtr& core,
+                     std::chrono::steady_clock::duration samplingInterval);
 
   template <typename T>
   void startSampling(T&& callback)
@@ -56,4 +57,4 @@ private:
 
 } // namespace openpressod
 
-#endif // BREW_LOG_SAMPLER_HPP
+#endif // BREW_HISTORY_SAMPLER_HPP

@@ -1,12 +1,13 @@
 #include "async_events_dispatcher/async_events_dispatcher.hpp"
-#include "brew_log/brew_log_data.hpp"
-#include "brew_log/brew_log_manager.hpp"
+#include "brew_history/brew_history_data.hpp"
+#include "brew_history/brew_history_manager.hpp"
 #include "brew_profiler_mock.hpp"
 #include "config/libopenpresso_config_labels.hpp"
 #include "config/openpressod_config.hpp"
 #include "database/brew_history/async_repository.hpp"
 #include "database/brew_profile_fingerprint.hpp"
 #include "database/brew_profiles/async_repository.hpp"
+#include "database/database_id.hpp"
 #include "leds/leds_handler.hpp"
 #include "libopenpresso_core_mock.hpp"
 #include "logical_input_mock.hpp"
@@ -66,31 +67,31 @@ protected:
     return profile;
   }
 
-  static CompletedBrewLog makeLog(std::chrono::milliseconds start = 100s + 123ms,
-                                  BrewProfile profile = makeProfile())
+  static CompletedBrewHistoryEntry makeEntry(std::chrono::milliseconds start = 100s + 123ms,
+                                             BrewProfile profile = makeProfile())
   {
     return {
       .brewStartTime = std::chrono::system_clock::time_point{start},
       .samplingInterval = 10ms,
       .profile = std::move(profile),
-      .records = {{8'500, -200, -300, 1}, {9'000, 36'000, 2'100, 0}},
+      .samples = {{8'500, -200, -300, 1}, {9'000, 36'000, 2'100, 0}},
     };
   }
 
-  static std::vector<uint64_t> ids(const BrewProfilesSearchResult& result)
+  static std::vector<DatabaseId> ids(const BrewProfilesSearchResult& result)
   {
-    std::vector<uint64_t> resultIds;
+    std::vector<DatabaseId> resultIds;
     for (const auto& profile : result.profiles()) {
       resultIds.push_back(profile.id());
     }
     return resultIds;
   }
 
-  static std::vector<uint64_t> ids(const BrewLogsSearchResult& result)
+  static std::vector<DatabaseId> ids(const BrewHistorySearchResult& result)
   {
-    std::vector<uint64_t> resultIds;
-    for (const auto& log : result.logs()) {
-      resultIds.push_back(log.id());
+    std::vector<DatabaseId> resultIds;
+    for (const auto& entry : result.entries()) {
+      resultIds.push_back(entry.id());
     }
     return resultIds;
   }
@@ -137,11 +138,11 @@ protected:
     profileManager->loadDefaultProfile();
     auto settings = std::make_unique<UserSettingsManager>(config);
     settings->loadDefaultSettings();
-    logManager = std::make_shared<BrewLogManager>(core, history, config);
+    historyManager = std::make_shared<BrewHistoryManager>(core, history, config);
     dispatcher = std::make_shared<AsyncEventDispatcher>(
-      std::move(state), std::move(profileManager), std::move(settings), logManager, history);
+      std::move(state), std::move(profileManager), std::move(settings), historyManager, history);
     service = std::make_unique<OpenpressodServiceImpl>(
-      dispatcher, logManager, core, std::move(brewTimer), profiles, history);
+      dispatcher, historyManager, core, std::move(brewTimer), profiles, history);
     grpc::ServerBuilder builder;
     builder.RegisterService(service.get());
     server = builder.BuildAndStart();
@@ -160,7 +161,7 @@ protected:
     service.reset();
     ON_CALL(*profiler, isActive()).WillByDefault(Return(false));
     dispatcher.reset();
-    logManager.reset();
+    historyManager.reset();
     profiles.reset();
     history.reset();
     std::error_code error;
@@ -187,17 +188,17 @@ protected:
       << sqlite3_errmsg(connection);
   }
 
-  uint64_t createProfile(const BrewProfile& profile)
+  DatabaseId createProfile(const BrewProfile& profile)
   {
-    BrewProfileId response;
+    PersistentId response;
     const auto status = rpc(&OpenpressoDaemon::Stub::addPersistentBrewProfile, profile, response);
     EXPECT_TRUE(status.ok()) << status.error_message();
     return response.id();
   }
 
-  PersistentBrewProfile getProfile(uint64_t id)
+  PersistentBrewProfile getProfile(DatabaseId id)
   {
-    BrewProfileId request;
+    PersistentId request;
     request.set_id(id);
     PersistentBrewProfile response;
     const auto status = rpc(&OpenpressoDaemon::Stub::getPersistentBrewProfile, request, response);
@@ -205,7 +206,7 @@ protected:
     return response;
   }
 
-  grpc::Status updateProfile(uint64_t id, const BrewProfile& profile)
+  grpc::Status updateProfile(DatabaseId id, const BrewProfile& profile)
   {
     UpdatePersistentProfile request;
     request.set_id(id);
@@ -214,9 +215,9 @@ protected:
     return rpc(&OpenpressoDaemon::Stub::updatePersistentBrewProfile, request, response);
   }
 
-  grpc::Status deleteProfile(uint64_t id)
+  grpc::Status deleteProfile(DatabaseId id)
   {
-    BrewProfileId request;
+    PersistentId request;
     request.set_id(id);
     Empty response;
     return rpc(&OpenpressoDaemon::Stub::deletePersistentBrewProfile, request, response);
@@ -230,45 +231,45 @@ protected:
     return response;
   }
 
-  uint64_t createLog(const CompletedBrewLog& log)
+  DatabaseId createEntry(const CompletedBrewHistoryEntry& entry)
   {
-    const auto id = history->createEmptyLog().get();
-    history->completeLog(id, log).get();
+    const auto id = history->createEmptyEntry().get();
+    history->completeEntry(id, entry).get();
     return id;
   }
 
-  BrewLogsSearchResult findLogs(const FindBrewLogs& query = {})
+  BrewHistorySearchResult findHistory(const FindBrewHistory& query = {})
   {
-    BrewLogsSearchResult response;
-    const auto status = rpc(&OpenpressoDaemon::Stub::findBrewLogs, query, response);
+    BrewHistorySearchResult response;
+    const auto status = rpc(&OpenpressoDaemon::Stub::findBrewHistory, query, response);
     EXPECT_TRUE(status.ok()) << status.error_message();
     return response;
   }
 
-  grpc::Status removeLog(uint64_t id)
+  grpc::Status removeEntry(DatabaseId id)
   {
-    BrewLogId request;
+    PersistentId request;
     request.set_id(id);
     Empty response;
-    return rpc(&OpenpressoDaemon::Stub::removeBrewLog, request, response);
+    return rpc(&OpenpressoDaemon::Stub::removeBrewHistoryEntry, request, response);
   }
 
-  std::pair<grpc::Status, std::vector<BrewLogStream>> readLog(uint64_t id)
+  std::pair<grpc::Status, std::vector<BrewHistoryStream>> readEntry(DatabaseId id)
   {
     grpc::ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + 2s);
-    BrewLogId request;
+    PersistentId request;
     request.set_id(id);
-    auto reader = stub->getBrewLog(&context, request);
-    std::vector<BrewLogStream> records;
-    BrewLogStream record;
-    while (reader->Read(&record)) {
-      records.push_back(record);
+    auto reader = stub->getBrewHistoryEntry(&context, request);
+    std::vector<BrewHistoryStream> messages;
+    BrewHistoryStream message;
+    while (reader->Read(&message)) {
+      messages.push_back(message);
     }
-    return {reader->Finish(), std::move(records)};
+    return {reader->Finish(), std::move(messages)};
   }
 
-  grpc::Status activateProfile(uint64_t id)
+  grpc::Status activateProfile(DatabaseId id)
   {
     ActivateBrewProfile request;
     request.set_persistentid(id);
@@ -289,7 +290,7 @@ protected:
   std::shared_ptr<NiceMock<MockBrewProfiler>> profiler = std::make_shared<NiceMock<MockBrewProfiler>>();
   std::shared_ptr<NiceMock<MockTemperatureController>> brewController =
     std::make_shared<NiceMock<MockTemperatureController>>();
-  std::shared_ptr<BrewLogManager> logManager;
+  std::shared_ptr<BrewHistoryManager> historyManager;
   std::shared_ptr<AsyncEventDispatcher> dispatcher;
   std::filesystem::path directory;
   std::string profilesPath;
@@ -337,17 +338,17 @@ TEST_F(DatabaseRpcTest, ProfileCrudPreservesCompleteDataMetadataAnd64BitIds)
 
 TEST_F(DatabaseRpcTest, MissingTargetsReturnNotFoundAndDoNotStopRepositories)
 {
-  BrewProfileId request;
+  PersistentId request;
   request.set_id(42);
   PersistentBrewProfile response;
   EXPECT_EQ(grpc::StatusCode::NOT_FOUND,
             rpc(&OpenpressoDaemon::Stub::getPersistentBrewProfile, request, response).error_code());
   EXPECT_EQ(grpc::StatusCode::NOT_FOUND, updateProfile(42, makeProfile()).error_code());
   EXPECT_EQ(grpc::StatusCode::NOT_FOUND, deleteProfile(42).error_code());
-  EXPECT_EQ(grpc::StatusCode::NOT_FOUND, removeLog(42).error_code());
+  EXPECT_EQ(grpc::StatusCode::NOT_FOUND, removeEntry(42).error_code());
   const auto id = createProfile(makeProfile());
   EXPECT_EQ("Espresso", getProfile(id).profile().name());
-  EXPECT_EQ(0, findLogs().logs_size());
+  EXPECT_EQ(0, findHistory().entries_size());
 }
 
 TEST_F(DatabaseRpcTest, ProfileSearchForwardsFiltersPaginationAndCompleteResults)
@@ -357,14 +358,14 @@ TEST_F(DatabaseRpcTest, ProfileSearchForwardsFiltersPaginationAndCompleteResults
   const auto second = createProfile(makeProfile("Other"));
   const auto third = createProfile(makeProfile("Espresso B"));
   sql(profilesPath, "UPDATE profiles SET created_at = id * 100, modified_at = id * 200");
-  EXPECT_EQ((std::vector<uint64_t>{first, second, third}), ids(findProfiles()));
+  EXPECT_EQ((std::vector<DatabaseId>{first, second, third}), ids(findProfiles()));
   FindBrewProfiles query;
   query.set_namepattern("espresso%");
   query.mutable_mincreated()->set_seconds(100);
   query.mutable_maxcreated()->set_seconds(300);
   query.mutable_minmodified()->set_seconds(200);
   query.mutable_maxmodified()->set_seconds(600);
-  EXPECT_EQ((std::vector<uint64_t>{first, third}), ids(findProfiles(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{first, third}), ids(findProfiles(query)));
   query.set_offset(1);
   query.set_limit(1);
   const auto page = findProfiles(query);
@@ -373,7 +374,7 @@ TEST_F(DatabaseRpcTest, ProfileSearchForwardsFiltersPaginationAndCompleteResults
   query.set_offset(0);
   query.set_limit(0);
   query.mutable_mincreated()->set_seconds(200);
-  EXPECT_EQ((std::vector<uint64_t>{third}), ids(findProfiles(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{third}), ids(findProfiles(query)));
   query.mutable_maxcreated()->set_seconds(200);
   EXPECT_EQ(0, findProfiles(query).profiles_size());
   query.mutable_maxcreated()->set_seconds(300);
@@ -395,7 +396,7 @@ TEST_F(DatabaseRpcTest, DuplicateNamesAndProfilesReturnAlreadyExistsAndPreserveD
   const auto profile = makeProfile();
   const auto id = createProfile(profile);
   const auto original = getProfile(id);
-  BrewProfileId response;
+  PersistentId response;
   auto status = rpc(&OpenpressoDaemon::Stub::addPersistentBrewProfile, profile, response);
   EXPECT_EQ(grpc::StatusCode::ALREADY_EXISTS, status.error_code());
   EXPECT_EQ("Database unique constraint violated", status.error_message());
@@ -427,7 +428,7 @@ TEST_F(DatabaseRpcTest, FingerprintOnlyConflictsReturnAlreadyExists)
         " WHERE id = " + std::to_string(first));
   const auto original = getProfile(first);
   const auto otherOriginal = getProfile(other);
-  BrewProfileId response;
+  PersistentId response;
   EXPECT_EQ(grpc::StatusCode::ALREADY_EXISTS,
             rpc(&OpenpressoDaemon::Stub::addPersistentBrewProfile, candidate, response).error_code());
   EXPECT_EQ(grpc::StatusCode::ALREADY_EXISTS, updateProfile(other, candidate).error_code());
@@ -440,7 +441,7 @@ TEST_F(DatabaseRpcTest, CheckAndTriggerFailuresReturnInternalAndRollBackWrites)
 {
   const auto id = createProfile(makeProfile());
   const auto original = getProfile(id);
-  BrewProfileId response;
+  PersistentId response;
   EXPECT_EQ(grpc::StatusCode::INTERNAL,
             rpc(&OpenpressoDaemon::Stub::addPersistentBrewProfile, makeProfile(""), response).error_code());
   EXPECT_EQ(grpc::StatusCode::INTERNAL, updateProfile(id, makeProfile("")).error_code());
@@ -459,91 +460,91 @@ TEST_F(DatabaseRpcTest, CheckAndTriggerFailuresReturnInternalAndRollBackWrites)
   EXPECT_TRUE(updateProfile(id, makeProfile("Replacement")).ok());
 }
 
-TEST_F(DatabaseRpcTest, HistorySearchReturnsCompleteLogsAnd64BitIds)
+TEST_F(DatabaseRpcTest, HistorySearchReturnsCompleteEntriesAnd64BitIds)
 {
-  EXPECT_EQ(0, findLogs().logs_size());
-  sql(historyPath, "INSERT INTO sqlite_sequence(name, seq) VALUES ('brew_logs', 4294967295)");
+  EXPECT_EQ(0, findHistory().entries_size());
+  sql(historyPath, "INSERT INTO sqlite_sequence(name, seq) VALUES ('brew_history_entries', 4294967295)");
   const auto profile = makeProfile();
-  const auto log = makeLog(100s + 123ms, profile);
-  const auto id = createLog(log);
+  const auto entry = makeEntry(100s + 123ms, profile);
+  const auto id = createEntry(entry);
   ASSERT_GT(id, std::numeric_limits<uint32_t>::max());
-  const auto result = findLogs();
-  ASSERT_EQ(1, result.logs_size());
-  const auto& stored = result.logs(0);
+  const auto result = findHistory();
+  ASSERT_EQ(1, result.entries_size());
+  const auto& stored = result.entries(0);
   EXPECT_EQ(id, stored.id());
   EXPECT_EQ(profile.SerializeAsString(), stored.profile().SerializeAsString());
   EXPECT_EQ(100'123, TimeUtil::TimestampToMilliseconds(stored.startpoint()));
   EXPECT_EQ(10, TimeUtil::DurationToMilliseconds(stored.samplinginterval()));
-  ASSERT_EQ(2, stored.records_size());
-  for (int i = 0; i < stored.records_size(); ++i) {
-    const auto& expected = log.records.at(static_cast<size_t>(i));
-    const auto& actual = stored.records(i);
+  ASSERT_EQ(2, stored.samples_size());
+  for (int i = 0; i < stored.samples_size(); ++i) {
+    const auto& expected = entry.samples.at(static_cast<size_t>(i));
+    const auto& actual = stored.samples(i);
     EXPECT_EQ(expected.pressure, actual.pressure());
     EXPECT_EQ(expected.weight, actual.weight());
     EXPECT_EQ(expected.flowRate, actual.flowrate());
     EXPECT_EQ(expected.step, actual.stepindex());
   }
-  EXPECT_TRUE(removeLog(id).ok());
-  EXPECT_EQ(0, findLogs().logs_size());
-  EXPECT_EQ(grpc::StatusCode::NOT_FOUND, removeLog(id).error_code());
+  EXPECT_TRUE(removeEntry(id).ok());
+  EXPECT_EQ(0, findHistory().entries_size());
+  EXPECT_EQ(grpc::StatusCode::NOT_FOUND, removeEntry(id).error_code());
 }
 
 TEST_F(DatabaseRpcTest, HistorySearchForwardsDateProfileAndPaginationFilters)
 {
   const auto profile = makeProfile("Espresso");
-  const auto first = createLog(makeLog(100s, profile));
-  const auto second = createLog(makeLog(200s, makeProfile("Other")));
-  const auto third = createLog(makeLog(300s, profile));
-  EXPECT_EQ((std::vector<uint64_t>{first, second, third}), ids(findLogs()));
-  FindBrewLogs query;
+  const auto first = createEntry(makeEntry(100s, profile));
+  const auto second = createEntry(makeEntry(200s, makeProfile("Other")));
+  const auto third = createEntry(makeEntry(300s, profile));
+  EXPECT_EQ((std::vector<DatabaseId>{first, second, third}), ids(findHistory()));
+  FindBrewHistory query;
   query.set_profilenamepattern("espresso%");
   *query.mutable_mindate() = TimeUtil::MillisecondsToTimestamp(100'000);
   *query.mutable_maxdate() = TimeUtil::MillisecondsToTimestamp(300'000);
-  EXPECT_EQ((std::vector<uint64_t>{first, third}), ids(findLogs(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{first, third}), ids(findHistory(query)));
   query.set_offset(1);
   query.set_limit(1);
-  EXPECT_EQ((std::vector<uint64_t>{third}), ids(findLogs(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{third}), ids(findHistory(query)));
   query.set_offset(0);
   query.set_limit(0);
   *query.mutable_exactprofile() = profile;
-  EXPECT_EQ((std::vector<uint64_t>{first, third}), ids(findLogs(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{first, third}), ids(findHistory(query)));
   query.mutable_mindate()->set_seconds(101);
-  EXPECT_EQ((std::vector<uint64_t>{third}), ids(findLogs(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{third}), ids(findHistory(query)));
   query.mutable_maxdate()->set_seconds(299);
-  EXPECT_EQ(0, findLogs(query).logs_size());
+  EXPECT_EQ(0, findHistory(query).entries_size());
   query.Clear();
   *query.mutable_exactprofile() = makeProfile("Missing");
-  EXPECT_EQ(0, findLogs(query).logs_size());
+  EXPECT_EQ(0, findHistory(query).entries_size());
   query.Clear();
   query.set_offset(3);
-  EXPECT_EQ(0, findLogs(query).logs_size());
+  EXPECT_EQ(0, findHistory(query).entries_size());
 }
 
-TEST_F(DatabaseRpcTest, RemovingCompletedLogsPreservesSharedHistoryAndIncompleteReservations)
+TEST_F(DatabaseRpcTest, RemovingCompletedEntriesPreservesSharedHistoryAndIncompleteReservations)
 {
   const auto profile = makeProfile();
-  const auto first = createLog(makeLog(100s + 123ms, profile));
-  const auto second = createLog(makeLog(200s, profile));
-  const auto incomplete = history->createEmptyLog().get();
-  EXPECT_EQ(grpc::StatusCode::NOT_FOUND, removeLog(incomplete).error_code());
-  EXPECT_EQ(grpc::StatusCode::NOT_FOUND, removeLog(incomplete).error_code());
-  EXPECT_EQ((std::vector<uint64_t>{first, second}), ids(findLogs()));
-  EXPECT_TRUE(removeLog(first).ok());
-  const auto remaining = findLogs();
-  ASSERT_EQ(1, remaining.logs_size());
-  EXPECT_EQ(second, remaining.logs(0).id());
-  EXPECT_EQ(profile.SerializeAsString(), remaining.logs(0).profile().SerializeAsString());
-  EXPECT_TRUE(removeLog(second).ok());
-  EXPECT_EQ(0, findLogs().logs_size());
+  const auto first = createEntry(makeEntry(100s + 123ms, profile));
+  const auto second = createEntry(makeEntry(200s, profile));
+  const auto incomplete = history->createEmptyEntry().get();
+  EXPECT_EQ(grpc::StatusCode::NOT_FOUND, removeEntry(incomplete).error_code());
+  EXPECT_EQ(grpc::StatusCode::NOT_FOUND, removeEntry(incomplete).error_code());
+  EXPECT_EQ((std::vector<DatabaseId>{first, second}), ids(findHistory()));
+  EXPECT_TRUE(removeEntry(first).ok());
+  const auto remaining = findHistory();
+  ASSERT_EQ(1, remaining.entries_size());
+  EXPECT_EQ(second, remaining.entries(0).id());
+  EXPECT_EQ(profile.SerializeAsString(), remaining.entries(0).profile().SerializeAsString());
+  EXPECT_TRUE(removeEntry(second).ok());
+  EXPECT_EQ(0, findHistory().entries_size());
   // Removing an incomplete reservation must not prevent its later completion.
-  history->completeLog(incomplete, makeLog(300s, profile)).get();
-  EXPECT_EQ((std::vector<uint64_t>{incomplete}), ids(findLogs()));
+  history->completeEntry(incomplete, makeEntry(300s, profile)).get();
+  EXPECT_EQ((std::vector<DatabaseId>{incomplete}), ids(findHistory()));
 }
 
 TEST_F(DatabaseRpcTest, DatabaseFailuresReturnInternalForReadsSearchesAndDeletes)
 {
   const auto id = createProfile(makeProfile());
-  const auto logId = createLog(makeLog());
+  const auto entryId = createEntry(makeEntry());
   sql(profilesPath,
       "CREATE TRIGGER fail_delete BEFORE DELETE ON profiles "
       "BEGIN SELECT RAISE(ABORT, 'injected failure'); END");
@@ -553,16 +554,16 @@ TEST_F(DatabaseRpcTest, DatabaseFailuresReturnInternalForReadsSearchesAndDeletes
   EXPECT_TRUE(deleteProfile(id).ok());
 
   sql(historyPath,
-      "CREATE TRIGGER fail_delete BEFORE DELETE ON brew_logs "
+      "CREATE TRIGGER fail_delete BEFORE DELETE ON brew_history_entries "
       "BEGIN SELECT RAISE(ABORT, 'injected failure'); END");
-  EXPECT_EQ(grpc::StatusCode::INTERNAL, removeLog(logId).error_code());
-  EXPECT_EQ((std::vector<uint64_t>{logId}), ids(findLogs()));
+  EXPECT_EQ(grpc::StatusCode::INTERNAL, removeEntry(entryId).error_code());
+  EXPECT_EQ((std::vector<DatabaseId>{entryId}), ids(findHistory()));
   sql(historyPath, "DROP TRIGGER fail_delete");
-  EXPECT_TRUE(removeLog(logId).ok());
+  EXPECT_TRUE(removeEntry(entryId).ok());
 
   // Missing tables produce database errors, which must not be mistaken for missing rows.
   sql(profilesPath, "ALTER TABLE profiles RENAME TO unavailable_profiles");
-  BrewProfileId request;
+  PersistentId request;
   request.set_id(id);
   PersistentBrewProfile profileResponse;
   EXPECT_EQ(grpc::StatusCode::INTERNAL,
@@ -573,66 +574,67 @@ TEST_F(DatabaseRpcTest, DatabaseFailuresReturnInternalForReadsSearchesAndDeletes
     rpc(&OpenpressoDaemon::Stub::findPersistentBrewProfiles, FindBrewProfiles{}, profilesResponse).error_code());
   sql(profilesPath, "ALTER TABLE unavailable_profiles RENAME TO profiles");
   EXPECT_EQ(0, findProfiles().profiles_size());
-  sql(historyPath, "ALTER TABLE brew_logs RENAME TO unavailable_logs");
-  BrewLogsSearchResult logsResponse;
+  sql(historyPath, "ALTER TABLE brew_history_entries RENAME TO unavailable_entries");
+  BrewHistorySearchResult historyResponse;
   EXPECT_EQ(grpc::StatusCode::INTERNAL,
-            rpc(&OpenpressoDaemon::Stub::findBrewLogs, FindBrewLogs{}, logsResponse).error_code());
-  sql(historyPath, "ALTER TABLE unavailable_logs RENAME TO brew_logs");
-  EXPECT_EQ(0, findLogs().logs_size());
+            rpc(&OpenpressoDaemon::Stub::findBrewHistory, FindBrewHistory{}, historyResponse).error_code());
+  sql(historyPath, "ALTER TABLE unavailable_entries RENAME TO brew_history_entries");
+  EXPECT_EQ(0, findHistory().entries_size());
 }
 
-TEST_F(DatabaseRpcTest, GetBrewLogByIdStreamsStoredMetadataRecordsAndStop)
+TEST_F(DatabaseRpcTest, GetBrewHistoryEntryByIdStreamsStoredMetadataSamplesAndStop)
 {
-  createLog(makeLog(50s, makeProfile("Other")));
+  createEntry(makeEntry(50s, makeProfile("Other")));
   const auto profile = makeProfile("Requested profile");
-  const auto log = makeLog(100s + 123ms, profile);
-  const auto id = createLog(log);
-  const auto [status, records] = readLog(id);
+  const auto entry = makeEntry(100s + 123ms, profile);
+  const auto id = createEntry(entry);
+  const auto [status, messages] = readEntry(id);
   ASSERT_TRUE(status.ok()) << status.error_message();
-  ASSERT_EQ(log.records.size() + 2, records.size());
-  ASSERT_TRUE(records.front().has_brewlogstart());
-  const auto& start = records.front().brewlogstart();
+  ASSERT_EQ(entry.samples.size() + 2, messages.size());
+  ASSERT_TRUE(messages.front().has_brewhistorystart());
+  const auto& start = messages.front().brewhistorystart();
   EXPECT_EQ(profile.SerializeAsString(), start.profile().SerializeAsString());
   EXPECT_EQ(100'123, TimeUtil::TimestampToMilliseconds(start.startpoint()));
   EXPECT_EQ(10, TimeUtil::DurationToMilliseconds(start.samplinginterval()));
-  for (size_t i = 0; i < log.records.size(); ++i) {
-    ASSERT_TRUE(records.at(i + 1).has_record());
-    const auto& actual = records.at(i + 1).record();
-    const auto& expected = log.records.at(i);
+  for (size_t i = 0; i < entry.samples.size(); ++i) {
+    ASSERT_TRUE(messages.at(i + 1).has_sample());
+    const auto& actual = messages.at(i + 1).sample();
+    const auto& expected = entry.samples.at(i);
     EXPECT_EQ(expected.pressure, actual.pressure());
     EXPECT_EQ(expected.weight, actual.weight());
     EXPECT_EQ(expected.flowRate, actual.flowrate());
     EXPECT_EQ(expected.step, actual.stepindex());
   }
-  EXPECT_TRUE(records.back().has_brewlogstop());
+  EXPECT_TRUE(messages.back().has_brewhistorystop());
 }
 
-TEST_F(DatabaseRpcTest, GetEmptyCompletedBrewLogStreamsStartAndStop)
+TEST_F(DatabaseRpcTest, GetEmptyCompletedBrewHistoryEntryStreamsStartAndStop)
 {
-  auto log = makeLog();
-  log.records.clear();
-  const auto id = createLog(log);
-  const auto [status, records] = readLog(id);
+  auto entry = makeEntry();
+  entry.samples.clear();
+  const auto id = createEntry(entry);
+  const auto [status, messages] = readEntry(id);
   ASSERT_TRUE(status.ok()) << status.error_message();
-  ASSERT_EQ(2U, records.size());
-  ASSERT_TRUE(records.front().has_brewlogstart());
-  EXPECT_EQ(log.profile.SerializeAsString(), records.front().brewlogstart().profile().SerializeAsString());
-  EXPECT_TRUE(records.back().has_brewlogstop());
+  ASSERT_EQ(2U, messages.size());
+  ASSERT_TRUE(messages.front().has_brewhistorystart());
+  EXPECT_EQ(entry.profile.SerializeAsString(),
+            messages.front().brewhistorystart().profile().SerializeAsString());
+  EXPECT_TRUE(messages.back().has_brewhistorystop());
 }
 
-TEST_F(DatabaseRpcTest, GetMissingDeletedAndIncompleteBrewLogsReturnsNotFoundWithoutRecords)
+TEST_F(DatabaseRpcTest, GetMissingDeletedAndIncompleteEntriesReturnsNotFoundWithoutMessages)
 {
-  const auto deleted = createLog(makeLog());
-  ASSERT_TRUE(removeLog(deleted).ok());
-  const auto incomplete = history->createEmptyLog().get();
-  for (const auto id : {uint64_t{42}, deleted, incomplete}) {
+  const auto deleted = createEntry(makeEntry());
+  ASSERT_TRUE(removeEntry(deleted).ok());
+  const auto incomplete = history->createEmptyEntry().get();
+  for (const auto id : {DatabaseId{42}, deleted, incomplete}) {
     SCOPED_TRACE(id);
-    const auto [status, records] = readLog(id);
+    const auto [status, messages] = readEntry(id);
     EXPECT_EQ(grpc::StatusCode::NOT_FOUND, status.error_code());
-    EXPECT_TRUE(records.empty());
+    EXPECT_TRUE(messages.empty());
   }
-  history->completeLog(incomplete, makeLog()).get();
-  EXPECT_TRUE(readLog(incomplete).first.ok());
+  history->completeEntry(incomplete, makeEntry()).get();
+  EXPECT_TRUE(readEntry(incomplete).first.ok());
 }
 
 TEST_F(DatabaseRpcTest, ActivatePersistentProfileAppliesStoredContentsAnd64BitId)

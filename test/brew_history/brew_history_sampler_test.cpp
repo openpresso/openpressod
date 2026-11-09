@@ -1,4 +1,4 @@
-#include "brew_log/brew_log_sampler.hpp"
+#include "brew_history/brew_history_sampler.hpp"
 #include "config/libopenpresso_config_labels.hpp"
 #include "libopenpresso_core_mock.hpp"
 #include "pressure_sensor_mock.hpp"
@@ -25,7 +25,7 @@ using testing::StrictMock;
 namespace
 {
 
-class BrewLogSamplerTest : public testing::Test {
+class BrewHistorySamplerTest : public testing::Test {
 protected:
   using Sample =
     std::tuple<libopenpresso::millibars_t, libopenpresso::milligrams_t, libopenpresso::milligrams_p_second_t, size_t>;
@@ -51,7 +51,7 @@ protected:
 
   void start(std::chrono::steady_clock::duration interval = 10ms)
   {
-    sampler = std::make_unique<BrewLogSampler>(core, interval);
+    sampler = std::make_unique<BrewHistorySampler>(core, interval);
     sampler->startSampling([this](auto... values) { capture(values...); });
   }
 
@@ -81,10 +81,10 @@ protected:
   std::condition_variable sampled;
   std::vector<Sample> samples;
   std::vector<std::chrono::steady_clock::time_point> times;
-  std::unique_ptr<BrewLogSampler> sampler;
+  std::unique_ptr<BrewHistorySampler> sampler;
 };
 
-TEST_F(BrewLogSamplerTest, FirstSampleIsImmediateAndPreservesSignedMetrics)
+TEST_F(BrewHistorySamplerTest, FirstSampleIsImmediateAndPreservesSignedMetrics)
 {
   // A long interval distinguishes an immediate sample from waiting for the first tick.
   start(1h);
@@ -93,7 +93,7 @@ TEST_F(BrewLogSamplerTest, FirstSampleIsImmediateAndPreservesSignedMetrics)
   EXPECT_THAT(samples, testing::ElementsAre(Sample{8'500, -200, -300, 0}));
 }
 
-TEST_F(BrewLogSamplerTest, SamplesPeriodicallyAtTheConfiguredInterval)
+TEST_F(BrewHistorySamplerTest, SamplesPeriodicallyAtTheConfiguredInterval)
 {
   const auto before = std::chrono::steady_clock::now();
   start(30ms);
@@ -105,7 +105,7 @@ TEST_F(BrewLogSamplerTest, SamplesPeriodicallyAtTheConfiguredInterval)
   EXPECT_THAT(samples, testing::Each(Sample{8'500, -200, -300, 0}));
 }
 
-TEST_F(BrewLogSamplerTest, ReadsFreshMetricsAndCurrentStepOnEachTick)
+TEST_F(BrewHistorySamplerTest, ReadsFreshMetricsAndCurrentStepOnEachTick)
 {
   EXPECT_CALL(*pressure, getPressure()).WillOnce(Return(1'000)).WillRepeatedly(Return(9'000));
   EXPECT_CALL(*weight, getWeight()).WillOnce(Return(-100)).WillRepeatedly(Return(36'000));
@@ -122,7 +122,7 @@ TEST_F(BrewLogSamplerTest, ReadsFreshMetricsAndCurrentStepOnEachTick)
   EXPECT_EQ((Sample{9'000, 36'000, 2'100, 7}), samples.back());
 }
 
-TEST_F(BrewLogSamplerTest, StopInterruptsTheWaitAndPreventsFurtherSensorReads)
+TEST_F(BrewHistorySamplerTest, StopInterruptsTheWaitAndPreventsFurtherSensorReads)
 {
   start(1h);
   ASSERT_TRUE(waitFor(1));
@@ -138,9 +138,9 @@ TEST_F(BrewLogSamplerTest, StopInterruptsTheWaitAndPreventsFurtherSensorReads)
   EXPECT_FALSE(sampled.wait_for(lock, 50ms, [&] { return samples.size() > 1; }));
 }
 
-TEST_F(BrewLogSamplerTest, StopBeforeStartAndRepeatedStopAreHarmless)
+TEST_F(BrewHistorySamplerTest, StopBeforeStartAndRepeatedStopAreHarmless)
 {
-  sampler = std::make_unique<BrewLogSampler>(core, 1h);
+  sampler = std::make_unique<BrewHistorySampler>(core, 1h);
   EXPECT_NO_THROW(sampler->stopSampling());
   EXPECT_NO_THROW(sampler->stopSampling());
   sampler->startSampling([this](auto... values) { capture(values...); });
@@ -149,7 +149,7 @@ TEST_F(BrewLogSamplerTest, StopBeforeStartAndRepeatedStopAreHarmless)
   EXPECT_NO_THROW(sampler->stopSampling());
 }
 
-TEST_F(BrewLogSamplerTest, RestartResetsStepAndUsesTheNewMoveOnlyCallback)
+TEST_F(BrewHistorySamplerTest, RestartResetsStepAndUsesTheNewMoveOnlyCallback)
 {
   start(1h);
   ASSERT_TRUE(waitFor(1));
@@ -164,13 +164,13 @@ TEST_F(BrewLogSamplerTest, RestartResetsStepAndUsesTheNewMoveOnlyCallback)
   EXPECT_THAT(samples, testing::ElementsAre(Sample{8'500, -200, -300, 0}, Sample{8'500, -200, -300, 0}));
 }
 
-TEST_F(BrewLogSamplerTest, StopWaitsForAnInFlightCallbackToFinish)
+TEST_F(BrewHistorySamplerTest, StopWaitsForAnInFlightCallbackToFinish)
 {
   std::promise<void> entered;
   auto enteredFuture = entered.get_future();
   std::promise<void> release;
   auto released = release.get_future();
-  sampler = std::make_unique<BrewLogSampler>(core, 1h);
+  sampler = std::make_unique<BrewHistorySampler>(core, 1h);
   sampler->startSampling([&](auto...) {
     entered.set_value();
     released.wait();

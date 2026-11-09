@@ -1,6 +1,7 @@
 #ifndef BREW_PROFILE_SCHEMA_HPP
 #define BREW_PROFILE_SCHEMA_HPP
 
+#include "database/database_id.hpp"
 #include "database/steps_schema.hpp"
 
 #include <cstdint>
@@ -15,7 +16,7 @@ namespace openpressod::db::brew_profiles
 {
 
 struct ProfileRow {
-  uint64_t id = 0;
+  DatabaseId id = 0;
   std::string name;
   int32_t temperature = 0;
   std::optional<StopConditionType> stopType;

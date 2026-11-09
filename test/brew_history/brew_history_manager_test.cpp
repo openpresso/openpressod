@@ -1,8 +1,9 @@
-#include "brew_log/brew_log_data.hpp"
-#include "brew_log/brew_log_manager.hpp"
+#include "brew_history/brew_history_data.hpp"
+#include "brew_history/brew_history_manager.hpp"
 #include "config/libopenpresso_config_labels.hpp"
 #include "config/openpressod_config.hpp"
 #include "database/brew_history/async_repository.hpp"
+#include "database/database_id.hpp"
 #include "libopenpresso_core_mock.hpp"
 #include "pressure_sensor_mock.hpp"
 #include "service/openppressod_service_impl.hpp"
@@ -35,19 +36,19 @@ using testing::Return;
 namespace
 {
 
-class BrewLogManagerTest : public testing::Test {
+class BrewHistoryManagerTest : public testing::Test {
 protected:
   struct Stream {
     grpc::ClientContext context;
-    std::unique_ptr<grpc::ClientReader<BrewLogStream>> reader;
+    std::unique_ptr<grpc::ClientReader<BrewHistoryStream>> reader;
     bool finished = false;
 
-    Stream(OpenpressoDaemon::Stub& stub, uint64_t brewId)
+    Stream(OpenpressoDaemon::Stub& stub, DatabaseId brewId)
     {
       context.set_deadline(std::chrono::system_clock::now() + 5s);
-      BrewLogId request;
+      PersistentId request;
       request.set_id(brewId);
-      reader = stub.getBrewLog(&context, request);
+      reader = stub.getBrewHistoryEntry(&context, request);
     }
 
     ~Stream()
@@ -58,7 +59,7 @@ protected:
       }
     }
 
-    bool next(BrewLogStream& message)
+    bool next(BrewHistoryStream& message)
     {
       return reader->Read(&message);
     }
@@ -86,7 +87,7 @@ protected:
   void SetUp() override
   {
     const auto base = std::filesystem::temp_directory_path() /
-                      ("openpressod-brew-log-" +
+                      ("openpressod-brew-history-" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     directory = base;
     for (unsigned suffix = 0; !std::filesystem::create_directory(directory); ++suffix) {
@@ -105,8 +106,8 @@ protected:
   void startServer(const std::string& interval = "00:00:00.020")
   {
     const auto config =
-      OpenpressodConfig::fromString("[global]\nbrew_log_sampling_interval = " + interval);
-    manager = std::make_shared<BrewLogManager>(core, history, config);
+      OpenpressodConfig::fromString("[global]\nbrew_history_sampling_interval = " + interval);
+    manager = std::make_shared<BrewHistoryManager>(core, history, config);
     service =
       std::make_unique<OpenpressodServiceImpl>(nullptr, manager, nullptr, nullptr, nullptr, history);
     grpc::ServerBuilder builder;
@@ -137,16 +138,16 @@ protected:
     std::filesystem::remove_all(directory, error);
   }
 
-  Stream& subscribe(uint64_t brewId)
+  Stream& subscribe(DatabaseId brewId)
   {
     streams.push_back(std::make_unique<Stream>(*stub, brewId));
     return *streams.back();
   }
 
-  std::vector<BrewLogStream> readToEnd(Stream& stream)
+  std::vector<BrewHistoryStream> readToEnd(Stream& stream)
   {
-    std::vector<BrewLogStream> messages;
-    BrewLogStream message;
+    std::vector<BrewHistoryStream> messages;
+    BrewHistoryStream message;
     while (stream.next(message)) {
       messages.push_back(message);
     }
@@ -155,22 +156,22 @@ protected:
     return messages;
   }
 
-  static void expectRecord(const BrewLogStream& message, size_t step = 0)
+  static void expectSample(const BrewHistoryStream& message, size_t step = 0)
   {
-    ASSERT_TRUE(message.has_record());
-    EXPECT_EQ(8'500U, message.record().pressure());
-    EXPECT_EQ(-200, message.record().weight());
-    EXPECT_EQ(-300, message.record().flowrate());
-    EXPECT_EQ(step, message.record().stepindex());
+    ASSERT_TRUE(message.has_sample());
+    EXPECT_EQ(8'500U, message.sample().pressure());
+    EXPECT_EQ(-200, message.sample().weight());
+    EXPECT_EQ(-300, message.sample().flowrate());
+    EXPECT_EQ(step, message.sample().stepindex());
   }
 
-  static void expectCompleted(const std::vector<BrewLogStream>& messages)
+  static void expectCompleted(const std::vector<BrewHistoryStream>& messages)
   {
     ASSERT_GE(messages.size(), 3U);
-    EXPECT_TRUE(messages.front().has_brewlogstart());
-    EXPECT_TRUE(messages.back().has_brewlogstop());
+    EXPECT_TRUE(messages.front().has_brewhistorystart());
+    EXPECT_TRUE(messages.back().has_brewhistorystop());
     for (size_t index = 1; index + 1 < messages.size(); ++index) {
-      EXPECT_TRUE(messages[index].has_record());
+      EXPECT_TRUE(messages[index].has_sample());
     }
   }
 
@@ -182,62 +183,62 @@ protected:
     std::make_shared<NiceMock<MockPressureSensor>>();
   std::shared_ptr<NiceMock<MockWeightSensor>> weight = std::make_shared<NiceMock<MockWeightSensor>>();
   std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> history;
-  std::shared_ptr<BrewLogManager> manager;
+  std::shared_ptr<BrewHistoryManager> manager;
   std::unique_ptr<OpenpressodServiceImpl> service;
   std::unique_ptr<grpc::Server> server;
   std::unique_ptr<OpenpressoDaemon::Stub> stub;
   std::vector<std::unique_ptr<Stream>> streams;
 };
 
-TEST_F(BrewLogManagerTest, StreamsStartMetadataProfileAndLiveRecordsWithStepChanges)
+TEST_F(BrewHistoryManagerTest, StreamsStartMetadataProfileAndLiveSamplesWithStepChanges)
 {
   startServer();
   auto profile = makeProfile();
   const auto expectedProfile = profile.SerializeAsString();
-  const auto id = history->createEmptyLog().get();
+  const auto id = history->createEmptyEntry().get();
   const auto before = std::chrono::system_clock::now();
   manager->startBrew(id, profile);
   profile.set_name("Edited after starting");
   auto& stream = subscribe(id);
-  BrewLogStream message;
+  BrewHistoryStream message;
   ASSERT_TRUE(stream.next(message));
-  ASSERT_TRUE(message.has_brewlogstart());
-  const auto& start = message.brewlogstart();
+  ASSERT_TRUE(message.has_brewhistorystart());
+  const auto& start = message.brewhistorystart();
   EXPECT_EQ(20'000'000, TimeUtil::DurationToNanoseconds(start.samplinginterval()));
   const auto started = std::chrono::nanoseconds{TimeUtil::TimestampToNanoseconds(start.startpoint())};
   EXPECT_GE(started, before.time_since_epoch());
   EXPECT_LE(started, std::chrono::system_clock::now().time_since_epoch());
   EXPECT_EQ(expectedProfile, start.profile().SerializeAsString());
   ASSERT_TRUE(stream.next(message));
-  expectRecord(message);
+  expectSample(message);
 
   manager->setCurrentStep(3);
   do {
     ASSERT_TRUE(stream.next(message));
-    ASSERT_TRUE(message.has_record());
-  } while (message.record().stepindex() != 3);
-  expectRecord(message, 3);
+    ASSERT_TRUE(message.has_sample());
+  } while (message.sample().stepindex() != 3);
+  expectSample(message, 3);
   manager->stopBrew();
   const auto tail = readToEnd(stream);
   ASSERT_FALSE(tail.empty());
-  EXPECT_TRUE(tail.back().has_brewlogstop());
+  EXPECT_TRUE(tail.back().has_brewhistorystop());
   for (size_t index = 0; index + 1 < tail.size(); ++index) {
-    expectRecord(tail[index], 3);
+    expectSample(tail[index], 3);
   }
 }
 
-TEST_F(BrewLogManagerTest, LateSubscriberReceivesTheSameBufferedPrefixThenLiveRecords)
+TEST_F(BrewHistoryManagerTest, LateSubscriberReceivesTheSameBufferedPrefixThenLiveSamples)
 {
   startServer();
-  const auto id = history->createEmptyLog().get();
+  const auto id = history->createEmptyEntry().get();
   manager->startBrew(id, makeProfile());
   auto& first = subscribe(id);
-  std::vector<BrewLogStream> prefix(4);
+  std::vector<BrewHistoryStream> prefix(4);
   for (auto& message : prefix) {
     ASSERT_TRUE(first.next(message));
   }
   auto& late = subscribe(id);
-  BrewLogStream message;
+  BrewHistoryStream message;
   for (const auto& expected : prefix) {
     ASSERT_TRUE(late.next(message));
     EXPECT_EQ(expected.SerializeAsString(), message.SerializeAsString());
@@ -245,35 +246,35 @@ TEST_F(BrewLogManagerTest, LateSubscriberReceivesTheSameBufferedPrefixThenLiveRe
   manager->setCurrentStep(2);
   do {
     ASSERT_TRUE(late.next(message));
-    ASSERT_TRUE(message.has_record());
-  } while (message.record().stepindex() != 2);
+    ASSERT_TRUE(message.has_sample());
+  } while (message.sample().stepindex() != 2);
   manager->stopBrew();
   const auto firstTail = readToEnd(first);
   const auto lateTail = readToEnd(late);
   ASSERT_FALSE(firstTail.empty());
   ASSERT_FALSE(lateTail.empty());
-  EXPECT_TRUE(firstTail.back().has_brewlogstop());
-  EXPECT_TRUE(lateTail.back().has_brewlogstop());
+  EXPECT_TRUE(firstTail.back().has_brewhistorystop());
+  EXPECT_TRUE(lateTail.back().has_brewhistorystop());
 }
 
-TEST_F(BrewLogManagerTest, StopPersistsExactlyTheRecordsDeliveredToLiveSubscribers)
+TEST_F(BrewHistoryManagerTest, StopPersistsExactlyTheSamplesDeliveredToLiveSubscribers)
 {
   startServer();
-  const auto id = history->createEmptyLog().get();
+  const auto id = history->createEmptyEntry().get();
   const auto profile = makeProfile();
   manager->startBrew(id, profile);
   auto& live = subscribe(id);
-  std::vector<BrewLogStream> messages(3);
+  std::vector<BrewHistoryStream> messages(3);
   for (auto& message : messages) {
     ASSERT_TRUE(live.next(message));
   }
   manager->setCurrentStep(4);
-  BrewLogStream message;
+  BrewHistoryStream message;
   do {
     ASSERT_TRUE(live.next(message));
-    ASSERT_TRUE(message.has_record());
+    ASSERT_TRUE(message.has_sample());
     messages.push_back(message);
-  } while (message.record().stepindex() != 4);
+  } while (message.sample().stepindex() != 4);
   manager->stopBrew();
   auto tail = readToEnd(live);
   messages.insert(messages.end(), tail.begin(), tail.end());
@@ -283,24 +284,24 @@ TEST_F(BrewLogManagerTest, StopPersistsExactlyTheRecordsDeliveredToLiveSubscribe
   const auto replay = readToEnd(subscribe(id));
   ASSERT_EQ(messages.size(), replay.size());
   expectCompleted(replay);
-  EXPECT_EQ(profile.SerializeAsString(), replay.front().brewlogstart().profile().SerializeAsString());
-  EXPECT_EQ(TimeUtil::TimestampToMilliseconds(messages.front().brewlogstart().startpoint()),
-            TimeUtil::TimestampToMilliseconds(replay.front().brewlogstart().startpoint()));
-  EXPECT_EQ(messages.front().brewlogstart().samplinginterval().SerializeAsString(),
-            replay.front().brewlogstart().samplinginterval().SerializeAsString());
+  EXPECT_EQ(profile.SerializeAsString(), replay.front().brewhistorystart().profile().SerializeAsString());
+  EXPECT_EQ(TimeUtil::TimestampToMilliseconds(messages.front().brewhistorystart().startpoint()),
+            TimeUtil::TimestampToMilliseconds(replay.front().brewhistorystart().startpoint()));
+  EXPECT_EQ(messages.front().brewhistorystart().samplinginterval().SerializeAsString(),
+            replay.front().brewhistorystart().samplinginterval().SerializeAsString());
   for (size_t index = 1; index < messages.size(); ++index) {
     EXPECT_EQ(messages[index].SerializeAsString(), replay[index].SerializeAsString());
   }
 }
 
-TEST_F(BrewLogManagerTest, CancellingOneActiveSubscriberLeavesOtherSubscribersAndSamplingRunning)
+TEST_F(BrewHistoryManagerTest, CancellingOneActiveSubscriberLeavesOtherSubscribersAndSamplingRunning)
 {
   startServer();
-  const auto id = history->createEmptyLog().get();
+  const auto id = history->createEmptyEntry().get();
   manager->startBrew(id, makeProfile());
   auto& cancelled = subscribe(id);
   auto& live = subscribe(id);
-  BrewLogStream message;
+  BrewHistoryStream message;
   ASSERT_TRUE(cancelled.next(message));
   ASSERT_TRUE(cancelled.next(message));
   ASSERT_TRUE(live.next(message));
@@ -310,20 +311,20 @@ TEST_F(BrewLogManagerTest, CancellingOneActiveSubscriberLeavesOtherSubscribersAn
   manager->setCurrentStep(5);
   do {
     ASSERT_TRUE(live.next(message));
-    ASSERT_TRUE(message.has_record());
-  } while (message.record().stepindex() != 5);
+    ASSERT_TRUE(message.has_sample());
+  } while (message.sample().stepindex() != 5);
   manager->stopBrew();
   const auto tail = readToEnd(live);
   ASSERT_FALSE(tail.empty());
-  EXPECT_TRUE(tail.back().has_brewlogstop());
+  EXPECT_TRUE(tail.back().has_brewhistorystop());
 }
 
-TEST_F(BrewLogManagerTest, ConsecutiveBrewsResetStepRecordsAndProfileWithoutOverwritingEarlierLogs)
+TEST_F(BrewHistoryManagerTest, ConsecutiveBrewsResetStepSamplesAndProfileWithoutOverwritingEarlierEntries)
 {
   startServer("01:00:00");
-  std::vector<uint64_t> ids;
+  std::vector<DatabaseId> ids;
   for (const auto* name : {"First", "Second"}) {
-    const auto id = history->createEmptyLog().get();
+    const auto id = history->createEmptyEntry().get();
     ids.push_back(id);
     manager->setCurrentStep(99);
     manager->startBrew(id, makeProfile(name));
@@ -331,20 +332,20 @@ TEST_F(BrewLogManagerTest, ConsecutiveBrewsResetStepRecordsAndProfileWithoutOver
     const auto replay = readToEnd(subscribe(id));
     ASSERT_EQ(3U, replay.size());
     expectCompleted(replay);
-    expectRecord(replay[1]);
-    EXPECT_EQ(name, replay.front().brewlogstart().profile().name());
+    expectSample(replay[1]);
+    EXPECT_EQ(name, replay.front().brewhistorystart().profile().name());
   }
   const auto first = readToEnd(subscribe(ids.front()));
   ASSERT_EQ(3U, first.size());
-  EXPECT_EQ("First", first.front().brewlogstart().profile().name());
+  EXPECT_EQ("First", first.front().brewhistorystart().profile().name());
 }
 
-TEST_F(BrewLogManagerTest, MissingLogAndCancellingTheLastSubscriberDoNotInterruptTheActiveBrew)
+TEST_F(BrewHistoryManagerTest, MissingEntryAndCancellingTheLastSubscriberDoNotInterruptTheActiveBrew)
 {
   startServer();
-  const auto id = history->createEmptyLog().get();
+  const auto id = history->createEmptyEntry().get();
   manager->startBrew(id, makeProfile());
-  BrewLogStream message;
+  BrewHistoryStream message;
   auto& missing = subscribe(id + 1);
   EXPECT_FALSE(missing.next(message));
   EXPECT_EQ(grpc::StatusCode::NOT_FOUND, missing.finish().error_code());
@@ -353,7 +354,7 @@ TEST_F(BrewLogManagerTest, MissingLogAndCancellingTheLastSubscriberDoNotInterrup
   ASSERT_TRUE(first.next(message));
   const auto start = message.SerializeAsString();
   ASSERT_TRUE(first.next(message));
-  const auto firstRecord = message.SerializeAsString();
+  const auto firstSample = message.SerializeAsString();
   first.context.TryCancel();
   EXPECT_EQ(grpc::StatusCode::CANCELLED, first.finish().error_code());
 
@@ -362,63 +363,63 @@ TEST_F(BrewLogManagerTest, MissingLogAndCancellingTheLastSubscriberDoNotInterrup
   ASSERT_TRUE(reconnected.next(message));
   EXPECT_EQ(start, message.SerializeAsString());
   ASSERT_TRUE(reconnected.next(message));
-  EXPECT_EQ(firstRecord, message.SerializeAsString());
+  EXPECT_EQ(firstSample, message.SerializeAsString());
   do {
     ASSERT_TRUE(reconnected.next(message));
-    ASSERT_TRUE(message.has_record());
-  } while (message.record().stepindex() != 7);
+    ASSERT_TRUE(message.has_sample());
+  } while (message.sample().stepindex() != 7);
   manager->stopBrew();
   const auto tail = readToEnd(reconnected);
   ASSERT_FALSE(tail.empty());
-  EXPECT_TRUE(tail.back().has_brewlogstop());
+  EXPECT_TRUE(tail.back().has_brewhistorystop());
 }
 
-TEST_F(BrewLogManagerTest, DestructionStopsAnActiveSamplerWithoutWaitingForTheNextTick)
+TEST_F(BrewHistoryManagerTest, DestructionStopsAnActiveSamplerWithoutWaitingForTheNextTick)
 {
   startServer("01:00:00");
-  const auto id = history->createEmptyLog().get();
+  const auto id = history->createEmptyEntry().get();
   manager->startBrew(id, makeProfile());
   auto& stream = subscribe(id);
-  BrewLogStream message;
+  BrewHistoryStream message;
   ASSERT_TRUE(stream.next(message));
   ASSERT_TRUE(stream.next(message));
-  expectRecord(message);
+  expectSample(message);
   // Exercise destruction while sampling, with no explicit stopBrew call.
   const auto before = std::chrono::steady_clock::now();
   shutdown();
   EXPECT_LT(std::chrono::steady_clock::now() - before, 2s);
 }
 
-TEST_F(BrewLogManagerTest, CompletedHistoryCanBeReadWhileAnotherBrewIsActive)
+TEST_F(BrewHistoryManagerTest, CompletedHistoryCanBeReadWhileAnotherBrewIsActive)
 {
   startServer("01:00:00");
-  const auto completedId = history->createEmptyLog().get();
+  const auto completedId = history->createEmptyEntry().get();
   manager->startBrew(completedId, makeProfile("Completed"));
   manager->stopBrew();
-  const auto activeId = history->createEmptyLog().get();
+  const auto activeId = history->createEmptyEntry().get();
   manager->startBrew(activeId, makeProfile("Active"));
   const auto completed = readToEnd(subscribe(completedId));
   ASSERT_EQ(3U, completed.size());
-  EXPECT_EQ("Completed", completed.front().brewlogstart().profile().name());
+  EXPECT_EQ("Completed", completed.front().brewhistorystart().profile().name());
   auto& active = subscribe(activeId);
-  BrewLogStream message;
+  BrewHistoryStream message;
   ASSERT_TRUE(active.next(message));
-  ASSERT_TRUE(message.has_brewlogstart());
-  EXPECT_EQ("Active", message.brewlogstart().profile().name());
+  ASSERT_TRUE(message.has_brewhistorystart());
+  EXPECT_EQ("Active", message.brewhistorystart().profile().name());
   ASSERT_TRUE(active.next(message));
-  expectRecord(message);
+  expectSample(message);
   manager->stopBrew();
   ASSERT_TRUE(active.next(message));
-  EXPECT_TRUE(message.has_brewlogstop());
+  EXPECT_TRUE(message.has_brewhistorystop());
   EXPECT_TRUE(readToEnd(active).empty());
 }
 
-TEST_F(BrewLogManagerTest, RepeatedStopAndIdleStopDoNotCreateOrModifyHistory)
+TEST_F(BrewHistoryManagerTest, RepeatedStopAndIdleStopDoNotCreateOrModifyHistory)
 {
   startServer("01:00:00");
   manager->stopBrew();
   manager->stopBrew();
-  const auto id = history->createEmptyLog().get();
+  const auto id = history->createEmptyEntry().get();
   manager->startBrew(id, makeProfile());
   manager->stopBrew();
   manager->stopBrew();
@@ -426,15 +427,15 @@ TEST_F(BrewLogManagerTest, RepeatedStopAndIdleStopDoNotCreateOrModifyHistory)
   ASSERT_EQ(3U, replay.size());
   shutdown();
   const auto result = history->find({}).get();
-  ASSERT_EQ(1, result.logs_size());
-  EXPECT_EQ(id, result.logs(0).id());
-  EXPECT_EQ(1, result.logs(0).records_size());
+  ASSERT_EQ(1, result.entries_size());
+  EXPECT_EQ(id, result.entries(0).id());
+  EXPECT_EQ(1, result.entries(0).samples_size());
 }
 
-TEST_F(BrewLogManagerTest, BrewWithoutSubscribersIsPersistedAndSurvivesRepositoryReopening)
+TEST_F(BrewHistoryManagerTest, BrewWithoutSubscribersIsPersistedAndSurvivesRepositoryReopening)
 {
   startServer("01:00:00");
-  const auto id = history->createEmptyLog().get();
+  const auto id = history->createEmptyEntry().get();
   const auto profile = makeProfile();
   manager->startBrew(id, profile);
   manager->stopBrew();
@@ -442,46 +443,47 @@ TEST_F(BrewLogManagerTest, BrewWithoutSubscribersIsPersistedAndSurvivesRepositor
   shutdown();
   history.reset();
   history = std::make_shared<db::brew_history::AsyncBrewHistoryRepository>(path);
-  const auto log = history->get(id).get();
-  EXPECT_EQ(profile.SerializeAsString(), log.profile.SerializeAsString());
-  EXPECT_EQ(1h, log.samplingInterval);
-  ASSERT_EQ(1U, log.records.size());
-  EXPECT_EQ(8'500U, log.records.front().pressure);
-  EXPECT_EQ(-200, log.records.front().weight);
-  EXPECT_EQ(-300, log.records.front().flowRate);
-  EXPECT_EQ(0U, log.records.front().step);
+  const auto entry = history->get(id).get();
+  EXPECT_EQ(profile.SerializeAsString(), entry.profile.SerializeAsString());
+  EXPECT_EQ(1h, entry.samplingInterval);
+  ASSERT_EQ(1U, entry.samples.size());
+  EXPECT_EQ(8'500U, entry.samples.front().pressure);
+  EXPECT_EQ(-200, entry.samples.front().weight);
+  EXPECT_EQ(-300, entry.samples.front().flowRate);
+  EXPECT_EQ(0U, entry.samples.front().step);
   startServer();
   const auto replay = readToEnd(subscribe(id));
   ASSERT_EQ(3U, replay.size());
   expectCompleted(replay);
   EXPECT_EQ(TimeUtil::NanosecondsToDuration(3'600'000'000'000).SerializeAsString(),
-            replay.front().brewlogstart().samplinginterval().SerializeAsString());
+            replay.front().brewhistorystart().samplinginterval().SerializeAsString());
 }
 
-TEST_F(BrewLogManagerTest, ActiveAndCompletedLogsKeepRepositoryIdsAboveUint32Range)
+TEST_F(BrewHistoryManagerTest, ActiveAndCompletedEntriesKeepRepositoryIdsAboveUint32Range)
 {
   sqlite3* connection = nullptr;
   ASSERT_EQ(SQLITE_OK, sqlite3_open(path.c_str(), &connection));
   const std::unique_ptr<sqlite3, decltype(&sqlite3_close)> database(connection, sqlite3_close);
   ASSERT_EQ(SQLITE_OK,
-            sqlite3_exec(database.get(),
-                         "INSERT INTO sqlite_sequence(name, seq) VALUES ('brew_logs', 4294967295)",
-                         nullptr,
-                         nullptr,
-                         nullptr));
-  const auto id = history->createEmptyLog().get();
+            sqlite3_exec(
+              database.get(),
+              "INSERT INTO sqlite_sequence(name, seq) VALUES ('brew_history_entries', 4294967295)",
+              nullptr,
+              nullptr,
+              nullptr));
+  const auto id = history->createEmptyEntry().get();
   ASSERT_GT(id, std::numeric_limits<uint32_t>::max());
   startServer("01:00:00");
   manager->startBrew(id, makeProfile());
   auto& live = subscribe(id);
-  BrewLogStream message;
+  BrewHistoryStream message;
   ASSERT_TRUE(live.next(message));
-  EXPECT_TRUE(message.has_brewlogstart());
+  EXPECT_TRUE(message.has_brewhistorystart());
   ASSERT_TRUE(live.next(message));
-  expectRecord(message);
+  expectSample(message);
   manager->stopBrew();
   ASSERT_TRUE(live.next(message));
-  EXPECT_TRUE(message.has_brewlogstop());
+  EXPECT_TRUE(message.has_brewhistorystop());
   EXPECT_TRUE(readToEnd(live).empty());
   const auto replay = readToEnd(subscribe(id));
   ASSERT_EQ(3U, replay.size());

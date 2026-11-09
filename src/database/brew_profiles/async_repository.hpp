@@ -1,10 +1,10 @@
 #ifndef ASYNC_BREW_PROFILES_REPOSITORY_HPP
 #define ASYNC_BREW_PROFILES_REPOSITORY_HPP
 
+#include "database/database_id.hpp"
 #include "repository.hpp"
 #include "utils/procedures_serial_executor.hpp"
 
-#include <cstdint>
 #include <future>
 #include <string>
 #include <utility>
@@ -23,21 +23,21 @@ public:
   auto operator=(AsyncBrewProfilesRepository&&) = delete;
   ~AsyncBrewProfilesRepository() = default;
 
-  std::future<uint64_t> create(BrewProfile profile);
+  std::future<DatabaseId> create(BrewProfile profile);
   template <typename Cb>
   void create(BrewProfile profile, Cb&& callback);
 
-  std::future<void> update(uint64_t id, BrewProfile profile);
+  std::future<void> update(DatabaseId id, BrewProfile profile);
   template <typename Cb>
-  void update(uint64_t id, BrewProfile profile, Cb&& callback);
+  void update(DatabaseId id, BrewProfile profile, Cb&& callback);
 
-  std::future<PersistentBrewProfile> get(uint64_t id);
+  std::future<PersistentBrewProfile> get(DatabaseId id);
   template <typename Cb>
-  void get(uint64_t id, Cb&& callback);
+  void get(DatabaseId id, Cb&& callback);
 
-  std::future<void> erase(uint64_t id);
+  std::future<void> erase(DatabaseId id);
   template <typename Cb>
-  void erase(uint64_t id, Cb&& callback);
+  void erase(DatabaseId id, Cb&& callback);
 
   std::future<PersistentBrewProfile> find(BrewProfile profile);
   template <typename Cb>
@@ -60,20 +60,20 @@ inline void AsyncBrewProfilesRepository::create(BrewProfile profile, Cb&& callba
 }
 
 template <typename Cb>
-inline void AsyncBrewProfilesRepository::update(uint64_t id, BrewProfile profile, Cb&& callback)
+inline void AsyncBrewProfilesRepository::update(DatabaseId id, BrewProfile profile, Cb&& callback)
 {
   m_executor.executeWithCallback(
     &BrewProfilesRepository::update, std::forward<Cb>(callback), &m_repository, id, std::move(profile));
 }
 
 template <typename Cb>
-inline void AsyncBrewProfilesRepository::get(uint64_t id, Cb&& callback)
+inline void AsyncBrewProfilesRepository::get(DatabaseId id, Cb&& callback)
 {
   m_executor.executeWithCallback(&BrewProfilesRepository::get, std::forward<Cb>(callback), &m_repository, id);
 }
 
 template <typename Cb>
-inline void AsyncBrewProfilesRepository::erase(uint64_t id, Cb&& callback)
+inline void AsyncBrewProfilesRepository::erase(DatabaseId id, Cb&& callback)
 {
   m_executor.executeWithCallback(&BrewProfilesRepository::erase, std::forward<Cb>(callback), &m_repository, id);
 }

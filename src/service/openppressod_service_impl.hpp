@@ -9,19 +9,20 @@
 #include <grpcpp/support/server_callback.h>
 #include <grpcpp/support/status.h>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
-#include <openpresso_proto/brew_log.pb.h>
+#include <openpresso_proto/brew_history.pb.h>
 #include <openpresso_proto/brew_profile.pb.h>
 #include <openpresso_proto/events.pb.h>
 #include <openpresso_proto/machine_state.pb.h>
 #include <openpresso_proto/metrics.pb.h>
 #include <openpresso_proto/openpresso.grpc.pb.h>
+#include <openpresso_proto/persistent_id.pb.h>
 #include <openpresso_proto/user_settings.pb.h>
 
 namespace openpressod
 {
 
 class AsyncEventDispatcher;
-class BrewLogManager;
+class BrewHistoryManager;
 class BrewTimer;
 
 namespace db::brew_profiles
@@ -36,7 +37,7 @@ class AsyncBrewHistoryRepository;
 class OpenpressodServiceImpl : public OpenpressoDaemon::CallbackService {
 public:
   OpenpressodServiceImpl(std::shared_ptr<AsyncEventDispatcher> dispatcher,
-                         std::shared_ptr<BrewLogManager> brewLogManager,
+                         std::shared_ptr<BrewHistoryManager> brewHistoryManager,
                          libopenpresso::CorePtr core,
                          std::shared_ptr<const BrewTimer> brewTimer,
                          std::shared_ptr<db::brew_profiles::AsyncBrewProfilesRepository> profilesRepository,
@@ -63,32 +64,32 @@ public:
                                                  google::protobuf::Empty* response) override;
 
   grpc::ServerUnaryReactor* getPersistentBrewProfile(grpc::CallbackServerContext* context,
-                                                     const BrewProfileId* request,
+                                                     const PersistentId* request,
                                                      PersistentBrewProfile* response) override;
 
   grpc::ServerUnaryReactor* addPersistentBrewProfile(grpc::CallbackServerContext* context,
                                                      const BrewProfile* request,
-                                                     BrewProfileId* response) override;
+                                                     PersistentId* response) override;
 
   grpc::ServerUnaryReactor* updatePersistentBrewProfile(grpc::CallbackServerContext* context,
                                                         const UpdatePersistentProfile* request,
                                                         google::protobuf::Empty* response) override;
 
   grpc::ServerUnaryReactor* deletePersistentBrewProfile(grpc::CallbackServerContext* context,
-                                                        const BrewProfileId* request,
+                                                        const PersistentId* request,
                                                         google::protobuf::Empty* response) override;
 
   grpc::ServerUnaryReactor* findPersistentBrewProfiles(grpc::CallbackServerContext* context,
                                                        const FindBrewProfiles* request,
                                                        BrewProfilesSearchResult* response) override;
 
-  grpc::ServerUnaryReactor* findBrewLogs(grpc::CallbackServerContext* context,
-                                         const FindBrewLogs* request,
-                                         BrewLogsSearchResult* response) override;
+  grpc::ServerUnaryReactor* findBrewHistory(grpc::CallbackServerContext* context,
+                                            const FindBrewHistory* request,
+                                            BrewHistorySearchResult* response) override;
 
-  grpc::ServerUnaryReactor* removeBrewLog(grpc::CallbackServerContext* context,
-                                          const BrewLogId* request,
-                                          google::protobuf::Empty* response) override;
+  grpc::ServerUnaryReactor* removeBrewHistoryEntry(grpc::CallbackServerContext* context,
+                                                   const PersistentId* request,
+                                                   google::protobuf::Empty* response) override;
 
   grpc::ServerUnaryReactor* setPowerState(grpc::CallbackServerContext* context,
                                           const PowerState* request,
@@ -124,8 +125,8 @@ public:
   grpc::ServerWriteReactor<Metrics>* metrics(grpc::CallbackServerContext* context,
                                              const MetricsRequest* request) override;
 
-  grpc::ServerWriteReactor<BrewLogStream>* getBrewLog(grpc::CallbackServerContext* context,
-                                                      const BrewLogId* request) override;
+  grpc::ServerWriteReactor<BrewHistoryStream>* getBrewHistoryEntry(grpc::CallbackServerContext* context,
+                                                                   const PersistentId* request) override;
 
 private:
   static auto makeVoidCallback(grpc::ServerUnaryReactor* reactor);
@@ -133,7 +134,7 @@ private:
 
 private:
   std::shared_ptr<AsyncEventDispatcher> m_dispatcher;
-  std::shared_ptr<BrewLogManager> m_brewLogManager;
+  std::shared_ptr<BrewHistoryManager> m_brewHistoryManager;
   libopenpresso::CorePtr m_core;
   std::shared_ptr<const BrewTimer> m_brewTimer;
   std::shared_ptr<db::brew_profiles::AsyncBrewProfilesRepository> m_profilesRepository;

@@ -33,8 +33,7 @@ public:
   libopenpresso::unix_dev_addr_t gpioChip() const;
   libopenpresso::pin_number_t mainsZeroCrossPin() const;
   bool pidStateMonitoringEnabled() const;
-  std::chrono::steady_clock::duration brewLogSamplingInterval() const;
-  size_t brewLogsRetantionCount() const;
+  std::chrono::steady_clock::duration brewHistorySamplingInterval() const;
 
   // [service]
   std::filesystem::path socketPath() const;

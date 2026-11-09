@@ -1,4 +1,5 @@
 #include "database/brew_profiles/repository.hpp"
+#include "database/database_id.hpp"
 #include "database/steps_schema.hpp"
 
 #include <chrono>
@@ -41,9 +42,9 @@ BrewProfile makeProfile(std::string name = "Espresso")
   return profile;
 }
 
-std::vector<uint64_t> ids(const BrewProfilesSearchResult& result)
+std::vector<DatabaseId> ids(const BrewProfilesSearchResult& result)
 {
-  std::vector<uint64_t> resultIds;
+  std::vector<DatabaseId> resultIds;
   for (const auto& profile : result.profiles()) {
     resultIds.push_back(profile.id());
   }
@@ -286,7 +287,7 @@ TEST_F(BrewProfilesRepositoryTest, EraseCascadesStepsAndPreservesOtherProfiles)
   repository->erase(first);
   EXPECT_THROW(repository->erase(first), std::system_error);
   EXPECT_THROW(repository->get(first), std::system_error);
-  EXPECT_EQ((std::vector<uint64_t>{second}), ids(repository->find(FindBrewProfiles{})));
+  EXPECT_EQ((std::vector<DatabaseId>{second}), ids(repository->find(FindBrewProfiles{})));
   auto storage = makeStorage(path);
   EXPECT_EQ(0, storage.count<StepRow>(sqlite_orm::where(sqlite_orm::c(&StepRow::profileId) == first)));
   EXPECT_EQ(3, storage.count<StepRow>(sqlite_orm::where(sqlite_orm::c(&StepRow::profileId) == second)));
@@ -310,7 +311,7 @@ TEST_F(BrewProfilesRepositoryTest, ReopeningDatabasePreservesUpdatesAndDeletions
   EXPECT_THROW(repository->find(makeProfile("Second")), std::system_error);
   EXPECT_THROW(repository->find(makeProfile("First")), std::system_error);
   EXPECT_THROW(repository->get(first), std::system_error);
-  EXPECT_EQ((std::vector<uint64_t>{second}), ids(repository->find(FindBrewProfiles{})));
+  EXPECT_EQ((std::vector<DatabaseId>{second}), ids(repository->find(FindBrewProfiles{})));
 }
 
 TEST_F(BrewProfilesRepositoryTest, PaginationUsesIdOrderAndZeroLimitMeansUnlimited)
@@ -319,11 +320,11 @@ TEST_F(BrewProfilesRepositoryTest, PaginationUsesIdOrderAndZeroLimitMeansUnlimit
   const auto second = repository->create(makeProfile("Alpha"));
   const auto third = repository->create(makeProfile("Middle"));
   FindBrewProfiles query;
-  EXPECT_EQ((std::vector<uint64_t>{first, second, third}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{first, second, third}), ids(repository->find(query)));
   query.set_offset(1);
-  EXPECT_EQ((std::vector<uint64_t>{second, third}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{second, third}), ids(repository->find(query)));
   query.set_limit(1);
-  EXPECT_EQ((std::vector<uint64_t>{second}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{second}), ids(repository->find(query)));
   query.set_offset(3);
   EXPECT_TRUE(ids(repository->find(query)).empty());
 }
@@ -335,12 +336,12 @@ TEST_F(BrewProfilesRepositoryTest, NamePatternsUseSqlLikeAndApplyBeforePaginatio
   const auto second = repository->create(makeProfile("espresso long"));
   FindBrewProfiles query;
   query.set_namepattern("ESPRESS_");
-  EXPECT_EQ((std::vector<uint64_t>{first}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{first}), ids(repository->find(query)));
   query.set_namepattern("espresso%");
-  EXPECT_EQ((std::vector<uint64_t>{first, second}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{first, second}), ids(repository->find(query)));
   query.set_limit(1);
   query.set_offset(1);
-  EXPECT_EQ((std::vector<uint64_t>{second}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{second}), ids(repository->find(query)));
   query.set_offset(0);
   query.set_namepattern("");
   EXPECT_TRUE(ids(repository->find(query)).empty());
@@ -356,20 +357,20 @@ TEST_F(BrewProfilesRepositoryTest, TimestampFiltersAreInclusiveAndCanBeCombined)
   sql("UPDATE profiles SET created_at = id * 100, modified_at = id * 100 + 50");
   FindBrewProfiles query;
   query.mutable_mincreated()->set_seconds(200);
-  EXPECT_EQ((std::vector<uint64_t>{second, third}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{second, third}), ids(repository->find(query)));
   query.clear_mincreated();
   query.mutable_maxcreated()->set_seconds(200);
-  EXPECT_EQ((std::vector<uint64_t>{first, second}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{first, second}), ids(repository->find(query)));
   query.clear_maxcreated();
   query.mutable_minmodified()->set_seconds(250);
-  EXPECT_EQ((std::vector<uint64_t>{second, third}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{second, third}), ids(repository->find(query)));
   query.clear_minmodified();
   query.mutable_maxmodified()->set_seconds(250);
-  EXPECT_EQ((std::vector<uint64_t>{first, second}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{first, second}), ids(repository->find(query)));
   query.mutable_mincreated()->set_seconds(200);
   query.mutable_maxcreated()->set_seconds(200);
   query.mutable_minmodified()->set_seconds(250);
-  EXPECT_EQ((std::vector<uint64_t>{second}), ids(repository->find(query)));
+  EXPECT_EQ((std::vector<DatabaseId>{second}), ids(repository->find(query)));
   query.set_namepattern("First");
   EXPECT_TRUE(ids(repository->find(query)).empty());
   query.clear_namepattern();
@@ -384,7 +385,7 @@ TEST_F(BrewProfilesRepositoryTest, PreservesIdsAbove32BitsInGetAndFind)
   ASSERT_GT(id, std::numeric_limits<uint32_t>::max());
   EXPECT_EQ(id, repository->get(id).id());
   EXPECT_EQ(id, repository->find(makeProfile()).id());
-  EXPECT_EQ((std::vector<uint64_t>{id}), ids(repository->find(FindBrewProfiles{})));
+  EXPECT_EQ((std::vector<DatabaseId>{id}), ids(repository->find(FindBrewProfiles{})));
   repository->update(id, makeProfile("Updated"));
   EXPECT_EQ(id, repository->get(id).id());
   EXPECT_THROW(repository->find(makeProfile()), std::system_error);

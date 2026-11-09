@@ -1,6 +1,7 @@
 #ifndef STEPS_SCHEMA_HPP
 #define STEPS_SCHEMA_HPP
 
+#include "database/database_id.hpp"
 #include "database/sqlite_enum.hpp"
 
 #include <cstdint>
@@ -24,7 +25,7 @@ template <>
 struct integer_enum<BrewStepAdvanceConditionType> : std::true_type {};
 
 struct StepRow {
-  uint64_t profileId = 0;
+  DatabaseId profileId = 0;
   uint32_t position = 0;
   BrewStepTargetType targetType = BrewStepTargetType_UNSPECIFIED;
   float targetValue = 0;

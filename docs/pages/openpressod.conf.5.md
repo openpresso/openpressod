@@ -54,6 +54,9 @@ Main system-wide parameters.
 `history_database_path`
 : String, optional. Absolute path or path relative to `daemon_data_directory` for the brew history database. Default: `brew_history.db`.
 
+`brew_history_sampling_interval`
+: TOML time, optional. Interval between metrics samples within a brew history entry. Default: `00:00:00.100`.
+
 `profiles_database_path`
 : String, optional. Absolute path or path relative to `daemon_data_directory` for the brew profiles database. Default: `profiles.db`.
 

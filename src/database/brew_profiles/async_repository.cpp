@@ -1,8 +1,8 @@
 #include "async_repository.hpp"
 
+#include "database/database_id.hpp"
 #include "repository.hpp"
 
-#include <cstdint>
 #include <future>
 #include <string>
 #include <utility>
@@ -16,22 +16,22 @@ AsyncBrewProfilesRepository::AsyncBrewProfilesRepository(std::string path)
 {
 }
 
-std::future<uint64_t> AsyncBrewProfilesRepository::create(BrewProfile profile)
+std::future<openpressod::DatabaseId> AsyncBrewProfilesRepository::create(BrewProfile profile)
 {
   return m_executor.executeWithFuture(&BrewProfilesRepository::create, &m_repository, std::move(profile));
 }
 
-std::future<void> AsyncBrewProfilesRepository::update(uint64_t id, BrewProfile profile)
+std::future<void> AsyncBrewProfilesRepository::update(DatabaseId id, BrewProfile profile)
 {
   return m_executor.executeWithFuture(&BrewProfilesRepository::update, &m_repository, id, std::move(profile));
 }
 
-std::future<openpressod::PersistentBrewProfile> AsyncBrewProfilesRepository::get(uint64_t id)
+std::future<openpressod::PersistentBrewProfile> AsyncBrewProfilesRepository::get(DatabaseId id)
 {
   return m_executor.executeWithFuture(&BrewProfilesRepository::get, &m_repository, id);
 }
 
-std::future<void> AsyncBrewProfilesRepository::erase(uint64_t id)
+std::future<void> AsyncBrewProfilesRepository::erase(DatabaseId id)
 {
   return m_executor.executeWithFuture(&BrewProfilesRepository::erase, &m_repository, id);
 }

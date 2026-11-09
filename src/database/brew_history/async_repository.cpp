@@ -1,14 +1,14 @@
 #include "async_repository.hpp"
 
-#include "brew_log/brew_log_data.hpp"
+#include "brew_history/brew_history_data.hpp"
+#include "database/database_id.hpp"
 #include "repository.hpp"
 
-#include <cstdint>
 #include <future>
 #include <string>
 #include <utility>
 
-#include <openpresso_proto/brew_log.pb.h>
+#include <openpresso_proto/brew_history.pb.h>
 
 using namespace openpressod::db::brew_history;
 
@@ -22,27 +22,28 @@ AsyncBrewHistoryRepository::AsyncBrewHistoryRepository(const BrewHistoryReposito
 {
 }
 
-std::future<uint64_t> AsyncBrewHistoryRepository::createEmptyLog()
+std::future<openpressod::DatabaseId> AsyncBrewHistoryRepository::createEmptyEntry()
 {
-  return m_executor.executeWithFuture(&BrewHistoryRepository::createEmptyLog, &m_repository);
+  return m_executor.executeWithFuture(&BrewHistoryRepository::createEmptyEntry, &m_repository);
 }
 
-std::future<void> AsyncBrewHistoryRepository::completeLog(uint64_t id, CompletedBrewLog log)
+std::future<void> AsyncBrewHistoryRepository::completeEntry(DatabaseId id, CompletedBrewHistoryEntry entry)
 {
-  return m_executor.executeWithFuture(&BrewHistoryRepository::completeLog, &m_repository, id, std::move(log));
+  return m_executor.executeWithFuture(
+    &BrewHistoryRepository::completeEntry, &m_repository, id, std::move(entry));
 }
 
-std::future<openpressod::CompletedBrewLog> AsyncBrewHistoryRepository::get(uint64_t id)
+std::future<openpressod::CompletedBrewHistoryEntry> AsyncBrewHistoryRepository::get(DatabaseId id)
 {
   return m_executor.executeWithFuture(&BrewHistoryRepository::get, &m_repository, id);
 }
 
-std::future<void> AsyncBrewHistoryRepository::erase(uint64_t id)
+std::future<void> AsyncBrewHistoryRepository::erase(DatabaseId id)
 {
   return m_executor.executeWithFuture(&BrewHistoryRepository::erase, &m_repository, id);
 }
 
-std::future<openpressod::BrewLogsSearchResult> AsyncBrewHistoryRepository::find(FindBrewLogs query)
+std::future<openpressod::BrewHistorySearchResult> AsyncBrewHistoryRepository::find(FindBrewHistory query)
 {
   return m_executor.executeWithFuture(&BrewHistoryRepository::find, &m_repository, std::move(query));
 }

@@ -44,6 +44,7 @@ Main system-wide parameters.
 | `user_settings_path` | String | No | `user_settings.json` | Absolute path or path relative to `daemon_data_directory` for runtime user settings. |
 | `brew_profile_path` | String | No | `brew_profile.json` | Absolute path or path relative to `daemon_data_directory` for the active brew profile. |
 | `history_database_path` | String | No | `brew_history.db` | Absolute path or path relative to `daemon_data_directory` for the brew history database. |
+| `brew_history_sampling_interval` | TOML time | No | `00:00:00.100` | Interval between metrics samples within a brew history entry. |
 | `profiles_database_path` | String | No | `profiles.db` | Absolute path or path relative to `daemon_data_directory` for the brew profiles database. |
 | `i2c_bus` | String | No | `/dev/i2c-0` | I²C bus device path. |
 | `gpio_chip` | String | No | `/dev/gpiochip0` | GPIO chip device path. |

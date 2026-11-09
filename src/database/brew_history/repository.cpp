@@ -1,7 +1,8 @@
 #include "repository.hpp"
 
-#include "brew_log/brew_log_data.hpp"
+#include "brew_history/brew_history_data.hpp"
 #include "database/brew_profile_fingerprint.hpp"
+#include "database/database_id.hpp"
 #include "database/steps_schema.hpp"
 #include "schema.hpp"
 #include "service/protobuf_helpers.hpp"
@@ -15,7 +16,7 @@
 #include <utility>
 
 #include <google/protobuf/util/time_util.h>
-#include <openpresso_proto/brew_log.pb.h>
+#include <openpresso_proto/brew_history.pb.h>
 #include <openpresso_proto/brew_profile.pb.h>
 #include <sqlite_orm/sqlite_orm.h>
 
@@ -28,63 +29,63 @@ BrewHistoryRepository::BrewHistoryRepository(std::string path)
   m_storage.sync_schema();
 }
 
-uint64_t BrewHistoryRepository::createEmptyLog()
+openpressod::DatabaseId BrewHistoryRepository::createEmptyEntry()
 {
   auto transaction = m_storage.immediate_transaction_guard();
 
-  BrewLogRow row;
+  BrewHistoryEntryRow row;
   m_storage.insert(row);
   // sqlite_orm::insert returns int; retain SQLite's full 64-bit row ID.
-  row.id = static_cast<uint64_t>(m_storage.last_insert_rowid());
+  row.id = static_cast<DatabaseId>(m_storage.last_insert_rowid());
 
   transaction.commit();
   return row.id;
 }
 
-void BrewHistoryRepository::completeLog(uint64_t id, const CompletedBrewLog& log)
+void BrewHistoryRepository::completeEntry(DatabaseId id, const CompletedBrewHistoryEntry& entry)
 {
   auto transaction = m_storage.immediate_transaction_guard();
 
-  auto row = m_storage.get<BrewLogRow>(id);
+  auto row = m_storage.get<BrewHistoryEntryRow>(id);
   if (row.profileId) {
-    throw std::logic_error("Brew log is already complete");
+    throw std::logic_error("Brew history entry is already complete");
   }
-  row.profileId = saveProfile(log.profile);
+  row.profileId = saveProfile(entry.profile);
   row.startTime =
-    std::chrono::duration_cast<std::chrono::milliseconds>(log.brewStartTime.time_since_epoch()).count();
+    std::chrono::duration_cast<std::chrono::milliseconds>(entry.brewStartTime.time_since_epoch()).count();
   row.samplingInterval =
-    std::chrono::duration_cast<std::chrono::milliseconds>(log.samplingInterval).count();
+    std::chrono::duration_cast<std::chrono::milliseconds>(entry.samplingInterval).count();
   m_storage.update(row);
-  saveRecords(id, log);
+  saveSamples(id, entry);
 
   transaction.commit();
 }
 
-openpressod::CompletedBrewLog BrewHistoryRepository::get(uint64_t id)
+openpressod::CompletedBrewHistoryEntry BrewHistoryRepository::get(DatabaseId id)
 {
   auto transaction = m_storage.deferred_transaction_guard();
 
-  const auto row = m_storage.get<BrewLogRow>(id);
+  const auto row = m_storage.get<BrewHistoryEntryRow>(id);
   if (!row.profileId) {
     throw std::system_error{sqlite_orm::orm_error_code::not_found};
   }
-  auto result = loadLog(row);
+  auto result = loadEntry(row);
 
   transaction.commit();
   return result;
 }
 
-void BrewHistoryRepository::erase(uint64_t id)
+void BrewHistoryRepository::erase(DatabaseId id)
 {
   using namespace sqlite_orm;
 
   auto transaction = m_storage.immediate_transaction_guard();
-  const auto row = m_storage.get<BrewLogRow>(id);
+  const auto row = m_storage.get<BrewHistoryEntryRow>(id);
   if (!row.profileId.has_value()) {
     throw std::system_error{orm_error_code::not_found};
   }
-  m_storage.remove<BrewLogRow>(id); // ON DELETE CASCADE removes records.
-  if (m_storage.count<BrewLogRow>(where(c(&BrewLogRow::profileId) == row.profileId)) == 0) {
+  m_storage.remove<BrewHistoryEntryRow>(id); // ON DELETE CASCADE removes samples.
+  if (m_storage.count<BrewHistoryEntryRow>(where(c(&BrewHistoryEntryRow::profileId) == row.profileId)) == 0) {
     m_storage.remove<HistoricalProfileRow>(*row.profileId); // ON DELETE CASCADE removes steps.
   }
   transaction.commit();
@@ -93,19 +94,20 @@ void BrewHistoryRepository::erase(uint64_t id)
 void BrewHistoryRepository::discardIncomplete()
 {
   using namespace sqlite_orm;
-  m_storage.remove_all<BrewLogRow>(where(is_null(&BrewLogRow::profileId)));
+  m_storage.remove_all<BrewHistoryEntryRow>(where(is_null(&BrewHistoryEntryRow::profileId)));
 }
 
-void BrewHistoryRepository::discardIncomplete(uint64_t id)
+void BrewHistoryRepository::discardIncomplete(DatabaseId id)
 {
   using namespace sqlite_orm;
-  m_storage.remove_all<BrewLogRow>(where(c(&BrewLogRow::id) == id && is_null(&BrewLogRow::profileId)));
+  m_storage.remove_all<BrewHistoryEntryRow>(where(c(&BrewHistoryEntryRow::id) == id &&
+                                                  is_null(&BrewHistoryEntryRow::profileId)));
   if (m_storage.changes() == 0) {
     throw std::system_error{orm_error_code::not_found};
   }
 }
 
-openpressod::BrewLogsSearchResult BrewHistoryRepository::find(const FindBrewLogs& query)
+openpressod::BrewHistorySearchResult BrewHistoryRepository::find(const FindBrewHistory& query)
 {
   using namespace sqlite_orm;
   using google::protobuf::util::TimeUtil;
@@ -120,31 +122,31 @@ openpressod::BrewLogsSearchResult BrewHistoryRepository::find(const FindBrewLogs
     query.has_exactprofile() ? std::optional{getFingerprint(query.exactprofile())} : std::nullopt;
 
   auto transaction = m_storage.deferred_transaction_guard();
-  const auto rows = m_storage.get_all<BrewLogRow>(
-    where(c(&BrewLogRow::startTime) >= ifnull<int64_t>(minDate, &BrewLogRow::startTime) &&
-          c(&BrewLogRow::startTime) <= ifnull<int64_t>(maxDate, &BrewLogRow::startTime) &&
-          in(&BrewLogRow::profileId,
+  const auto rows = m_storage.get_all<BrewHistoryEntryRow>(
+    where(c(&BrewHistoryEntryRow::startTime) >= ifnull<int64_t>(minDate, &BrewHistoryEntryRow::startTime) &&
+          c(&BrewHistoryEntryRow::startTime) <= ifnull<int64_t>(maxDate, &BrewHistoryEntryRow::startTime) &&
+          in(&BrewHistoryEntryRow::profileId,
              select(&HistoricalProfileRow::id,
                     where(like(&HistoricalProfileRow::name, pattern) &&
                           c(&HistoricalProfileRow::fingerprint) ==
                             ifnull<uint64_t>(fingerprint, &HistoricalProfileRow::fingerprint))))),
-    order_by(&BrewLogRow::id),
+    order_by(&BrewHistoryEntryRow::id),
     sqlite_orm::limit(limit, sqlite_orm::offset(query.offset())));
 
-  BrewLogsSearchResult result;
+  BrewHistorySearchResult result;
   for (const auto& row : rows) {
-    auto log = loadLog(row);
-    auto* brewLog = result.add_logs();
-    brewLog->set_id(row.id);
-    protobuf_helpers::toProtoTimestamp(log.brewStartTime, *brewLog->mutable_startpoint());
-    protobuf_helpers::toProtoDuration(log.samplingInterval, *brewLog->mutable_samplinginterval());
-    *brewLog->mutable_profile() = std::move(log.profile);
-    for (const auto& record : log.records) {
-      auto* data = brewLog->add_records();
-      data->set_pressure(record.pressure);
-      data->set_weight(record.weight);
-      data->set_flowrate(record.flowRate);
-      data->set_stepindex(static_cast<uint32_t>(record.step));
+    auto entry = loadEntry(row);
+    auto* resultEntry = result.add_entries();
+    resultEntry->set_id(row.id);
+    protobuf_helpers::toProtoTimestamp(entry.brewStartTime, *resultEntry->mutable_startpoint());
+    protobuf_helpers::toProtoDuration(entry.samplingInterval, *resultEntry->mutable_samplinginterval());
+    *resultEntry->mutable_profile() = std::move(entry.profile);
+    for (const auto& sample : entry.samples) {
+      auto* data = resultEntry->add_samples();
+      data->set_pressure(sample.pressure);
+      data->set_weight(sample.weight);
+      data->set_flowrate(sample.flowRate);
+      data->set_stepindex(static_cast<uint32_t>(sample.step));
     }
   }
 
@@ -152,7 +154,7 @@ openpressod::BrewLogsSearchResult BrewHistoryRepository::find(const FindBrewLogs
   return result;
 }
 
-uint64_t BrewHistoryRepository::saveProfile(const BrewProfile& profile)
+openpressod::DatabaseId BrewHistoryRepository::saveProfile(const BrewProfile& profile)
 {
   using namespace sqlite_orm;
 
@@ -172,12 +174,12 @@ uint64_t BrewHistoryRepository::saveProfile(const BrewProfile& profile)
     row.stopValue = profile.stopcondition().value();
   }
   m_storage.insert(row);
-  row.id = static_cast<uint64_t>(m_storage.last_insert_rowid());
+  row.id = static_cast<DatabaseId>(m_storage.last_insert_rowid());
   saveSteps(row.id, profile);
   return row.id;
 }
 
-openpressod::BrewProfile BrewHistoryRepository::loadProfile(uint64_t id)
+openpressod::BrewProfile BrewHistoryRepository::loadProfile(DatabaseId id)
 {
   const auto row = m_storage.get<HistoricalProfileRow>(id);
   BrewProfile profile;
@@ -192,7 +194,7 @@ openpressod::BrewProfile BrewHistoryRepository::loadProfile(uint64_t id)
   return profile;
 }
 
-void BrewHistoryRepository::saveSteps(uint64_t id, const BrewProfile& profile)
+void BrewHistoryRepository::saveSteps(DatabaseId id, const BrewProfile& profile)
 {
   for (auto&& [position, step] : profile.steps() | std::views::enumerate) {
     StepRow row;
@@ -209,7 +211,7 @@ void BrewHistoryRepository::saveSteps(uint64_t id, const BrewProfile& profile)
   }
 }
 
-void BrewHistoryRepository::loadSteps(uint64_t id, BrewProfile& profile)
+void BrewHistoryRepository::loadSteps(DatabaseId id, BrewProfile& profile)
 {
   using namespace sqlite_orm;
 
@@ -226,38 +228,39 @@ void BrewHistoryRepository::loadSteps(uint64_t id, BrewProfile& profile)
   }
 }
 
-void BrewHistoryRepository::saveRecords(uint64_t id, const CompletedBrewLog& log)
+void BrewHistoryRepository::saveSamples(DatabaseId id, const CompletedBrewHistoryEntry& entry)
 {
-  for (auto&& [position, record] : log.records | std::views::enumerate) {
-    BrewLogRecordRow row;
+  for (auto&& [position, sample] : entry.samples | std::views::enumerate) {
+    BrewHistoryEntrySampleRow row;
     row.brewId = id;
     row.position = position;
-    row.pressure = record.pressure;
-    row.weight = record.weight;
-    row.flowRate = record.flowRate;
-    row.step = record.step;
+    row.pressure = sample.pressure;
+    row.weight = sample.weight;
+    row.flowRate = sample.flowRate;
+    row.step = sample.step;
     m_storage.replace(row);
   }
 }
 
-openpressod::CompletedBrewLog BrewHistoryRepository::loadLog(const BrewLogRow& row)
+openpressod::CompletedBrewHistoryEntry BrewHistoryRepository::loadEntry(const BrewHistoryEntryRow& row)
 {
   using namespace sqlite_orm;
 
-  CompletedBrewLog log{};
-  log.brewStartTime = std::chrono::system_clock::time_point{
+  CompletedBrewHistoryEntry entry{};
+  entry.brewStartTime = std::chrono::system_clock::time_point{
     std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::milliseconds{row.startTime})};
-  log.samplingInterval = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+  entry.samplingInterval = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
     std::chrono::milliseconds{row.samplingInterval});
-  log.profile = loadProfile(row.profileId.value());
-  for (const auto& record : m_storage.get_all<BrewLogRecordRow>(
-         where(c(&BrewLogRecordRow::brewId) == row.id), order_by(&BrewLogRecordRow::position))) {
-    log.records.push_back({
-      .pressure = record.pressure,
-      .weight = record.weight,
-      .flowRate = record.flowRate,
-      .step = record.step,
+  entry.profile = loadProfile(row.profileId.value());
+  for (const auto& sample : m_storage.get_all<BrewHistoryEntrySampleRow>(
+         where(c(&BrewHistoryEntrySampleRow::brewId) == row.id),
+         order_by(&BrewHistoryEntrySampleRow::position))) {
+    entry.samples.push_back({
+      .pressure = sample.pressure,
+      .weight = sample.weight,
+      .flowRate = sample.flowRate,
+      .step = sample.step,
     });
   }
-  return log;
+  return entry;
 }

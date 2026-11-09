@@ -1,6 +1,7 @@
 #ifndef BREW_PROFILES_REPOSITORY_HPP
 #define BREW_PROFILES_REPOSITORY_HPP
 
+#include "database/database_id.hpp"
 #include "schema.hpp"
 
 #include <cstdint>
@@ -20,19 +21,19 @@ public:
   auto operator=(BrewProfilesRepository&&) = delete;
   ~BrewProfilesRepository() = default;
 
-  uint64_t create(const BrewProfile& profile);
-  void update(uint64_t id, const BrewProfile& profile);
-  PersistentBrewProfile get(uint64_t id);
+  DatabaseId create(const BrewProfile& profile);
+  void update(DatabaseId id, const BrewProfile& profile);
+  PersistentBrewProfile get(DatabaseId id);
   // Throws when the ID is missing.
-  void erase(uint64_t id);
+  void erase(DatabaseId id);
   PersistentBrewProfile find(const BrewProfile& profile);
   BrewProfilesSearchResult find(const FindBrewProfiles& query);
 
 private:
-  static ProfileRow makeProfileRow(uint64_t id, const BrewProfile& profile);
+  static ProfileRow makeProfileRow(DatabaseId id, const BrewProfile& profile);
   static uint64_t nowSeconds();
-  void saveSteps(uint64_t id, const BrewProfile& profile);
-  void loadSteps(uint64_t id, BrewProfile& profile);
+  void saveSteps(DatabaseId id, const BrewProfile& profile);
+  void loadSteps(DatabaseId id, BrewProfile& profile);
   static void toPersistentProfile(const ProfileRow& row, PersistentBrewProfile& profile);
 
 private:

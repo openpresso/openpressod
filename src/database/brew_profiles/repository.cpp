@@ -1,6 +1,7 @@
 #include "repository.hpp"
 
 #include "database/brew_profile_fingerprint.hpp"
+#include "database/database_id.hpp"
 #include "database/steps_schema.hpp"
 #include "schema.hpp"
 
@@ -32,7 +33,7 @@ BrewProfilesRepository::BrewProfilesRepository(std::string path)
   m_storage.sync_schema();
 }
 
-uint64_t BrewProfilesRepository::create(const BrewProfile& profile)
+openpressod::DatabaseId BrewProfilesRepository::create(const BrewProfile& profile)
 {
   auto transaction = m_storage.immediate_transaction_guard();
 
@@ -42,13 +43,13 @@ uint64_t BrewProfilesRepository::create(const BrewProfile& profile)
   row.modified = now;
   m_storage.insert(row);
   // sqlite_orm::insert returns int; retain SQLite's full 64-bit row ID.
-  row.id = static_cast<uint64_t>(m_storage.last_insert_rowid());
+  row.id = static_cast<DatabaseId>(m_storage.last_insert_rowid());
   saveSteps(row.id, profile);
   transaction.commit();
   return row.id;
 }
 
-void BrewProfilesRepository::update(uint64_t id, const BrewProfile& profile)
+void BrewProfilesRepository::update(DatabaseId id, const BrewProfile& profile)
 {
   auto transaction = m_storage.immediate_transaction_guard();
 
@@ -63,7 +64,7 @@ void BrewProfilesRepository::update(uint64_t id, const BrewProfile& profile)
   transaction.commit();
 }
 
-openpressod::PersistentBrewProfile BrewProfilesRepository::get(uint64_t id)
+openpressod::PersistentBrewProfile BrewProfilesRepository::get(DatabaseId id)
 {
   auto transaction = m_storage.deferred_transaction_guard();
 
@@ -78,7 +79,7 @@ openpressod::PersistentBrewProfile BrewProfilesRepository::get(uint64_t id)
   return result;
 }
 
-void BrewProfilesRepository::erase(uint64_t id)
+void BrewProfilesRepository::erase(DatabaseId id)
 {
   m_storage.remove<ProfileRow>(id); // ON DELETE CASCADE removes steps
   if (m_storage.changes() == 0) {
@@ -150,7 +151,7 @@ openpressod::BrewProfilesSearchResult BrewProfilesRepository::find(const FindBre
   return result;
 }
 
-ProfileRow BrewProfilesRepository::makeProfileRow(uint64_t id, const BrewProfile& profile)
+ProfileRow BrewProfilesRepository::makeProfileRow(DatabaseId id, const BrewProfile& profile)
 {
   ProfileRow row;
   row.id = id;
@@ -171,7 +172,7 @@ uint64_t BrewProfilesRepository::nowSeconds()
   return std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
 }
 
-void BrewProfilesRepository::saveSteps(uint64_t id, const BrewProfile& profile)
+void BrewProfilesRepository::saveSteps(DatabaseId id, const BrewProfile& profile)
 {
   for (auto&& [position, step] : profile.steps() | std::views::enumerate) {
     StepRow row;
@@ -188,7 +189,7 @@ void BrewProfilesRepository::saveSteps(uint64_t id, const BrewProfile& profile)
   }
 }
 
-void BrewProfilesRepository::loadSteps(uint64_t id, BrewProfile& profile)
+void BrewProfilesRepository::loadSteps(DatabaseId id, BrewProfile& profile)
 {
   for (const auto& step :
        m_storage.get_all<StepRow>(sqlite_orm::where(sqlite_orm::c(&StepRow::profileId) == id),

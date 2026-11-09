@@ -9,6 +9,6 @@ target_sources(openpressod_objects PRIVATE
     protobuf_helpers.cpp
     events_stream_reactor.hpp
     events_stream_reactor.cpp
-    brew_log_stream_reactor.hpp
-    brew_log_stream_reactor.cpp
+    brew_history_stream_reactor.hpp
+    brew_history_stream_reactor.cpp
 )

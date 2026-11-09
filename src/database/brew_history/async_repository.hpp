@@ -1,16 +1,16 @@
 #ifndef ASYNC_BREW_HISTORY_REPOSITORY_HPP
 #define ASYNC_BREW_HISTORY_REPOSITORY_HPP
 
-#include "brew_log/brew_log_data.hpp"
+#include "brew_history/brew_history_data.hpp"
+#include "database/database_id.hpp"
 #include "repository.hpp"
 #include "utils/procedures_serial_executor.hpp"
 
-#include <cstdint>
 #include <future>
 #include <string>
 #include <utility>
 
-#include <openpresso_proto/brew_log.pb.h>
+#include <openpresso_proto/brew_history.pb.h>
 
 namespace openpressod::db::brew_history
 {
@@ -25,25 +25,25 @@ public:
   auto operator=(AsyncBrewHistoryRepository&&) = delete;
   ~AsyncBrewHistoryRepository() = default;
 
-  std::future<uint64_t> createEmptyLog();
+  std::future<DatabaseId> createEmptyEntry();
   template <typename Cb>
-  void createEmptyLog(Cb&& callback);
+  void createEmptyEntry(Cb&& callback);
 
-  std::future<void> completeLog(uint64_t id, CompletedBrewLog log);
+  std::future<void> completeEntry(DatabaseId id, CompletedBrewHistoryEntry entry);
   template <typename Cb>
-  void completeLog(uint64_t id, CompletedBrewLog log, Cb&& callback);
+  void completeEntry(DatabaseId id, CompletedBrewHistoryEntry entry, Cb&& callback);
 
-  std::future<CompletedBrewLog> get(uint64_t id);
+  std::future<CompletedBrewHistoryEntry> get(DatabaseId id);
   template <typename Cb>
-  void get(uint64_t id, Cb&& callback);
+  void get(DatabaseId id, Cb&& callback);
 
-  std::future<void> erase(uint64_t id);
+  std::future<void> erase(DatabaseId id);
   template <typename Cb>
-  void erase(uint64_t id, Cb&& callback);
+  void erase(DatabaseId id, Cb&& callback);
 
-  std::future<BrewLogsSearchResult> find(FindBrewLogs query);
+  std::future<BrewHistorySearchResult> find(FindBrewHistory query);
   template <typename Cb>
-  void find(FindBrewLogs query, Cb&& callback);
+  void find(FindBrewHistory query, Cb&& callback);
 
 private:
   BrewHistoryRepository m_repository;
@@ -51,32 +51,34 @@ private:
 };
 
 template <typename Cb>
-inline void AsyncBrewHistoryRepository::createEmptyLog(Cb&& callback)
+inline void AsyncBrewHistoryRepository::createEmptyEntry(Cb&& callback)
 {
-  m_executor.executeWithCallback(&BrewHistoryRepository::createEmptyLog, std::forward<Cb>(callback), &m_repository);
+  m_executor.executeWithCallback(&BrewHistoryRepository::createEmptyEntry,
+                                 std::forward<Cb>(callback),
+                                 &m_repository);
 }
 
 template <typename Cb>
-inline void AsyncBrewHistoryRepository::completeLog(uint64_t id, CompletedBrewLog log, Cb&& callback)
+inline void AsyncBrewHistoryRepository::completeEntry(DatabaseId id, CompletedBrewHistoryEntry entry, Cb&& callback)
 {
   m_executor.executeWithCallback(
-    &BrewHistoryRepository::completeLog, std::forward<Cb>(callback), &m_repository, id, std::move(log));
+    &BrewHistoryRepository::completeEntry, std::forward<Cb>(callback), &m_repository, id, std::move(entry));
 }
 
 template <typename Cb>
-inline void AsyncBrewHistoryRepository::get(uint64_t id, Cb&& callback)
+inline void AsyncBrewHistoryRepository::get(DatabaseId id, Cb&& callback)
 {
   m_executor.executeWithCallback(&BrewHistoryRepository::get, std::forward<Cb>(callback), &m_repository, id);
 }
 
 template <typename Cb>
-inline void AsyncBrewHistoryRepository::erase(uint64_t id, Cb&& callback)
+inline void AsyncBrewHistoryRepository::erase(DatabaseId id, Cb&& callback)
 {
   m_executor.executeWithCallback(&BrewHistoryRepository::erase, std::forward<Cb>(callback), &m_repository, id);
 }
 
 template <typename Cb>
-inline void AsyncBrewHistoryRepository::find(FindBrewLogs query, Cb&& callback)
+inline void AsyncBrewHistoryRepository::find(FindBrewHistory query, Cb&& callback)
 {
   m_executor.executeWithCallback(
     &BrewHistoryRepository::find, std::forward<Cb>(callback), &m_repository, std::move(query));

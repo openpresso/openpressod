@@ -1,6 +1,6 @@
 #include "async_events_dispatcher.hpp"
 
-#include "brew_log/brew_log_manager.hpp"
+#include "brew_history/brew_history_manager.hpp"
 #include "database/brew_history/async_repository.hpp" // IWYU pragma: keep
 #include "service/events_stream_reactor.hpp"
 #include "state_manager/brew_profile_manager.hpp"
@@ -21,12 +21,12 @@ using namespace openpressod;
 AsyncEventDispatcher::AsyncEventDispatcher(std::unique_ptr<StateManager> stateManager,
                                            std::unique_ptr<BrewProfileManager> brewProfileManager,
                                            std::unique_ptr<UserSettingsManager> userSettingsManager,
-                                           std::shared_ptr<BrewLogManager> brewLogManager,
+                                           std::shared_ptr<BrewHistoryManager> brewHistoryManager,
                                            std::shared_ptr<HistoryRepository> repository)
 : m_stateManager{std::move(stateManager)}
 , m_brewProfileManager{std::move(brewProfileManager)}
 , m_userSettings{std::move(userSettingsManager)}
-, m_brewLogManager(std::move(brewLogManager))
+, m_brewHistoryManager(std::move(brewHistoryManager))
 , m_historyRepository{std::move(repository)}
 , m_brewCallback{
     m_stateManager->registerBrewProfilerCallback([this](auto cbData) { brewCallback(cbData); }),
@@ -122,8 +122,8 @@ void AsyncEventDispatcher::doStartBrew()
   }
 
   m_stateManager->startBrew();
-  m_brewId = m_historyRepository->createEmptyLog().get();
-  m_brewLogManager->startBrew(m_brewId.value(), m_brewProfileManager->getProfile());
+  m_brewId = m_historyRepository->createEmptyEntry().get();
+  m_brewHistoryManager->startBrew(m_brewId.value(), m_brewProfileManager->getProfile());
 
   BrewState stateChange;
   stateChange.set_isactive(true);
@@ -136,7 +136,7 @@ void AsyncEventDispatcher::doStartBrew()
 
 void AsyncEventDispatcher::doStopBrew()
 {
-  m_brewLogManager->stopBrew();
+  m_brewHistoryManager->stopBrew();
 
   if (!m_stateManager->getBrewState()) {
     return;
@@ -231,7 +231,7 @@ void AsyncEventDispatcher::brewCallback(std::variant<step_index_t, stopped_flag_
 {
   auto visitor = overload{
     [this](step_index_t step) {
-      m_brewLogManager->setCurrentStep(step);
+      m_brewHistoryManager->setCurrentStep(step);
       m_executor.executeDiscardResult(&AsyncEventDispatcher::doNotifyBrewStepChange, this, step);
     },
     [this](stopped_flag_t) {

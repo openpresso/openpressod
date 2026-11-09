@@ -17,14 +17,14 @@
 using namespace openpressod;
 
 ServiceManager::ServiceManager(std::shared_ptr<AsyncEventDispatcher> dispatcher,
-                               std::shared_ptr<BrewLogManager> brewLogManager,
+                               std::shared_ptr<BrewHistoryManager> brewHistoryManager,
                                libopenpresso::CorePtr core,
                                std::shared_ptr<const BrewTimer> brewTimer,
                                std::shared_ptr<db::brew_profiles::AsyncBrewProfilesRepository> profilesRepository,
                                std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> historyRepository,
                                const OpenpressodConfig& config)
 : m_impl{std::move(dispatcher),
-         std::move(brewLogManager),
+         std::move(brewHistoryManager),
          std::move(core),
          std::move(brewTimer),
          std::move(profilesRepository),
