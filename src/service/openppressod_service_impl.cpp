@@ -10,7 +10,6 @@
 #include "metrics_stream_reactor.hpp"
 
 #include <chrono>
-#include <cstdint>
 #include <exception>
 #include <future>
 #include <memory>
@@ -29,6 +28,7 @@
 #include <openpresso_proto/events.pb.h>
 #include <openpresso_proto/machine_state.pb.h>
 #include <openpresso_proto/metrics.pb.h>
+#include <openpresso_proto/persistent_id.pb.h>
 #include <openpresso_proto/user_settings.pb.h>
 #include <spdlog/spdlog.h>
 #include <sqlite_orm/sqlite_orm.h>

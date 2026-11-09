@@ -6,7 +6,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <cstdint>
 #include <list>
 #include <mutex>
 #include <utility>
