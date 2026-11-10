@@ -2,8 +2,6 @@
 
 #include "config/libopenpresso_config_labels.hpp"
 
-#include <cmath>
-
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/types.hpp>
 #include <spdlog/spdlog.h>
