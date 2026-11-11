@@ -17,8 +17,8 @@ jobs:
 
       - name: Install jq
         run: |
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends jq
+            apt-get update
+            apt-get install -y --no-install-recommends jq
 
       - name: Copy conan config from root user
         run: cp -r /root/.conan2 ~/.conan2
