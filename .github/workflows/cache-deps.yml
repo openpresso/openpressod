@@ -15,6 +15,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Install jq
+        run: |
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends jq
+
       - name: Copy conan config from root user
         run: cp -r /root/.conan2 ~/.conan2
 
