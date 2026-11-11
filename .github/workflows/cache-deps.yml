@@ -1,0 +1,57 @@
+name: Cache dependencies
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cross-compile:
+    name: Cross-compile dependencies for ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [ armv6, armv8, x86_64 ]
+    container: ghcr.io/openpresso/openpresso-toolchain-${{ matrix.target }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Copy conan config from root user
+        run: cp -r /root/.conan2 ~/.conan2
+
+      - name: Add Conan remotes
+        uses: ./.github/actions/setup-conan-remotes
+        with:
+          version-type: testing
+          ci-user: ${{ vars.CONAN_CI_USER }}
+          ci-token: ${{ secrets.CONAN_DEPLOY_KEY }}
+          testing-repo: ${{ vars.OPENPRESSO_CONAN_TESTING }}
+          canary-repo: ${{ vars.OPENPRESSO_CONAN_CANARY }}
+          draft-repo: ${{ vars.OPENPRESSO_CONAN_DRAFT }}
+          stable-repo: ${{ vars.OPENPRESSO_CONAN_STABLE }}
+          conancenter-cache-repo: ${{ vars.OPENPRESSO_CONANCENTER_CACHE }}
+
+      - name: Login openpresso conancenter cache repo
+        run: conan remote login openpresso_conancenter_cache "${{ vars.CONAN_CI_USER }}" -p "${{ secrets.CONAN_DEPLOY_KEY }}"
+
+      - name: Install Conan dependencies
+        run: |
+          conan install -b=missing -o '&:build_docs=True' --format=json --out-file install-graph.json
+
+      - name: Make upload list
+        shell: bash
+        run: |
+            jq -r '
+                [.graph.nodes[]
+                | select(.binary == "Build"
+                        and .url == "https://github.com/conan-io/conan-center-index")
+                | "\(.ref):\(.package_id)#\(.prev)"]
+                | unique[]
+            ' "install-graph.json" > "$to-upload.txt"
+
+      - name: Upload to remote
+        run: |
+            while IFS= read -r reference; do
+                conan upload "$reference" --remote openpresso_conancenter_cache
+            done < "to-upload.txt"
+
+  
