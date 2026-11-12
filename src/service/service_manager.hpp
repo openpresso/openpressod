@@ -16,12 +16,16 @@ namespace openpressod
 class OpenpressodConfig;
 class AsyncEventDispatcher;
 class BrewTimer;
+class BrewHistoryManager;
 
 class ServiceManager {
 public:
-  ServiceManager(const std::shared_ptr<AsyncEventDispatcher>& dispatcher,
-                 const libopenpresso::CorePtr& core,
-                 const std::shared_ptr<const BrewTimer>& brewTimer,
+  ServiceManager(std::shared_ptr<AsyncEventDispatcher> dispatcher,
+                 std::shared_ptr<BrewHistoryManager> brewHistoryManager,
+                 libopenpresso::CorePtr core,
+                 std::shared_ptr<const BrewTimer> brewTimer,
+                 std::shared_ptr<db::brew_profiles::AsyncBrewProfilesRepository> profilesRepository,
+                 std::shared_ptr<db::brew_history::AsyncBrewHistoryRepository> historyRepository,
                  const OpenpressodConfig& config);
   ServiceManager(const ServiceManager&) = delete;
   ServiceManager(ServiceManager&&) = delete;

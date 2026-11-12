@@ -2,6 +2,7 @@
 
 #include "config_defaults.hpp"
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -38,10 +39,25 @@ OpenpressodConfig openpressod::OpenpressodConfig::fromString(const std::string& 
 
 std::filesystem::path openpressod::OpenpressodConfig::userSettingsPath() const
 {
-  return toml::find_or(m_config,
-                       "global",
-                       "user_settings_path",
-                       (daemonBaseDirectory() / DEFAULT_USER_SETTINGS_FILE_NAME).c_str());
+  return resolveDataPath(
+    toml::find_or(m_config, "global", "user_settings_path", DEFAULT_USER_SETTINGS_FILE_NAME));
+}
+
+std::filesystem::path OpenpressodConfig::historyDatabasePath() const
+{
+  return resolveDataPath(
+    toml::find_or(m_config, "global", "history_database_path", DEFAULT_HISTORY_DATABASE_FILE_NAME));
+}
+
+std::filesystem::path OpenpressodConfig::profilesDatabasePath() const
+{
+  return resolveDataPath(
+    toml::find_or(m_config, "global", "profiles_database_path", DEFAULT_PROFILES_DATABASE_FILE_NAME));
+}
+
+std::chrono::steady_clock::duration OpenpressodConfig::brewHistorySamplingInterval() const
+{
+  return toml::find_or(m_config, "global", "brew_history_sampling_interval", DEFAULT_BREW_HISTORY_SAMPLING_PERIOD);
 }
 
 bool OpenpressodConfig::pidStateMonitoringEnabled() const
@@ -51,10 +67,7 @@ bool OpenpressodConfig::pidStateMonitoringEnabled() const
 
 std::filesystem::path OpenpressodConfig::brewProfilePath() const
 {
-  return toml::find_or(m_config,
-                       "global",
-                       "brew_profile_path",
-                       (daemonBaseDirectory() / DEFAULT_BREW_PROFILE_FILE_NAME).c_str());
+  return resolveDataPath(toml::find_or(m_config, "global", "brew_profile_path", DEFAULT_BREW_PROFILE_FILE_NAME));
 }
 
 size_t OpenpressodConfig::mainsFrequency() const
@@ -82,7 +95,7 @@ std::filesystem::path OpenpressodConfig::socketPath() const
   return toml::find_or(m_config, "service", "socket_path", OPENPRESSOD_SOCKET_PATH);
 }
 
-bool openpressod::OpenpressodConfig::tcpEnable() const
+bool OpenpressodConfig::tcpEnable() const
 {
   return toml::find_or(m_config, "service", "tcp_enable", DEFAULT_SERVICE_TCP_ENABLE);
 }
@@ -363,7 +376,12 @@ libopenpresso::PidSettings OpenpressodConfig::steamActiveTemperatureControllerPi
   };
 }
 
-std::filesystem::path OpenpressodConfig::daemonBaseDirectory()
+std::filesystem::path OpenpressodConfig::daemonDataDirectory() const
 {
-  return OPENPRESSOD_DATA_DIR;
+  return toml::find_or(m_config, "global", "daemon_data_directory", OPENPRESSOD_DATA_DIR);
+}
+
+std::filesystem::path OpenpressodConfig::resolveDataPath(const std::filesystem::path& path) const
+{
+  return path.is_absolute() ? path : daemonDataDirectory() / path;
 }

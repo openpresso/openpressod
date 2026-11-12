@@ -10,7 +10,7 @@
 
 #include <libopenpresso/interfaces/brew_profiler.hpp>
 #include <libopenpresso/types.hpp>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/machine_state.pb.h>
 
 namespace libopenpresso::interfaces
 {
@@ -57,7 +57,7 @@ public:
   void setBrewSteps(const Steps& steps)
   {
     if (m_brewProfiler->isActive()) {
-      throw std::runtime_error{"Cannot set brew steps sequence brewing"};
+      throw std::runtime_error{"Cannot set brew steps sequence while brewing"};
     }
     m_brewProfiler->setSteps({steps.begin(), steps.end()});
   }

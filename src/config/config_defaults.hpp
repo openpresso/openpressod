@@ -14,6 +14,8 @@ using namespace std::chrono_literals;
 
 static constexpr auto DEFAULT_BREW_PROFILE_FILE_NAME = "brew_profile.json";
 static constexpr auto DEFAULT_USER_SETTINGS_FILE_NAME = "user_settings.json";
+static constexpr auto DEFAULT_HISTORY_DATABASE_FILE_NAME = "brew_history.db";
+static constexpr auto DEFAULT_PROFILES_DATABASE_FILE_NAME = "profiles.db";
 
 static constexpr auto DEFAULT_I2C_BUS = "/dev/i2c-0";
 static constexpr auto DEFAULT_GPIO_CHIP = "/dev/gpiochip0";
@@ -41,7 +43,8 @@ static constexpr auto DEFAULT_BUTTON_DEBOUNCE_PERIOD = 10ms;       // NOLINT(mis
 static constexpr auto DEFAULT_HEATER_READY_HYSTERESIS_PERIOD = 5s; // NOLINT(misc-include-cleaner)
 static constexpr auto DEFAULT_TEMPERATURE_D_FILTER_SMOOTHING_PERIOD = 750ms; // NOLINT(misc-include-cleaner)
 static constexpr auto DEFAULT_WEIGHT_D_FILTER_SMOOTHING_PERIOD = 600ms; // NOLINT(misc-include-cleaner)
-static constexpr auto DEFAULT_WATCHDOG_TIMEOUT = 1s; // NOLINT(misc-include-cleaner)
+static constexpr auto DEFAULT_WATCHDOG_TIMEOUT = 1s;                // NOLINT(misc-include-cleaner)
+static constexpr auto DEFAULT_BREW_HISTORY_SAMPLING_PERIOD = 100ms; // NOLINT(misc-include-cleaner)
 
 static constexpr libopenpresso::i2c_dev_addr_t DEFAULT_ADS1115_ADDR = 0x48;
 static constexpr libopenpresso::i2c_dev_addr_t DEFAULT_NAU7802_ADDR = 0x2a;

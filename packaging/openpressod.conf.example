@@ -7,8 +7,13 @@
 # mains_zc_pin = 17 # Required
 
 # pid_state_monitoring_enabled = false # Optional
-# user_settings_path = "/var/lib/openpressod/user_settings.json" # Optional
-# brew_profile_path = "/var/lib/openpressod/brew_profile.json" # Optional
+# daemon_data_directory = "/var/lib/openpressod" # Optional
+# Data-file paths may be absolute or relative to daemon_data_directory (including just a filename).
+# user_settings_path = "user_settings.json" # Optional
+# brew_profile_path = "brew_profile.json" # Optional
+# brew_history_sampling_interval = 00:00:00.100 # Optional
+# history_database_path = "brew_history.db" # Optional
+# profiles_database_path = "profiles.db" # Optional
 # i2c_bus = "/dev/i2c-0" # Optional
 # gpio_chip = "/dev/gpiochip0" # Optional
 

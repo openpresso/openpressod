@@ -17,7 +17,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <libopenpresso/interfaces/temperature_sensor.hpp>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/machine_state.pb.h>
 
 using namespace std::chrono_literals;
 using namespace openpressod;

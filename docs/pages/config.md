@@ -40,11 +40,17 @@ Main system-wide parameters.
 |-----|------|----------|---------|-------------|
 | `mains_frequency` | Integer | **Yes** | — | AC mains frequency in Hz. Allowed values: `50` or `60`. |
 | `mains_zc_pin` | Integer | **Yes** | — | GPIO pin number used for AC mains zero-cross detection. |
-| `user_settings_path` | String | No | `/var/lib/openpressod/user_settings.json` | Absolute path to the runtime user settings file. |
-| `brew_profile_path` | String | No | `/var/lib/openpressod/brew_profile.json` | Absolute path to the active brew profile file. |
+| `daemon_data_directory` | String | No | `@OPENPRESSOD_DATA_DIR@` | Base directory for persistent daemon data files. |
+| `user_settings_path` | String | No | `user_settings.json` | Absolute path or path relative to `daemon_data_directory` for runtime user settings. |
+| `brew_profile_path` | String | No | `brew_profile.json` | Absolute path or path relative to `daemon_data_directory` for the active brew profile. |
+| `history_database_path` | String | No | `brew_history.db` | Absolute path or path relative to `daemon_data_directory` for the brew history database. |
+| `brew_history_sampling_interval` | TOML time | No | `00:00:00.100` | Interval between metrics samples within a brew history entry. |
+| `profiles_database_path` | String | No | `profiles.db` | Absolute path or path relative to `daemon_data_directory` for the brew profiles database. |
 | `i2c_bus` | String | No | `/dev/i2c-0` | I²C bus device path. |
 | `gpio_chip` | String | No | `/dev/gpiochip0` | GPIO chip device path. |
 | `pid_state_monitoring_enabled` | Boolean | No | `false` | Enables detailed diagnostic PID state publishing over the metrics stream. |
+
+The four data-file paths accept a filename (for example, `history_database_path = "history.db"`), a nested relative path, or an absolute path. Relative paths and default filenames resolve under `daemon_data_directory`; absolute paths are used unchanged. With the default directory, the history database path is `@OPENPRESSOD_DATA_DIR@/brew_history.db`.
 
 ---
 

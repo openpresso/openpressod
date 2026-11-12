@@ -2,6 +2,8 @@ find_package(spdlog REQUIRED)
 find_package(toml11 REQUIRED)
 find_package(CLI11 REQUIRED)
 find_package(magic_enum REQUIRED)
+find_package(SqliteOrm REQUIRED)
+find_package(xxHash REQUIRED)
 find_package(openpresso_proto REQUIRED)
 find_package(libopenpresso REQUIRED)
 
@@ -9,10 +11,12 @@ add_library(openpressod_objects OBJECT)
 target_link_libraries(openpressod_objects PUBLIC
     spdlog::spdlog
     CLI11::CLI11
-    openpresso_proto::openpresso_proto  
-    libopenpresso::libopenpresso
     toml11::toml11
     magic_enum::magic_enum
+    sqlite_orm::sqlite_orm
+    xxHash::xxhash
+    openpresso_proto::openpresso_proto  
+    libopenpresso::libopenpresso
 )
 
 add_executable(openpressod)
@@ -43,5 +47,7 @@ add_subdirectory(signals_handler)
 add_subdirectory(leds)
 add_subdirectory(service)
 add_subdirectory(utils)
+add_subdirectory(brew_history)
+add_subdirectory(database)
 
 install(TARGETS openpressod RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

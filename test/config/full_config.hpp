@@ -4,6 +4,9 @@
 // Full config that overrides every optional/default field
 static constexpr auto FULL_CONFIG = R"(
 [global]
+daemon_data_directory = "/custom/data"
+history_database_path = "/custom/history.db"
+profiles_database_path = "/custom/profiles.db"
 mains_frequency = 60
 mains_zc_pin = 5
 brew_profile_path = "/custom/profile.json"
@@ -11,6 +14,7 @@ i2c_bus = "/dev/i2c-1"
 gpio_chip = "/dev/gpiochip4"
 user_settings_path = "/custom/user_settings.json"
 pid_state_monitoring_enabled = true
+brew_history_sampling_interval = 00:00:00.025
 
 [service]
 socket_path = "/tmp/custom.sock"

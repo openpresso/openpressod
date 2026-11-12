@@ -5,7 +5,7 @@
 
 #include <libopenpresso/brew_steps_data.hpp>
 #include <libopenpresso/types.hpp>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/brew_profile.pb.h>
 
 namespace openpressod
 {
@@ -21,7 +21,7 @@ public:
   void saveProfile(const BrewProfile& profile);
   const BrewProfile& getProfile() const noexcept;
 
-  void applyBrewProfile(StateManager& stateManager) const;
+  void applyBrewProfile(StateManager& stateManager);
 
 private:
   static BrewProfile makeDefaultProfile(const OpenpressodConfig& config);

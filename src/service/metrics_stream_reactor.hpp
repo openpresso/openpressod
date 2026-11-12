@@ -9,7 +9,6 @@
 #include <optional>
 #include <thread>
 
-#include <google/protobuf/duration.pb.h>
 #include <grpcpp/support/server_callback.h>
 #include <libopenpresso/interfaces/libopenpresso_core.hpp>
 #include <libopenpresso/interfaces/pid_controller_state.hpp>
@@ -17,7 +16,7 @@
 #include <libopenpresso/interfaces/temperature_sensor.hpp>
 #include <libopenpresso/interfaces/weight_sensor.hpp>
 #include <libopenpresso/types.hpp>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/metrics.pb.h>
 
 namespace openpressod
 {
@@ -49,8 +48,6 @@ private:
   static PidStatePtr getPidControllerState(const libopenpresso::CorePtr& core,
                                            const std::optional<libopenpresso::component_label_t>& label);
   static std::optional<libopenpresso::component_label_t> pidSourceToControllerLabel(PidSource pidSource);
-  static void toProtoDuration(std::chrono::steady_clock::duration duration,
-                              google::protobuf::Duration& result);
 
 private:
   libopenpresso::PressureSensorPtr m_pressureSensor;

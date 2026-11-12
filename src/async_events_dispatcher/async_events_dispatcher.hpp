@@ -1,20 +1,26 @@
 #ifndef ASYNC_EVENTS_DISPATCHER_HPP
 #define ASYNC_EVENTS_DISPATCHER_HPP
 
+#include "brew_history/brew_history_manager.hpp"
 #include "buttons/buttons_event_sink.hpp"
-#include "procedures_serial_executor.hpp"
+#include "database/database_id.hpp"
 #include "service/events_stream_reactor.hpp"
 #include "state_manager/brew_profile_manager.hpp"
 #include "state_manager/state_manager.hpp"
 #include "state_manager/user_settings_manager.hpp"
+#include "utils/procedures_serial_executor.hpp"
 
 #include <list>
 #include <memory>
+#include <optional>
+#include <stdexcept>
 #include <utility>
 #include <variant>
 
 #include <libopenpresso/types.hpp>
-#include <openpresso_proto/openpresso.pb.h>
+#include <openpresso_proto/brew_profile.pb.h>
+#include <openpresso_proto/machine_state.pb.h>
+#include <openpresso_proto/user_settings.pb.h>
 
 namespace openpressod
 {
@@ -22,14 +28,22 @@ namespace openpressod
 class BrewProfile;
 class EventsStreamReactor;
 
+namespace db::brew_history
+{
+class AsyncBrewHistoryRepository;
+}
+
 class AsyncEventDispatcher : public ButtonsEventSink {
   using step_index_t = libopenpresso::interfaces::BrewProfiler::step_index_t;
   using stopped_flag_t = libopenpresso::interfaces::BrewProfiler::stopped_flag_t;
+  using HistoryRepository = db::brew_history::AsyncBrewHistoryRepository;
 
 public:
   AsyncEventDispatcher(std::unique_ptr<StateManager> stateManager,
                        std::unique_ptr<BrewProfileManager> brewProfileManager,
-                       std::unique_ptr<UserSettingsManager> userSettingsManager);
+                       std::unique_ptr<UserSettingsManager> userSettingsManager,
+                       std::shared_ptr<BrewHistoryManager> brewHistoryManager,
+                       std::shared_ptr<HistoryRepository> repository);
   AsyncEventDispatcher(const AsyncEventDispatcher&) = delete;
   AsyncEventDispatcher(AsyncEventDispatcher&&) = delete;
   auto operator=(const AsyncEventDispatcher&) = delete;
@@ -53,7 +67,7 @@ public:
   void getBrewProfile(Cb&& callback);
 
   template <typename Cb>
-  void setBrewProfile(const BrewProfile* profile, Cb&& callback);
+  void setBrewProfile(BrewProfile profile, Cb&& callback);
 
   template <typename Cb>
   void getPowerState(Cb&& callback);
@@ -99,6 +113,9 @@ private:
   std::unique_ptr<StateManager> m_stateManager;
   std::unique_ptr<BrewProfileManager> m_brewProfileManager;
   std::unique_ptr<UserSettingsManager> m_userSettings;
+  std::shared_ptr<BrewHistoryManager> m_brewHistoryManager;
+  std::shared_ptr<HistoryRepository> m_historyRepository;
+  std::optional<DatabaseId> m_brewId;
   std::list<std::unique_ptr<EventsStreamReactor>> m_eventsSinks;
   ProceduresSerialExecutor m_executor;
   libopenpresso::callback_descriptor_t m_brewCallback;
@@ -115,20 +132,31 @@ inline void AsyncEventDispatcher::resetWeight(Cb&& callback)
 template <typename Cb>
 inline void AsyncEventDispatcher::getBrewProfile(Cb&& callback)
 {
-  m_executor.executeWithCallback(&BrewProfileManager::getProfile,
-                                 std::forward<Cb>(callback),
-                                 m_brewProfileManager.get());
+  m_executor.executeWithCallback(
+    [this] {
+      ActiveBrewProfile profileInfo;
+      profileInfo.mutable_profile()->CopyFrom(m_brewProfileManager->getProfile());
+      return profileInfo;
+    },
+    std::forward<Cb>(callback));
 }
 
 template <typename Cb>
-inline void AsyncEventDispatcher::setBrewProfile(const BrewProfile* profile, Cb&& callback)
+inline void AsyncEventDispatcher::setBrewProfile(BrewProfile profile, Cb&& callback)
 {
   m_executor.executeWithCallback(
-    [this, profile] {
-      m_brewProfileManager->saveProfile(*profile);
+    [this, profile = std::move(profile)] mutable {
+      if (m_stateManager->getBrewState()) {
+        throw std::runtime_error{"Cannot change profile while brewing"};
+      }
+      m_brewProfileManager->saveProfile(profile);
       m_brewProfileManager->applyBrewProfile(*m_stateManager);
+
+      ActiveBrewProfile profileUpdate;
+      *profileUpdate.mutable_profile() = std::move(profile);
+
       for (auto&& sink : m_eventsSinks) {
-        sink->notifyChanged(*profile);
+        sink->notifyChanged(profileUpdate);
       }
     },
     std::forward<Cb>(callback));
@@ -151,31 +179,28 @@ inline void AsyncEventDispatcher::setPowerState(bool state, Cb&& callback)
 template <typename Cb>
 inline void AsyncEventDispatcher::getBrewState(Cb&& callback)
 {
-  m_executor.executeWithCallback(&StateManager::getBrewState,
-                                 std::forward<Cb>(callback),
-                                 m_stateManager.get());
+  m_executor.executeWithCallback(
+    [this] {
+      BrewState state;
+      state.set_isactive(m_stateManager->getBrewState());
+      if (m_brewId.has_value()) {
+        state.set_brewid(m_brewId.value());
+      }
+      return state;
+    },
+    std::forward<Cb>(callback));
 }
 
 template <typename Cb>
 inline void AsyncEventDispatcher::startBrew(Cb&& callback)
 {
-  m_executor.executeWithCallback(&StateManager::startBrew,
-                                 std::forward<Cb>(callback),
-                                 m_stateManager.get());
+  m_executor.executeWithCallback(&AsyncEventDispatcher::doStartBrew, std::forward<Cb>(callback), this);
 }
 
 template <typename Cb>
 inline void AsyncEventDispatcher::stopBrew(Cb&& callback)
 {
-  m_executor.executeWithCallback(
-    [this] {
-      m_stateManager->stopBrew();
-      BrewProgress noProgress;
-      for (auto&& sink : m_eventsSinks) {
-        sink->notifyChanged(noProgress);
-      }
-    },
-    std::forward<Cb>(callback));
+  m_executor.executeWithCallback(&AsyncEventDispatcher::doStopBrew, std::forward<Cb>(callback), this);
 }
 
 template <typename Cb>

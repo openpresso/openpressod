@@ -2,9 +2,11 @@
 #include "full_config.hpp"
 #include "minimal_config.hpp"
 
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <pwd.h>
+#include <string>
 #include <unistd.h>
 
 #include <gtest/gtest.h>
@@ -13,11 +15,6 @@ using openpressod::OpenpressodConfig;
 using namespace std::chrono_literals;
 
 static const auto EXPECTED_DAEMON_DIR = std::filesystem::path{"/var/lib/openpressod"};
-
-TEST(OpenpressodConfig, DaemonBaseDirectory)
-{
-  EXPECT_EQ(EXPECTED_DAEMON_DIR, OpenpressodConfig::daemonBaseDirectory());
-}
 
 TEST(OpenpressodConfig, MissingConfigFileThrows)
 {
@@ -31,9 +28,12 @@ TEST(OpenpressodConfig, DefaultValues)
   // [global] defaults
   EXPECT_EQ(EXPECTED_DAEMON_DIR / "brew_profile.json", config.brewProfilePath());
   EXPECT_EQ(EXPECTED_DAEMON_DIR / "user_settings.json", config.userSettingsPath());
+  EXPECT_EQ(EXPECTED_DAEMON_DIR / "brew_history.db", config.historyDatabasePath());
+  EXPECT_EQ(EXPECTED_DAEMON_DIR / "profiles.db", config.profilesDatabasePath());
   EXPECT_EQ("/dev/i2c-0", config.i2cBus());
   EXPECT_EQ("/dev/gpiochip0", config.gpioChip());
   EXPECT_FALSE(config.pidStateMonitoringEnabled());
+  EXPECT_EQ(100ms, config.brewHistorySamplingInterval());
 
   // [service] defaults
   EXPECT_EQ("/run/openpresso/openpresso.sock", config.socketPath());
@@ -85,6 +85,52 @@ TEST(OpenpressodConfig, DefaultValues)
   EXPECT_EQ(2500U, config.steamPressureThreshold());
   EXPECT_EQ(155'000, config.steamTemperature());
   EXPECT_EQ(500, config.steamRefillFlow());
+}
+
+TEST(OpenpressodConfig, CustomDataDirectoryForDefaultFiles)
+{
+  const auto config = OpenpressodConfig::fromString(R"(
+[global]
+daemon_data_directory = "/custom/data"
+)");
+
+  EXPECT_EQ("/custom/data/brew_profile.json", config.brewProfilePath());
+  EXPECT_EQ("/custom/data/user_settings.json", config.userSettingsPath());
+  EXPECT_EQ("/custom/data/brew_history.db", config.historyDatabasePath());
+  EXPECT_EQ("/custom/data/profiles.db", config.profilesDatabasePath());
+  EXPECT_EQ("/run/openpresso/openpresso.sock", config.socketPath());
+  EXPECT_EQ("/dev/i2c-0", config.i2cBus());
+  EXPECT_EQ("/dev/gpiochip0", config.gpioChip());
+  EXPECT_EQ("/dev/watchdog0", config.watchdogDevice());
+  EXPECT_EQ("/dev/spidev0.0", config.temperatureSensorSpiAddr());
+}
+
+TEST(OpenpressodConfig, RelativeDataPaths)
+{
+  struct DirectoryCase {
+    std::string config;
+    std::filesystem::path expectedDirectory;
+  };
+  const std::array directories{
+    DirectoryCase{"", EXPECTED_DAEMON_DIR},
+    DirectoryCase{"daemon_data_directory = \"/custom/data\"\n", "/custom/data"},
+  };
+
+  for (const auto& directory : directories) {
+    for (const std::string prefix : {"", "nested/data/"}) {
+      SCOPED_TRACE(directory.expectedDirectory.string() + "/" + prefix);
+      const auto config = OpenpressodConfig::fromString(
+        "[global]\n" + directory.config + "brew_profile_path = \"" + prefix + "active.json\"\n" +
+        "user_settings_path = \"" + prefix + "settings.json\"\n" + "history_database_path = \"" +
+        prefix + "history.sqlite\"\n" + "profiles_database_path = \"" + prefix + "profiles.sqlite\"\n");
+
+      const auto expectedDirectory = directory.expectedDirectory / prefix;
+      EXPECT_EQ(expectedDirectory / "active.json", config.brewProfilePath());
+      EXPECT_EQ(expectedDirectory / "settings.json", config.userSettingsPath());
+      EXPECT_EQ(expectedDirectory / "history.sqlite", config.historyDatabasePath());
+      EXPECT_EQ(expectedDirectory / "profiles.sqlite", config.profilesDatabasePath());
+    }
+  }
 }
 
 TEST(OpenpressodConfig, MissingFieldsThrows)
@@ -221,9 +267,12 @@ TEST(OpenpressodConfig, FullConfig)
   EXPECT_EQ(5, config.mainsZeroCrossPin());
   EXPECT_EQ("/custom/profile.json", config.brewProfilePath());
   EXPECT_EQ("/custom/user_settings.json", config.userSettingsPath());
+  EXPECT_EQ("/custom/history.db", config.historyDatabasePath());
+  EXPECT_EQ("/custom/profiles.db", config.profilesDatabasePath());
   EXPECT_EQ("/dev/i2c-1", config.i2cBus());
   EXPECT_EQ("/dev/gpiochip4", config.gpioChip());
   EXPECT_TRUE(config.pidStateMonitoringEnabled());
+  EXPECT_EQ(25ms, config.brewHistorySamplingInterval());
 
   // [service]
   EXPECT_EQ("/tmp/custom.sock", config.socketPath());
