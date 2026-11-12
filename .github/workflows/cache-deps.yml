@@ -51,7 +51,7 @@ jobs:
                         and .url == "https://github.com/conan-io/conan-center-index")
                 | "\(.ref):\(.package_id)#\(.prev)"]
                 | unique[]
-            ' "install-graph.json" > "$to-upload.txt"
+            ' "install-graph.json" > "to-upload.txt"
 
       - name: Upload to remote
         run: |
